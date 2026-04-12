@@ -261,113 +261,6 @@ async def _claude_analyze(
         return None
 
 
-# ── 정적 폴백 ─────────────────────────────────────────────────────────────────
-
-_STATIC_FALLBACK: dict[str, dict[str, Any]] = {
-    "SG_hydrine_hydroxyurea_500": {
-        "verdict": "조건부",
-        "verdict_en": "CONDITIONAL",
-        "rationale": (
-            "Hydrine(hydroxyurea 500mg)은 HSA 등재 가능성이 높으나 세포독성 약물로서 "
-            "특별 취급·운송 요건을 충족해야 합니다. "
-            "싱가포르 병원 채널에서 겸상적혈구병 및 만성 골수성 백혈병 치료제로 수요가 있으며, "
-            "현지 경쟁 제품 대비 가격 경쟁력 확보 여부가 핵심입니다. "
-            "GMP 인증 및 콜드체인 물류 체계 구축을 전제로 수출이 가능합니다."
-        ),
-        "key_factors": ["세포독성 취급 요건", "병원 채널 수요", "가격 경쟁력"],
-        "sources": [{"name": "HSA 등재 DB (내부)", "url": "내부 데이터"}],
-        "confidence_note": "정적 폴백 — API 키 미설정",
-    },
-    "SG_gadvoa_gadobutrol_604": {
-        "verdict": "조건부",
-        "verdict_en": "CONDITIONAL",
-        "rationale": (
-            "Gadvoa Inj.(gadobutrol)은 MRI 조영제로 HSA 등재 절차가 필요합니다. "
-            "콜드체인 유지와 병원 직접 공급 채널 확보가 선행되어야 하며, "
-            "기존 등재 제품(Gadovist 등)과의 임상적 동등성 입증이 요구될 수 있습니다."
-        ),
-        "key_factors": ["HSA 등재 필요", "콜드체인", "병원 직공급 채널"],
-        "sources": [{"name": "HSA 등재 DB (내부)", "url": "내부 데이터"}],
-        "confidence_note": "정적 폴백 — API 키 미설정",
-    },
-    "SG_sereterol_activair": {
-        "verdict": "적합",
-        "verdict_en": "SUITABLE",
-        "rationale": (
-            "Sereterol Activair(fluticasone/salmeterol)은 HSA 등재된 성분 조합으로 "
-            "소매 채널 진입이 상대적으로 용이합니다. "
-            "Guardian·Watsons 등 약국 유통망을 통한 판매가 가능하며, "
-            "천식·COPD 환자 수요가 안정적입니다. "
-            "특허 만료 여부 확인 후 제네릭 포지셔닝 전략을 수립해야 합니다."
-        ),
-        "key_factors": ["HSA 등재 성분", "소매 약국망 활용 가능", "특허 확인 필요"],
-        "sources": [{"name": "HSA 등재 DB (내부)", "url": "내부 데이터"}],
-        "confidence_note": "정적 폴백 — API 키 미설정",
-    },
-    "SG_omethyl_omega3_2g": {
-        "verdict": "적합",
-        "verdict_en": "SUITABLE",
-        "rationale": (
-            "Omethyl(omega-3 2g)은 HSA 등재 성분으로 규제 장벽이 낮습니다. "
-            "고중성지방혈증 치료제로 의사 처방 및 소매 OTC 채널 모두 가능성이 있습니다. "
-            "현지 경쟁 제품 대비 용량(2g) 차별화 포인트를 마케팅에 활용할 수 있습니다."
-        ),
-        "key_factors": ["낮은 규제 장벽", "OTC 전환 가능성", "용량 차별화"],
-        "sources": [{"name": "HSA 등재 DB (내부)", "url": "내부 데이터"}],
-        "confidence_note": "정적 폴백 — API 키 미설정",
-    },
-    "SG_rosumeg_combigel": {
-        "verdict": "조건부",
-        "verdict_en": "CONDITIONAL",
-        "rationale": (
-            "Rosumeg Combigel(rosuvastatin/omega-3 복합제)은 HSA별도 등재가 필요한 복합제입니다. "
-            "단일 성분 제품 대비 규제 심사 기간이 길어질 수 있으나, "
-            "복합요법 환자의 복약 순응도 개선 효과를 임상 근거로 제시하면 승인 가능성이 있습니다."
-        ),
-        "key_factors": ["복합제 별도 등재 요건", "복약 순응도 임상 근거", "경쟁 단일제 대비 가격"],
-        "sources": [{"name": "HSA 등재 DB (내부)", "url": "내부 데이터"}],
-        "confidence_note": "정적 폴백 — API 키 미설정",
-    },
-    "SG_atmeg_combigel": {
-        "verdict": "조건부",
-        "verdict_en": "CONDITIONAL",
-        "rationale": (
-            "Atmeg Combigel(atorvastatin/omega-3 복합제)은 HSA 별도 등재가 필요합니다. "
-            "atorvastatin은 이미 싱가포르에서 널리 처방되는 성분이므로 "
-            "복합제의 임상적 추가 효익을 명확히 입증하는 것이 허가 전략의 핵심입니다."
-        ),
-        "key_factors": ["복합제 별도 등재", "임상 추가 효익 입증", "atorvastatin 기반 경쟁"],
-        "sources": [{"name": "HSA 등재 DB (내부)", "url": "내부 데이터"}],
-        "confidence_note": "정적 폴백 — API 키 미설정",
-    },
-    "SG_ciloduo_cilosta_rosuva": {
-        "verdict": "조건부",
-        "verdict_en": "CONDITIONAL",
-        "rationale": (
-            "Ciloduo(cilostazol/rosuvastatin)는 혁신 복합제로 HSA SAR 검토가 진행 중입니다. "
-            "비교 임상 자료 제출이 요구될 가능성이 높으며, "
-            "말초동맥질환 + 이상지질혈증 동반 환자군에서 의학적 필요성을 확보해야 합니다."
-        ),
-        "key_factors": ["SAR 검토 진행 중", "비교 임상 자료 필요", "복합 환자군 타겟"],
-        "sources": [{"name": "HSA SAR 내부 자료", "url": "내부 데이터"}],
-        "confidence_note": "정적 폴백 — API 키 미설정",
-    },
-    "SG_gastiin_cr_mosapride": {
-        "verdict": "부적합",
-        "verdict_en": "UNSUITABLE",
-        "rationale": (
-            "Gastiin CR(mosapride 서방정)은 아시아 외 국가에서 승인 데이터가 부족하여 "
-            "HSA 심사에서 불리한 위치에 있습니다. "
-            "mosapride 자체는 일본·한국 등 아시아에서 사용되나 싱가포르 HSA 등재 전례가 제한적입니다. "
-            "서방정 제형의 추가 생동성 시험 요구 가능성이 있어 현 단계에서 수출 추진이 어렵습니다."
-        ),
-        "key_factors": ["HSA 등재 전례 부족", "서방정 생동성 시험 요구 가능", "아시아 외 데이터 부족"],
-        "sources": [{"name": "HSA SAR 내부 자료", "url": "내부 데이터"}],
-        "confidence_note": "정적 폴백 — API 키 미설정",
-    },
-}
-
-
 # ── 단일 품목 분석 ─────────────────────────────────────────────────────────────
 
 async def analyze_product(
@@ -437,16 +330,22 @@ async def analyze_product(
                 result = result2
                 analysis_model = "claude-sonnet-4-6+perplexity"
 
-    # 정적 폴백
+    # API 미설정 또는 분석 실패 시 — 보고서에 명확히 표시
     if result is None:
-        result = dict(_STATIC_FALLBACK.get(product_id, {
-            "verdict": "조건부",
-            "verdict_en": "CONDITIONAL",
-            "rationale": "분석 데이터 부족 — API 키를 설정하면 Claude 분석이 실행됩니다.",
+        no_api = not bool(claude_key)
+        result = {
+            "verdict": None,
+            "verdict_en": None,
+            "rationale": (
+                "Claude API 키 미설정 — CLAUDE_API_KEY 또는 ANTHROPIC_API_KEY "
+                "환경변수를 설정하면 실제 분석이 실행됩니다."
+                if no_api else
+                "Claude API 분석 실패 — API 키를 확인하거나 잠시 후 다시 시도하세요."
+            ),
             "key_factors": [],
             "sources": [],
-            "confidence_note": "정적 폴백",
-        }))
+            "confidence_note": "API 미설정" if no_api else "분석 실패",
+        }
 
     return {
         "product_id": product_id,
@@ -454,8 +353,8 @@ async def analyze_product(
         "inn": meta["inn"],
         "market_segment": meta["market_segment"],
         "price_local_sgd": db_row.get("price_local") if db_row else None,
-        "verdict": result.get("verdict", "조건부"),
-        "verdict_en": result.get("verdict_en", "CONDITIONAL"),
+        "verdict": result.get("verdict"),          # None = API 미설정
+        "verdict_en": result.get("verdict_en"),
         "rationale": result.get("rationale", ""),
         "key_factors": result.get("key_factors", []),
         "sources": result.get("sources", []),

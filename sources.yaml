@@ -49,3 +49,16 @@ sources:
     access_method: playwright
     proxy: residential
     cron_slot: "45 23 * * *"
+
+  unity_sg:
+    tier: 3
+    url_seed: "https://www.unity.com.sg/"
+    access_method: playwright
+    proxy: residential
+    cron_slot: "0 0 * * *"
+
+  gebiz_award:
+    tier: 1
+    url_seed: "https://www.gebiz.gov.sg/ptn/ppplisting"
+    access_method: playwright
+    cron_slot: "10 4 * * 1"

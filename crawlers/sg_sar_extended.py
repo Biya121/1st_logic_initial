@@ -14,12 +14,14 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from crawlers.common import map_to_schema
 from crawlers.crawl_context import CrawlContext
 from crawlers.site_dashboard import emit_site
 from utils.domain_validator import is_trusted_domain
+from utils.hsa_registry import load_registry
 
 Emit = Callable[[dict[str, Any]], Awaitable[None]]
 
@@ -55,6 +57,67 @@ _FALLBACK_REF_COUNTRY = {
     "SG_ciloduo_cilosta_rosuva": "Malaysia",
     "SG_gastiin_cr_mosapride": "Philippines",
 }
+
+
+# ── HSA 등록 선행 검증 ────────────────────────────────────────────────────────
+# Confidence < 0.5 품목은 가격 수집 전에 HSA 등록 여부를 먼저 확인한다.
+# 미등록이면 hsa_registered=False 플래그 + confidence 강제 0.30 (fallback 상한).
+
+def _check_hsa_registered_csv(
+    trade_name: str,
+    scientific_name: str,
+    csv_path: Path | None,
+) -> bool:
+    """HSA CSV에서 trade_name 또는 모든 성분 INN이 동일 행에 등재된 제품 확인.
+
+    복합제의 경우 개별 성분 단독 제품에 오매칭되지 않도록
+    모든 INN 토큰이 한 행의 active_ingredients에 동시에 포함될 때만 True.
+    단일 성분 제품은 토큰 1개이므로 기존과 동일하게 동작.
+    """
+    if csv_path is None or not csv_path.is_file():
+        return False
+    try:
+        registry = load_registry(csv_path)
+    except Exception:
+        return False
+
+    trade_lower = trade_name.lower()
+    # "/" 구분 복합 성분 → 각 성분을 개별 토큰으로 분리 (4자 이하 제외)
+    inn_components = [
+        comp.strip().lower()
+        for comp in scientific_name.replace("/", "|").split("|")
+        if len(comp.strip()) > 4
+    ]
+
+    for row in registry.values():
+        pname = (row.get("product_name") or "").lower()
+        ingredients = (row.get("active_ingredients") or "").lower()
+        # 상품명 직접 매칭
+        if trade_lower in pname:
+            return True
+        # 모든 성분 INN이 동일 행에 동시에 존재해야 함 (복합제 오매칭 방지)
+        if inn_components and all(tok in ingredients for tok in inn_components):
+            return True
+    return False
+
+
+async def _hsa_pre_check(
+    target: dict[str, Any],
+    csv_path: Path | None,
+    emit: Emit,
+) -> bool:
+    """HSA 등록 여부 확인 후 emit. 미등록이면 False."""
+    registered = _check_hsa_registered_csv(
+        target["trade_name"], target["scientific_name"], csv_path
+    )
+    level = "success" if registered else "warn"
+    status_str = "HSA 등록 확인됨" if registered else "HSA 미등록 — 가격 신뢰도 상한 0.30"
+    await emit({
+        "phase": "sg_sar_extended",
+        "level": level,
+        "message": f"[HSA 선행 검증] {target['trade_name']}: {status_str}",
+    })
+    return registered
 
 
 # ── 레이어 1: Claude Haiku SAR 판단 ─────────────────────────────────────────
@@ -235,13 +298,13 @@ def _layer3_fallback(target: dict[str, Any]) -> dict[str, Any]:
 # ── 메인 run ──────────────────────────────────────────────────────────────────
 
 async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
-    _ = ctx
     await emit_site(
         emit, "sar", "running",
-        "⑧ SAR: 미등재 품목 — 해외·국제 참고가 단계(L1 Haiku → L2 Perplexity → L3 정책 기본값)…",
+        "⑧ SAR: 미등재 품목 — HSA 선행 검증 → L1 Haiku → L2 Perplexity → L3 정책 기본값…",
     )
     await emit({"phase": "sg_sar_extended", "level": "info", "message": "SAR 3레이어 시작"})
 
+    csv_path = ctx.root / "datas" / "ListingofRegisteredTherapeuticProducts.csv"
     out: list[dict[str, Any]] = []
 
     for target in _SAR_TARGETS:
@@ -252,6 +315,11 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
             "level": "info",
             "message": f"SAR 처리 시작: {trade} ({pid})",
         })
+
+        # ── HSA 선행 검증 (confidence < 0.5 품목 필수) ─────────────────────
+        hsa_registered = await _hsa_pre_check(target, csv_path, emit)
+        # 미등록이면 L1·L2는 실행하되 confidence 상한을 0.30으로 고정
+        conf_cap = None if hsa_registered else _CONF_FALLBACK
 
         # 레이어 1
         l1 = await _layer1_haiku(target, emit)
@@ -297,6 +365,10 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
                 "message": f"[L3] {trade}: 레이어 1·2 모두 실패 — 정책 기본값 사용",
             })
 
+        # HSA 미등록 시 confidence 상한 적용
+        if conf_cap is not None:
+            confidence = min(confidence, conf_cap)
+
         item = {
             "product_id": pid,
             "trade_name": trade,
@@ -309,6 +381,8 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
             "sg_source_type": source_type,
             "sar_feasibility": feasibility,
             "reference_country": ref_country,
+            "hsa_registered": hsa_registered,
+            "source_method": "sar_reference",
         }
         rec = map_to_schema(
             item,

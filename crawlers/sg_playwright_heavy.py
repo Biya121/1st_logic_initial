@@ -30,6 +30,7 @@ Emit = Callable[[dict[str, Any]], Awaitable[None]]
 
 _GUARDIAN_DEFAULT = "https://www.guardian.com.sg/"
 _WATSONS_DEFAULT = "https://www.watsons.com.sg/"
+_UNITY_DEFAULT = "https://www.unity.com.sg/"
 
 # 보고서 §7-5: confidence dynamic_crawl 범위
 _CONF_LIVE = 0.78
@@ -190,6 +191,7 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
 
     g_url = _retail_url(ctx, "guardian_sg", _GUARDIAN_DEFAULT)
     w_url = _retail_url(ctx, "watsons_sg", _WATSONS_DEFAULT)
+    u_url = _retail_url(ctx, "unity_sg", _UNITY_DEFAULT)
 
     await emit_site(emit, "guardian", "running",
                     "⑥ Guardian: 약국몰 소매가 단계(브라우저 자동화는 PLAYWRIGHT_LIVE=1)…")
@@ -216,6 +218,13 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
         )
         extracted["SG_hydrine_hydroxyurea_500"] = price_h
 
+        # Sereterol 삼각검증 → Unity
+        await emit_site(emit, "unity", "running", "⑦-U Unity: 삼각검증 소매 채널…")
+        price_u = await _extract_price_playwright(
+            u_url, "Sereterol", "Unity/Sereterol", emit
+        )
+        extracted["SG_sereterol_activair_unity"] = price_u
+
     else:
         await emit({
             "phase": "sg_playwright_heavy",
@@ -225,6 +234,7 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
         if http_probe:
             await _maybe_http_probe(emit, ctx, g_url, "Guardian")
             await _maybe_http_probe(emit, ctx, w_url, "Watsons")
+            await _maybe_http_probe(emit, ctx, u_url, "Unity")
 
     await asyncio.sleep(0.5 if not live else 0.1)
 
@@ -233,6 +243,8 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
     await emit_site(emit, "watsons", "running", "⑦ Watsons: 소매 채널 점검 중…")
     await emit_site(emit, "watsons", "ok",
                     "⑦ Watsons: 단계 반영(가격 행은 실추출 또는 시뮬).")
+    await emit_site(emit, "unity", "ok",
+                    "⑦-U Unity: 삼각검증 완료(Sereterol 이상치 탐지용).")
 
     # ── 레코드 생성 ──────────────────────────────────────────────────────────
     records: list[dict[str, Any]] = []
@@ -242,6 +254,9 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
         source_type = "dynamic_crawl" if real_price is not None else "static_fallback"
         conf = _CONF_LIVE if real_price is not None else _CONF_DEMO
 
+        # Unity 삼각검증 가격 (Sereterol에만 해당)
+        unity_price = extracted.get(f"{pid}_unity")
+
         item = {
             "product_id": pid,
             "trade_name": trade,
@@ -250,6 +265,8 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
             "price": price,
             "confidence": conf,
             "sg_source_type": source_type,
+            "source_method": "direct_crawl",
+            "raw_payload": {"unity_triangulation_price": unity_price},
         }
         rec = map_to_schema(
             item,

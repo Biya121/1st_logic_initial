@@ -27,6 +27,7 @@ from utils.session_cache import clear_session, load_session, save_session, ttl_g
 Emit = Callable[[dict[str, Any]], Awaitable[None]]
 
 _GEBIZ_DEFAULT = "https://www.gebiz.gov.sg/"
+_GEBIZ_AWARD_DEFAULT = "https://www.gebiz.gov.sg/ptn/ppplisting"
 
 # 시뮬 가격 (실 Playwright 없을 때)
 _DEMO_ROWS = (
@@ -38,6 +39,11 @@ _DEMO_ROWS = (
 def _gebiz_url(ctx: CrawlContext) -> str:
     block = (ctx.sources.get("sources") or {}).get("gebiz_weekly") or {}
     return str(block.get("url_seed", _GEBIZ_DEFAULT))
+
+
+def _gebiz_award_url(ctx: CrawlContext) -> str:
+    block = (ctx.sources.get("sources") or {}).get("gebiz_award") or {}
+    return str(block.get("url_seed", _GEBIZ_AWARD_DEFAULT))
 
 
 # ── 세션 갱신 (cold start) ───────────────────────────────────────────────────
@@ -85,6 +91,76 @@ async def _cold_start_session(url: str, emit: Emit) -> dict[str, Any] | None:
             "message": f"GeBIZ cold start 실패: {type(e).__name__}: {e}",
         })
         return None
+
+
+# ── 낙찰 공고(Award Notice) HTTP 파싱 ──────────────────────────────────────
+# 입찰 공고보다 낙찰 결과가 실거래가에 훨씬 가까움.
+# Playwright 없이도 requests로 시도 후 없으면 폴백.
+
+async def _fetch_award_notice(
+    award_url: str,
+    keywords: list[str],
+    emit: Emit,
+) -> dict[str, float | None]:
+    """GeBIZ 낙찰 공고 페이지에서 품목별 낙찰 단가를 파싱.
+
+    Returns: {keyword: price_sgd or None}
+    """
+    import re
+    result: dict[str, float | None] = {kw: None for kw in keywords}
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            resp = await client.get(
+                award_url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; UPharma/1.0)"},
+            )
+        if resp.status_code != 200:
+            await emit({
+                "phase": "sg_gebiz_weekly",
+                "level": "warn",
+                "message": f"GeBIZ Award Notice HTTP {resp.status_code} — 폴백",
+            })
+            return result
+
+        text = resp.text
+        # 낙찰가 패턴: 품목명 인근 SGD 금액 (낙찰 공고는 표 형식)
+        for kw in keywords:
+            # 키워드 등장 위치 ±500자 윈도우에서 최초 SGD 금액 추출
+            idx = text.lower().find(kw.lower())
+            if idx == -1:
+                await emit({
+                    "phase": "sg_gebiz_weekly",
+                    "level": "info",
+                    "message": f"Award Notice: {kw} 페이지 미노출 (JS 렌더링 필요 시 GEBIZ_LIVE=1)",
+                })
+                continue
+            window = text[max(0, idx - 100): idx + 500]
+            prices = re.findall(r"S?\$\s*([\d,]+\.?\d{0,2})", window)
+            vals = [float(p.replace(",", "")) for p in prices
+                    if 10.0 < float(p.replace(",", "")) < 500_000.0]
+            if vals:
+                result[kw] = vals[0]
+                await emit({
+                    "phase": "sg_gebiz_weekly",
+                    "level": "success",
+                    "message": f"Award Notice 파싱: {kw} → SGD {vals[0]}",
+                })
+            else:
+                await emit({
+                    "phase": "sg_gebiz_weekly",
+                    "level": "info",
+                    "message": f"Award Notice: {kw} 금액 없음 (페이지에 미게재)",
+                })
+    except Exception as e:
+        await emit({
+            "phase": "sg_gebiz_weekly",
+            "level": "warn",
+            "message": f"Award Notice 파싱 실패: {type(e).__name__}: {e}",
+        })
+
+    return result
 
 
 # ── 실 낙찰가 추출 ──────────────────────────────────────────────────────────
@@ -177,10 +253,23 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
     live = os.environ.get(env_key) == "1"
     http_probe = bool(gcfg.get("http_probe_when_not_live", True))
     url = _gebiz_url(ctx)
+    award_url = _gebiz_award_url(ctx)
 
     await emit_site(
         emit, "gebiz", "running",
-        "⑤ GeBIZ: 정부 조달·낙찰 단계(session_cache → ttl_guard → click_jitter)…",
+        "⑤ GeBIZ: 정부 조달·낙찰 단계(Award Notice → session_cache → ttl_guard → click_jitter)…",
+    )
+
+    # ── Award Notice HTTP 파싱 (라이브/시뮬 공통 선행 단계) ─────────────────
+    await emit({
+        "phase": "sg_gebiz_weekly",
+        "level": "info",
+        "message": f"Award Notice 파싱 시작: {award_url}",
+    })
+    award_prices = await _fetch_award_notice(
+        award_url,
+        keywords=["hydroxyurea", "gadobutrol", "Hydrine", "Gadvoa"],
+        emit=emit,
     )
 
     # ── 라이브 모드 ─────────────────────────────────────────────────────────
@@ -276,12 +365,35 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
         pid: (price, award) for _, pid, price, award in extracted
     }
 
+    # Award Notice 키워드 → product_id 매핑
+    _AWARD_KW_MAP = {
+        "SG_hydrine_hydroxyurea_500": ["hydroxyurea", "Hydrine"],
+        "SG_gadvoa_gadobutrol_604": ["gadobutrol", "Gadvoa"],
+    }
+
     for trade, pid, demo_price, demo_award in _DEMO_ROWS:
         ext_price, ext_award = extracted_map.get(pid, (None, None))
-        price = ext_price if ext_price is not None else demo_price
+
+        # Award Notice 가격 우선 (입찰가보다 실거래가에 가까움)
+        award_price: float | None = None
+        for kw in _AWARD_KW_MAP.get(pid, []):
+            if award_prices.get(kw) is not None:
+                award_price = award_prices[kw]
+                break
+
+        if award_price is not None:
+            price = award_price
+            source_type = "award_notice"
+            conf = 0.90
+        elif ext_price is not None:
+            price = ext_price
+            source_type = "api_realtime"
+            conf = 0.87
+        else:
+            price = demo_price
+            source_type = "static_fallback"
+            conf = 0.72
         award = ext_award or demo_award
-        source_type = "api_realtime" if ext_price is not None else "static_fallback"
-        conf = 0.87 if ext_price is not None else 0.72
 
         item = {
             "product_id": pid,
@@ -292,6 +404,7 @@ async def run(emit: Emit, ctx: CrawlContext) -> list[dict[str, Any]]:
             "confidence": conf,
             "sg_source_type": source_type,
             "sg_gebiz_award": award,
+            "source_method": "award_notice" if source_type == "award_notice" else "direct_crawl",
         }
         rec = map_to_schema(
             item,

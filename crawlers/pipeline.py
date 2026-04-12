@@ -120,6 +120,7 @@ async def run_full_crawl(
             "sg_source_type": "dynamic_crawl",
             "combo_multiplier": c["raw_payload"].get("combo_multiplier"),
             "outlier_flagged": c["raw_payload"].get("outlier_flagged", False),
+            "source_method": "component_estimate",
             "raw_payload": c["raw_payload"],
         }
         combo_rows.append(

@@ -36,6 +36,8 @@ def map_to_schema(
         "outlier_flagged": bool(item.get("outlier_flagged", False)),
         "sar_feasibility": item.get("sar_feasibility"),
         "reference_country": item.get("reference_country"),
+        "source_method": item.get("source_method"),
+        "hsa_registered": item.get("hsa_registered"),
     }
     raw.update(raw_base)
 
