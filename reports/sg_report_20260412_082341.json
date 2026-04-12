@@ -1,0 +1,582 @@
+{
+  "meta": {
+    "generated_at": "2026-04-12T08:23:41.506360+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 8,
+    "price_collected": 7,
+    "coverage_ratio": 0.875,
+    "avg_confidence": 0.613,
+    "note": "fob_estimated_usd 는 2공정 FOB 역산 모듈에 위임"
+  },
+  "products": [
+    {
+      "product_id": "SG_hydrine_hydroxyurea_500",
+      "trade_name": "Hydrine",
+      "inn_label": "Hydroxyurea 500mg",
+      "price_local_sgd": null,
+      "currency": "SGD",
+      "confidence": 0.72,
+      "source_name": "guardian_sg",
+      "source_tier": 3,
+      "market_segment": "retail",
+      "inn_name": "hydroxyurea",
+      "inn_match_type": "brand_map",
+      "regulatory_id": null,
+      "scientific_name": null,
+      "sg_source_type": "static_fallback",
+      "sar_feasibility": null,
+      "outlier_flagged": false,
+      "crawled_at": "2026-04-12T08:23:40.154092+00:00",
+      "success_prob": 0.85,
+      "status": "price_missing",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "analysis_sources": [],
+      "analysis_model": "",
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "GeBIZ (공공조달)",
+            "https://www.gebiz.gov.sg"
+          ],
+          [
+            "data.gov.sg 약가 데이터셋",
+            "https://data.gov.sg"
+          ]
+        ],
+        "private": [
+          [
+            "MIMS Singapore",
+            "https://www.mims.com/singapore"
+          ],
+          [
+            "Watsons SG",
+            "https://www.watsons.com.sg"
+          ],
+          [
+            "Guardian SG",
+            "https://www.guardian.com.sg"
+          ],
+          [
+            "Guardian Sg",
+            "https://www.guardian.com.sg/"
+          ]
+        ],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_gadvoa_gadobutrol_604",
+      "trade_name": "Gadvoa Inj.",
+      "inn_label": "Gadobutrol 604.72mg",
+      "price_local_sgd": 640.0,
+      "currency": "SGD",
+      "confidence": 0.72,
+      "source_name": "gebiz_crawler",
+      "source_tier": 1,
+      "market_segment": "tender",
+      "inn_name": "gadobutrol",
+      "inn_match_type": "brand_map",
+      "regulatory_id": null,
+      "scientific_name": null,
+      "sg_source_type": "static_fallback",
+      "sar_feasibility": null,
+      "outlier_flagged": false,
+      "crawled_at": "2026-04-12T08:23:20.386409+00:00",
+      "success_prob": 0.65,
+      "status": "collected",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "Claude API 키 미설정 — CLAUDE_API_KEY 또는 ANTHROPIC_API_KEY 환경변수를 설정하면 실제 분석이 실행됩니다.",
+      "key_factors": [],
+      "analysis_sources": [],
+      "analysis_model": "static_fallback",
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "GeBIZ (공공조달)",
+            "https://www.gebiz.gov.sg"
+          ],
+          [
+            "data.gov.sg 약가 데이터셋",
+            "https://data.gov.sg"
+          ],
+          [
+            "Gebiz Crawler",
+            "https://www.gebiz.gov.sg/"
+          ]
+        ],
+        "private": [
+          [
+            "MIMS Singapore",
+            "https://www.mims.com/singapore"
+          ],
+          [
+            "Watsons SG",
+            "https://www.watsons.com.sg"
+          ],
+          [
+            "Guardian SG",
+            "https://www.guardian.com.sg"
+          ]
+        ],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_sereterol_activair",
+      "trade_name": "Sereterol Activair",
+      "inn_label": "Fluticasone / Salmeterol",
+      "price_local_sgd": 52.3,
+      "currency": "SGD",
+      "confidence": 0.72,
+      "source_name": "guardian_sg",
+      "source_tier": 3,
+      "market_segment": "retail",
+      "inn_name": "fluticasone/salmeterol",
+      "inn_match_type": "brand_map",
+      "regulatory_id": null,
+      "scientific_name": null,
+      "sg_source_type": "static_fallback",
+      "sar_feasibility": null,
+      "outlier_flagged": false,
+      "crawled_at": "2026-04-12T08:23:40.152180+00:00",
+      "success_prob": 0.8,
+      "status": "collected",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "analysis_sources": [],
+      "analysis_model": "",
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "GeBIZ (공공조달)",
+            "https://www.gebiz.gov.sg"
+          ],
+          [
+            "data.gov.sg 약가 데이터셋",
+            "https://data.gov.sg"
+          ]
+        ],
+        "private": [
+          [
+            "MIMS Singapore",
+            "https://www.mims.com/singapore"
+          ],
+          [
+            "Watsons SG",
+            "https://www.watsons.com.sg"
+          ],
+          [
+            "Guardian SG",
+            "https://www.guardian.com.sg"
+          ],
+          [
+            "Guardian Sg",
+            "https://www.guardian.com.sg/"
+          ]
+        ],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_omethyl_omega3_2g",
+      "trade_name": "Omethyl",
+      "inn_label": "Omega-3-Acid Ethyl Esters 90 2g",
+      "price_local_sgd": 86.4,
+      "currency": "SGD",
+      "confidence": 0.78,
+      "source_name": "moh_drug_prices",
+      "source_tier": 2,
+      "market_segment": "retail",
+      "inn_name": "omega-3 acid ethyl esters",
+      "inn_match_type": "brand_map",
+      "regulatory_id": null,
+      "scientific_name": null,
+      "sg_source_type": "dynamic_crawl",
+      "sar_feasibility": null,
+      "outlier_flagged": false,
+      "crawled_at": "2026-04-12T08:23:10.527857+00:00",
+      "success_prob": 0.7,
+      "status": "collected",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "analysis_sources": [],
+      "analysis_model": "",
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "GeBIZ (공공조달)",
+            "https://www.gebiz.gov.sg"
+          ],
+          [
+            "data.gov.sg 약가 데이터셋",
+            "https://data.gov.sg"
+          ],
+          [
+            "Moh Drug Prices",
+            "https://www.moh.gov.sg/cost-financing/healthcare-schemes-subsidies/drug-subsidies-and-medication-costs"
+          ]
+        ],
+        "private": [
+          [
+            "MIMS Singapore",
+            "https://www.mims.com/singapore"
+          ],
+          [
+            "Watsons SG",
+            "https://www.watsons.com.sg"
+          ],
+          [
+            "Guardian SG",
+            "https://www.guardian.com.sg"
+          ]
+        ],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_rosumeg_combigel",
+      "trade_name": "Rosumeg Combigel",
+      "inn_label": "Rosuvastatin + Omega-3-EE90",
+      "price_local_sgd": 50.5,
+      "currency": "SGD",
+      "confidence": 0.68,
+      "source_name": "combo_local",
+      "source_tier": 2,
+      "market_segment": "combo_drug",
+      "inn_name": "rosuvastatin/omega-3 acid ethyl esters",
+      "inn_match_type": "brand_map",
+      "regulatory_id": null,
+      "scientific_name": null,
+      "sg_source_type": "dynamic_crawl",
+      "sar_feasibility": null,
+      "outlier_flagged": false,
+      "crawled_at": "2026-04-12T08:23:40.154548+00:00",
+      "success_prob": 0.7,
+      "status": "collected",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "analysis_sources": [],
+      "analysis_model": "",
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "GeBIZ (공공조달)",
+            "https://www.gebiz.gov.sg"
+          ],
+          [
+            "data.gov.sg 약가 데이터셋",
+            "https://data.gov.sg"
+          ],
+          [
+            "Combo Local",
+            "internal://combo_calc"
+          ]
+        ],
+        "private": [
+          [
+            "MIMS Singapore",
+            "https://www.mims.com/singapore"
+          ],
+          [
+            "Watsons SG",
+            "https://www.watsons.com.sg"
+          ],
+          [
+            "Guardian SG",
+            "https://www.guardian.com.sg"
+          ]
+        ],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_atmeg_combigel",
+      "trade_name": "Atmeg Combigel",
+      "inn_label": "Atorvastatin + Omega-3-EE90",
+      "price_local_sgd": 49.2,
+      "currency": "SGD",
+      "confidence": 0.68,
+      "source_name": "combo_local",
+      "source_tier": 2,
+      "market_segment": "combo_drug",
+      "inn_name": "atorvastatin/omega-3 acid ethyl esters",
+      "inn_match_type": "brand_map",
+      "regulatory_id": null,
+      "scientific_name": null,
+      "sg_source_type": "dynamic_crawl",
+      "sar_feasibility": null,
+      "outlier_flagged": false,
+      "crawled_at": "2026-04-12T08:23:40.155035+00:00",
+      "success_prob": 0.7,
+      "status": "collected",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "analysis_sources": [],
+      "analysis_model": "",
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "GeBIZ (공공조달)",
+            "https://www.gebiz.gov.sg"
+          ],
+          [
+            "data.gov.sg 약가 데이터셋",
+            "https://data.gov.sg"
+          ],
+          [
+            "Combo Local",
+            "internal://combo_calc"
+          ]
+        ],
+        "private": [
+          [
+            "MIMS Singapore",
+            "https://www.mims.com/singapore"
+          ],
+          [
+            "Watsons SG",
+            "https://www.watsons.com.sg"
+          ],
+          [
+            "Guardian SG",
+            "https://www.guardian.com.sg"
+          ]
+        ],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_ciloduo_cilosta_rosuva",
+      "trade_name": "Ciloduo",
+      "inn_label": "Cilostazol + Rosuvastatin",
+      "price_local_sgd": 19.5,
+      "currency": "SGD",
+      "confidence": 0.3,
+      "source_name": "sar_extended",
+      "source_tier": 4,
+      "market_segment": "wholesale",
+      "inn_name": "cilostazol/rosuvastatin",
+      "inn_match_type": "brand_map",
+      "regulatory_id": null,
+      "scientific_name": "cilostazol/rosuvastatin",
+      "sg_source_type": "static_fallback",
+      "sar_feasibility": "possible",
+      "outlier_flagged": false,
+      "crawled_at": "2026-04-12T08:23:41.400323+00:00",
+      "success_prob": 0.6,
+      "status": "collected",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "analysis_sources": [],
+      "analysis_model": "",
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "GeBIZ (공공조달)",
+            "https://www.gebiz.gov.sg"
+          ],
+          [
+            "data.gov.sg 약가 데이터셋",
+            "https://data.gov.sg"
+          ]
+        ],
+        "private": [
+          [
+            "MIMS Singapore",
+            "https://www.mims.com/singapore"
+          ],
+          [
+            "Watsons SG",
+            "https://www.watsons.com.sg"
+          ],
+          [
+            "Guardian SG",
+            "https://www.guardian.com.sg"
+          ],
+          [
+            "Sar Extended",
+            "internal://sar_reference/Malaysia"
+          ]
+        ],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_gastiin_cr_mosapride",
+      "trade_name": "Gastiin CR",
+      "inn_label": "Mosapride Citrate",
+      "price_local_sgd": 12.1,
+      "currency": "SGD",
+      "confidence": 0.3,
+      "source_name": "sar_extended",
+      "source_tier": 4,
+      "market_segment": "wholesale",
+      "inn_name": "mosapride",
+      "inn_match_type": "brand_map",
+      "regulatory_id": null,
+      "scientific_name": "mosapride",
+      "sg_source_type": "static_fallback",
+      "sar_feasibility": "possible",
+      "outlier_flagged": false,
+      "crawled_at": "2026-04-12T08:23:41.402061+00:00",
+      "success_prob": 0.55,
+      "status": "collected",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "analysis_sources": [],
+      "analysis_model": "",
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "GeBIZ (공공조달)",
+            "https://www.gebiz.gov.sg"
+          ],
+          [
+            "data.gov.sg 약가 데이터셋",
+            "https://data.gov.sg"
+          ]
+        ],
+        "private": [
+          [
+            "MIMS Singapore",
+            "https://www.mims.com/singapore"
+          ],
+          [
+            "Watsons SG",
+            "https://www.watsons.com.sg"
+          ],
+          [
+            "Guardian SG",
+            "https://www.guardian.com.sg"
+          ],
+          [
+            "Sar Extended",
+            "internal://sar_reference/Philippines"
+          ]
+        ],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    }
+  ]
+}

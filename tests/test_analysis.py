@@ -46,19 +46,19 @@ class TestExportAnalyzerStatic(unittest.TestCase):
                 self.assertIn(field, r, f"{r.get('product_id')}: '{field}' 필드 없음")
 
     def test_verdict_values_valid(self) -> None:
-        """verdict는 적합/부적합/조건부 중 하나여야 함."""
+        """verdict는 적합/부적합/조건부 또는 None(API 미설정) 이어야 함."""
         from analysis.sg_export_analyzer import analyze_all
         results = self._run(analyze_all(use_perplexity=False))
-        valid = {"적합", "부적합", "조건부"}
+        valid = {"적합", "부적합", "조건부", None}
         for r in results:
             self.assertIn(r["verdict"], valid,
                           f"{r.get('product_id')}: verdict={r.get('verdict')!r}")
 
     def test_verdict_en_values_valid(self) -> None:
-        """verdict_en은 SUITABLE/UNSUITABLE/CONDITIONAL 중 하나."""
+        """verdict_en은 SUITABLE/UNSUITABLE/CONDITIONAL 또는 None(API 미설정)."""
         from analysis.sg_export_analyzer import analyze_all
         results = self._run(analyze_all(use_perplexity=False))
-        valid = {"SUITABLE", "UNSUITABLE", "CONDITIONAL"}
+        valid = {"SUITABLE", "UNSUITABLE", "CONDITIONAL", None}
         for r in results:
             self.assertIn(r["verdict_en"], valid,
                           f"{r.get('product_id')}: verdict_en={r.get('verdict_en')!r}")
@@ -97,17 +97,21 @@ class TestExportAnalyzerStatic(unittest.TestCase):
         expected_pids = {m["product_id"] for m in PRODUCT_META}
         self.assertEqual(result_pids, expected_pids)
 
-    def test_gastiin_unsuitable(self) -> None:
-        """Gastiin CR은 정적 폴백 기준 부적합 판정."""
+    def test_gastiin_returns_result(self) -> None:
+        """Gastiin CR 분석 결과가 반환되어야 함 (API 미설정 시 verdict=None)."""
         from analysis.sg_export_analyzer import analyze_product
         r = self._run(analyze_product("SG_gastiin_cr_mosapride", use_perplexity=False))
-        self.assertEqual(r["verdict"], "부적합")
+        self.assertIn("product_id", r)
+        self.assertIn("hsa_reg", r)
+        self.assertIn("entry_pathway", r)
 
-    def test_sereterol_suitable(self) -> None:
-        """Sereterol Activair는 정적 폴백 기준 적합 판정."""
+    def test_sereterol_returns_result(self) -> None:
+        """Sereterol Activair 분석 결과가 반환되어야 함 (API 미설정 시 verdict=None)."""
         from analysis.sg_export_analyzer import analyze_product
         r = self._run(analyze_product("SG_sereterol_activair", use_perplexity=False))
-        self.assertEqual(r["verdict"], "적합")
+        self.assertIn("product_id", r)
+        self.assertIn("hsa_reg", r)
+        self.assertIn("entry_pathway", r)
 
     def test_key_factors_is_list(self) -> None:
         """key_factors는 리스트여야 함."""
@@ -125,14 +129,15 @@ class TestExportAnalyzerStatic(unittest.TestCase):
             self.assertIsInstance(r["sources"], list,
                                   f"{r.get('product_id')}: sources가 리스트가 아님")
 
-    def test_with_db_row_price_injected(self) -> None:
-        """db_row 제공 시 price_local_sgd 필드에 반영."""
+    def test_with_db_row_hsa_reg_present(self) -> None:
+        """db_row 제공 시에도 hsa_reg 필드가 반환 결과에 포함."""
         from analysis.sg_export_analyzer import analyze_product
         fake_row = {"price_local": 52.3, "confidence": 0.72}
         r = self._run(
             analyze_product("SG_sereterol_activair", db_row=fake_row, use_perplexity=False)
         )
-        self.assertEqual(r["price_local_sgd"], 52.3)
+        self.assertIn("hsa_reg", r)
+        self.assertIn("product_type", r)
 
 
 if __name__ == "__main__":

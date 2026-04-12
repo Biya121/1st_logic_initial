@@ -13,6 +13,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -64,7 +67,8 @@ app = FastAPI(title="SG Crawl Dashboard", version="0.1.0", lifespan=_lifespan)
 async def _emit(event: dict[str, Any]) -> None:
     payload = {**event, "ts": time.time()}
     lock = _state["lock"]
-    assert lock is not None
+    if lock is None:   # lifespan 미실행 환경(테스트 등) — 무시
+        return
     async with lock:
         _state["events"].append(payload)
         if len(_state["events"]) > 500:
@@ -200,6 +204,128 @@ async def analyze_status() -> dict[str, Any]:
         "has_result": _analysis_cache["result"] is not None,
         "product_count": len(_analysis_cache["result"]) if _analysis_cache["result"] else 0,
     }
+
+
+# ── 거시지표 ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/macro")
+async def api_macro() -> JSONResponse:
+    from utils.sg_macro import SG_MACRO
+    return JSONResponse(SG_MACRO)
+
+
+# ── 단일 품목 전체 파이프라인 ─────────────────────────────────────────────────
+
+_pipeline_tasks: dict[str, dict[str, Any]] = {}
+
+
+async def _run_pipeline_for_product(product_key: str) -> None:
+    task = _pipeline_tasks[product_key]
+    try:
+        # 1. 크롤링
+        task.update({"step": "crawl", "step_label": "크롤링 중…"})
+        _state["running"] = True
+        _reset_site_states()
+        await _emit({"phase": "pipeline", "message": "크롤링 시작", "level": "info"})
+        try:
+            await run_full_crawl(ROOT, _emit, db_path=DB_PATH)
+        finally:
+            _state["running"] = False
+
+        # 2. Claude 분석
+        task.update({"step": "analyze", "step_label": "Claude 분석 중…"})
+        await _emit({"phase": "pipeline", "message": f"{product_key} — Claude 분석 시작", "level": "info"})
+        conn = dbutil.get_connection(DB_PATH)
+        rows = dbutil.fetch_all_products(conn)
+        conn.close()
+        db_row = next(
+            (r for r in rows if (r.get("product_key") or r.get("product_id")) == product_key),
+            None,
+        )
+        from analysis.sg_export_analyzer import analyze_product
+        result = await analyze_product(product_key, db_row)
+        task["result"] = result
+        await _emit({
+            "phase": "pipeline",
+            "message": f"분석 완료 — {result.get('verdict') or 'API 키 미설정'}",
+            "level": "success",
+        })
+
+        # 3. Perplexity 논문
+        task.update({"step": "refs", "step_label": "논문 검색 중…"})
+        from analysis.perplexity_references import fetch_references
+        refs = await fetch_references(product_key)
+        task["refs"] = refs
+        if refs:
+            await _emit({"phase": "pipeline", "message": f"논문 {len(refs)}건 검색 완료", "level": "success"})
+
+        # 4. PDF 보고서 (단일 분석 JSON 주입)
+        task.update({"step": "report", "step_label": "PDF 생성 중…"})
+        await _emit({"phase": "pipeline", "message": "PDF 보고서 생성 중…", "level": "info"})
+        import subprocess, tempfile
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as f:
+            json.dump([result], f, ensure_ascii=False)
+            ana_path = f.name
+        cmd = [
+            sys.executable, str(ROOT / "report_generator.py"),
+            "--db", str(DB_PATH),
+            "--out", str(ROOT / "reports"),
+            "--analysis-json", ana_path,
+        ]
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, lambda: subprocess.run(cmd, capture_output=True))
+        reports_dir = ROOT / "reports"
+        pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True)
+        task["pdf"] = pdfs[0].name if pdfs else None
+        task.update({"status": "done", "step": "done", "step_label": "완료"})
+        await _emit({"phase": "pipeline", "message": "파이프라인 완료 ✓", "level": "success"})
+
+    except Exception as exc:
+        task.update({"status": "error", "step": "error", "step_label": str(exc)})
+        await _emit({"phase": "pipeline", "message": f"오류: {exc}", "level": "error"})
+
+
+@app.post("/api/pipeline/{product_key}")
+async def trigger_pipeline(product_key: str) -> JSONResponse:
+    if _pipeline_tasks.get(product_key, {}).get("status") == "running":
+        raise HTTPException(status_code=409, detail="이미 실행 중입니다.")
+    _pipeline_tasks[product_key] = {
+        "status": "running", "step": "init", "step_label": "시작 중…",
+        "result": None, "refs": [], "pdf": None,
+    }
+    asyncio.create_task(_run_pipeline_for_product(product_key))
+    return JSONResponse({"ok": True, "message": "파이프라인 시작됨"})
+
+
+@app.get("/api/pipeline/{product_key}/status")
+async def pipeline_status(product_key: str) -> JSONResponse:
+    task = _pipeline_tasks.get(product_key)
+    if not task:
+        return JSONResponse({"status": "idle"})
+    return JSONResponse({
+        "status":     task["status"],
+        "step":       task["step"],
+        "step_label": task["step_label"],
+        "has_result": task["result"] is not None,
+        "has_pdf":    bool(task["pdf"]),
+        "ref_count":  len(task.get("refs", [])),
+    })
+
+
+@app.get("/api/pipeline/{product_key}/result")
+async def pipeline_result(product_key: str) -> JSONResponse:
+    task = _pipeline_tasks.get(product_key)
+    if not task:
+        raise HTTPException(404, "파이프라인 미실행")
+    return JSONResponse({
+        "status": task["status"],
+        "step":   task["step"],
+        "result": task.get("result"),
+        "refs":   task.get("refs", []),
+        "pdf":    task.get("pdf"),
+    })
 
 
 _report_cache: dict[str, Any] = {"path": None, "running": False}

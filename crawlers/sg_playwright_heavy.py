@@ -21,6 +21,8 @@ import os
 import re
 from typing import Any, Awaitable, Callable
 
+import httpx
+
 from crawlers.common import map_to_schema
 from crawlers.crawl_context import CrawlContext
 from crawlers.http_probe import live_get
@@ -67,6 +69,44 @@ def _parse_sgd_prices(text: str) -> list[float]:
 
 # ── Playwright 실 추출 ────────────────────────────────────────────────────────
 
+async def _jina_extract(
+    url: str,
+    search_keyword: str,
+    label: str,
+    emit: Emit,
+) -> float | None:
+    """Jina AI Reader로 페이지 내용 추출 후 SGD 가격 파싱 (§8 에스컬레이션 1단계)."""
+    jina_url = f"https://r.jina.ai/{url}"
+    headers: dict[str, str] = {"Accept": "text/plain", "X-With-Generated-Alt": "true"}
+    jina_key = os.environ.get("JINA_API_KEY", "")
+    if jina_key:
+        headers["Authorization"] = f"Bearer {jina_key}"
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(jina_url, headers=headers)
+        if resp.status_code != 200:
+            return None
+        text = resp.text
+        # 키워드 주변 ±500자 윈도우에서 가격 추출
+        idx = text.lower().find(search_keyword.lower())
+        window = text[max(0, idx - 100): idx + 500] if idx != -1 else text[:2000]
+        prices = _parse_sgd_prices(window) or _parse_sgd_prices(text[:3000])
+        if prices:
+            await emit({
+                "phase": "sg_playwright_heavy",
+                "level": "success",
+                "message": f"{label}: Jina Reader 폴백 → {prices[0]} SGD",
+            })
+            return prices[0]
+    except Exception as e:
+        await emit({
+            "phase": "sg_playwright_heavy",
+            "level": "warn",
+            "message": f"{label}: Jina Reader 실패 — {e}",
+        })
+    return None
+
+
 async def _extract_price_playwright(
     url: str,
     search_keyword: str,
@@ -75,7 +115,8 @@ async def _extract_price_playwright(
     *,
     max_retries: int = 3,
 ) -> float | None:
-    """Playwright로 소매몰에서 search_keyword 가격을 추출. 실패 시 None."""
+    """Playwright로 소매몰에서 search_keyword 가격을 추출.
+    CAPTCHA/연결 오류 시 Jina AI Reader(§8 에스컬레이션 1단계)로 폴백."""
     try:
         from playwright.async_api import async_playwright
         from utils.click_jitter import click_jitter
@@ -85,41 +126,66 @@ async def _extract_price_playwright(
             "level": "warn",
             "message": "playwright 미설치 — pip install playwright && playwright install chromium",
         })
-        return None
+        return await _jina_extract(url, search_keyword, label, emit)
+
+    # stealth 패키지 선택적 로드
+    try:
+        from playwright_stealth import stealth_async as _stealth
+    except ImportError:
+        _stealth = None
 
     for attempt in range(1, max_retries + 1):
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page()
-                await page.goto(url, wait_until="domcontentloaded", timeout=25000)
-                await asyncio.sleep(1.0)
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=["--disable-blink-features=AutomationControlled"],
+                )
+                page = await browser.new_page(
+                    viewport={"width": 1920, "height": 1080},
+                    user_agent=(
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                )
+                if _stealth:
+                    await _stealth(page)
 
-                # CAPTCHA 감지
+                await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+                await asyncio.sleep(1.5)
+
+                # CAPTCHA 감지 → Jina 폴백
                 content = await page.content()
                 if re.search(r"captcha|challenge|verify you are human", content, re.I):
                     await emit({
                         "phase": "sg_playwright_heavy",
                         "level": "warn",
-                        "message": f"{label}: CAPTCHA 감지 — Render 서버 전환 필요",
+                        "message": f"{label}: CAPTCHA 감지 — Jina Reader 폴백 시도",
                     })
                     await browser.close()
-                    return None
+                    return await _jina_extract(url, search_keyword, label, emit)
 
-                # 검색창 탐색 + click_jitter
+                # 검색창 탐색 — wait_for_selector로 가시성 확인 후 click_jitter
                 search_sel = (
                     "input[type='search'], "
                     "input[name*='search'], "
                     "input[placeholder*='search' i], "
                     "input[placeholder*='product' i]"
                 )
-                search_elem = await page.query_selector(search_sel)
-                if search_elem:
+                try:
+                    await page.wait_for_selector(search_sel, state="visible", timeout=8000)
+                    await page.evaluate(
+                        f"document.querySelector(\"{search_sel.split(',')[0].strip()}\")?.scrollIntoView()"
+                    )
+                    await asyncio.sleep(0.3)
                     await click_jitter(page, search_sel)
                     await page.keyboard.type(search_keyword, delay=90)
                     await asyncio.sleep(0.5)
                     await page.keyboard.press("Enter")
                     await asyncio.sleep(2.5)
+                except Exception:
+                    pass  # 검색창 없으면 현재 페이지 텍스트로만 시도
 
                 # 가격 추출
                 page_text = await page.evaluate("() => document.body.innerText")
@@ -151,7 +217,8 @@ async def _extract_price_playwright(
             if attempt < max_retries:
                 await asyncio.sleep(2.0 * attempt)
 
-    return None
+    # 모든 재시도 실패 → Jina 폴백
+    return await _jina_extract(url, search_keyword, label, emit)
 
 
 # ── HTTP 홈 프로브 ─────────────────────────────────────────────────────────────

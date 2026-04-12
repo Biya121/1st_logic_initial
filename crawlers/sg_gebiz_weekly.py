@@ -61,10 +61,27 @@ async def _cold_start_session(url: str, emit: Emit) -> dict[str, Any] | None:
         return None
 
     try:
+        try:
+            from playwright_stealth import stealth_async as _stealth
+        except ImportError:
+            _stealth = None
+
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            ctx_pw = await browser.new_context()
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--disable-blink-features=AutomationControlled"],
+            )
+            ctx_pw = await browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent=(
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+            )
             page = await ctx_pw.new_page()
+            if _stealth:
+                await _stealth(page)
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
             await asyncio.sleep(1.5)
 
@@ -186,22 +203,50 @@ async def _extract_gebiz_prices(
     ]
 
     try:
+        try:
+            from playwright_stealth import stealth_async as _stealth
+        except ImportError:
+            _stealth = None
+
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            ctx_pw = await browser.new_context()
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--disable-blink-features=AutomationControlled"],
+            )
+            ctx_pw = await browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent=(
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+            )
 
             # 저장된 쿠키 복원
             if session_data.get("cookies"):
                 await ctx_pw.add_cookies(session_data["cookies"])
 
             page = await ctx_pw.new_page()
+            if _stealth:
+                await _stealth(page)
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(1.5)
 
             for trade, pid, keyword in search_terms:
                 try:
-                    # 검색창 클릭 (click_jitter 적용)
+                    # 검색창 — DOM 존재 확인 후 JS로 강제 스크롤 + click_jitter
                     search_sel = "input[type='text'], input[name*='search'], input[placeholder*='search']"
+                    await page.wait_for_selector(search_sel, state="attached", timeout=10000)
+                    # GeBIZ 검색창이 숨겨져 있을 수 있으므로 JS로 강제 노출 후 클릭
+                    await page.evaluate("""
+                        const el = document.querySelector("input[type='text']");
+                        if (el) {
+                            el.style.display = 'block';
+                            el.style.visibility = 'visible';
+                            el.scrollIntoView({ block: 'center' });
+                        }
+                    """)
+                    await asyncio.sleep(0.4)
                     await click_jitter(page, search_sel)
                     await page.keyboard.type(keyword, delay=80)
                     await asyncio.sleep(0.5)

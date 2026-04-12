@@ -179,7 +179,7 @@ class TestDbUpsert(unittest.TestCase):
         self.dbutil.upsert_product(self.conn, row)
         rows = self.dbutil.fetch_all_products(self.conn)
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["product_id"], "SG_test_001")
+        self.assertEqual(rows[0]["product_key"], "SG_test_001")
 
     def test_upsert_updates_existing(self) -> None:
         row = self._base_row()

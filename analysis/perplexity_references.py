@@ -3,6 +3,10 @@
 PERPLEXITY_API_KEY 설정 시 자동 실행.
 미설정 시 빈 리스트 반환 (UI에서 "API 키 미설정" 표시).
 
+쿼리 방향:
+  - HSA 등재 품목: 임상 근거 + 싱가포르 시장 데이터
+  - 미등재 품목(개량신약): 규제 진입 경로 + 복합제 승인 사례 중심
+
 출력 (품목별):
   [
     {"title": "...", "url": "https://...", "reason": "한 줄 근거", "source": "PubMed 등"},
@@ -15,39 +19,61 @@ from __future__ import annotations
 import os
 from typing import Any
 
+# 등재 품목: 임상 근거 + 싱가포르 현지 시장 쿼리
+# 미등재 품목(개량신약): 규제 진입 경로 + 복합제 승인 사례 쿼리
 _QUERIES: dict[str, str] = {
     "SG_hydrine_hydroxyurea_500": (
-        "hydroxyurea sickle cell disease chronic myeloid leukemia clinical evidence Singapore"
+        "hydroxyurea hospital procurement Singapore MOH tender clinical evidence "
+        "sickle cell chronic myeloid leukemia treatment guidelines Asia"
     ),
     "SG_gadvoa_gadobutrol_604": (
-        "gadobutrol MRI contrast agent safety efficacy clinical trial"
+        "gadobutrol MRI contrast agent HSA Singapore registration macrocyclic GBCA "
+        "safety efficacy radiology hospital formulary Southeast Asia"
     ),
     "SG_sereterol_activair": (
-        "fluticasone salmeterol asthma COPD inhaler Singapore Southeast Asia"
+        "fluticasone salmeterol fixed dose combination HSA Singapore registration "
+        "asthma COPD inhaler GINA GOLD guideline Southeast Asia market"
     ),
     "SG_omethyl_omega3_2g": (
-        "omega-3 ethyl esters hypertriglyceridemia cardiovascular outcomes clinical study"
+        "omega-3 ethyl esters 2g single capsule HSA Singapore new drug application "
+        "hypertriglyceridemia NDA registration pathway REDUCE-IT cardiovascular"
     ),
     "SG_rosumeg_combigel": (
-        "rosuvastatin omega-3 combination dyslipidemia fixed dose clinical trial"
+        "rosuvastatin omega-3 fixed dose combination HSA Singapore approval pathway "
+        "NDA registration dyslipidemia combination product regulatory Southeast Asia"
     ),
     "SG_atmeg_combigel": (
-        "atorvastatin omega-3 combination lipid lowering therapy evidence"
+        "atorvastatin omega-3 fixed dose combination approval pathway Singapore "
+        "HSA NDA registration IMD incrementally modified drug dyslipidemia Asia"
     ),
     "SG_ciloduo_cilosta_rosuva": (
-        "cilostazol rosuvastatin combination peripheral artery disease clinical study"
+        "cilostazol new drug registration Asia Singapore HSA NDA approval pathway "
+        "peripheral artery disease rosuvastatin combination regulatory evidence"
     ),
     "SG_gastiin_cr_mosapride": (
-        "mosapride gastric motility gastroparesis clinical evidence Asia"
+        "mosapride regulatory approval Southeast Asia Singapore HSA new market entry "
+        "prokinetic gastric motility NDA registration sustained release clinical"
     ),
+}
+
+# 각 품목의 쿼리 초점 유형 (프롬프트 커스터마이징용)
+_QUERY_FOCUS: dict[str, str] = {
+    "SG_hydrine_hydroxyurea_500": "clinical_evidence",
+    "SG_gadvoa_gadobutrol_604": "clinical_evidence",
+    "SG_sereterol_activair": "clinical_evidence",
+    "SG_omethyl_omega3_2g": "regulatory_pathway",
+    "SG_rosumeg_combigel": "regulatory_pathway",
+    "SG_atmeg_combigel": "regulatory_pathway",
+    "SG_ciloduo_cilosta_rosuva": "regulatory_pathway",
+    "SG_gastiin_cr_mosapride": "regulatory_pathway",
 }
 
 
 async def fetch_references(
     product_id: str,
-    max_refs: int = 4,
+    max_refs: int = 6,
 ) -> list[dict[str, str]]:
-    """Perplexity sonar-pro로 관련 논문 검색.
+    """Perplexity sonar-pro로 관련 논문·규제 사례 검색.
 
     Returns:
         [{"title", "url", "reason", "source"}, ...]
@@ -66,16 +92,37 @@ async def fetch_references(
     except ImportError:
         return []
 
-    prompt = f"""Find {max_refs} relevant academic papers or clinical studies for:
+    focus = _QUERY_FOCUS.get(product_id, "clinical_evidence")
+
+    if focus == "regulatory_pathway":
+        system_msg = (
+            "You are a pharmaceutical regulatory expert specializing in Singapore HSA "
+            "and Southeast Asian drug registration. Focus on regulatory approval pathways, "
+            "NDA requirements, combination product registration, and market entry precedents."
+        )
+        reason_instruction = (
+            "왜 이 자료가 싱가포르 HSA 등록 진입 경로 판단에 관련 있는지 한 줄로"
+        )
+    else:
+        system_msg = (
+            "You are a pharmaceutical research assistant specializing in Singapore "
+            "and Southeast Asian markets. Focus on clinical evidence, market data, "
+            "and Singapore MOH/HSA guidelines."
+        )
+        reason_instruction = (
+            "왜 이 논문/자료가 싱가포르 수출 적합성 판단에 관련 있는지 한 줄로"
+        )
+
+    prompt = f"""Find {max_refs} relevant academic papers, regulatory documents, or clinical studies for:
 "{query}"
 
 Return ONLY valid JSON array, no other text:
 [
   {{
-    "title": "<paper title>",
-    "url": "<direct URL to paper or PubMed>",
-    "reason": "<한 줄 근거: 왜 이 논문이 싱가포르 수출 적합성 판단에 관련 있는지>",
-    "source": "<PubMed / Lancet / NEJM 등>"
+    "title": "<paper or document title>",
+    "url": "<direct URL to paper, PubMed, or regulatory document>",
+    "reason": "<{reason_instruction}>",
+    "source": "<PubMed / Lancet / NEJM / HSA / MOH / WHO 등>"
   }}
 ]"""
 
@@ -90,23 +137,16 @@ Return ONLY valid JSON array, no other text:
                 json={
                     "model": "sonar-pro",
                     "messages": [
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are a pharmaceutical research assistant. "
-                                "Return only valid JSON arrays with academic paper references."
-                            ),
-                        },
+                        {"role": "system", "content": system_msg},
                         {"role": "user", "content": prompt},
                     ],
-                    "max_tokens": 600,
+                    "max_tokens": 800,
                     "return_citations": True,
                 },
             )
             resp.raise_for_status()
             content = resp.json()["choices"][0]["message"]["content"].strip()
 
-            # JSON 블록 추출
             if "```" in content:
                 for part in content.split("```"):
                     part = part.strip()
@@ -118,7 +158,6 @@ Return ONLY valid JSON array, no other text:
 
             import json
             refs = json.loads(content)
-            # URL 없는 항목 필터, 최대 max_refs개
             return [r for r in refs if r.get("url")][:max_refs]
 
     except Exception:
@@ -128,7 +167,7 @@ Return ONLY valid JSON array, no other text:
 async def fetch_all_references(
     product_ids: list[str] | None = None,
 ) -> dict[str, list[dict[str, str]]]:
-    """8품목 전체 논문 검색. product_ids 미지정 시 전체."""
+    """8품목 전체 논문·규제 사례 검색. product_ids 미지정 시 전체."""
     import asyncio
 
     targets = product_ids or list(_QUERIES.keys())

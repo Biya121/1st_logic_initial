@@ -65,16 +65,16 @@ _INN_NAMES = {
     "SG_gastiin_cr_mosapride": "Mosapride Citrate",
 }
 
-_SUCCESS_PROB = {
-    "SG_hydrine_hydroxyurea_500": 0.85,
-    "SG_gadvoa_gadobutrol_604": 0.65,
-    "SG_sereterol_activair": 0.80,
-    "SG_omethyl_omega3_2g": 0.70,
-    "SG_rosumeg_combigel": 0.70,
-    "SG_atmeg_combigel": 0.70,
-    "SG_ciloduo_cilosta_rosuva": 0.60,
-    "SG_gastiin_cr_mosapride": 0.55,
+# verdict 기반 확률 매핑 — 하드코딩 수치 제거
+_VERDICT_TO_PROB: dict[str | None, float] = {
+    "적합":   0.80,
+    "조건부": 0.50,
+    "부적합": 0.15,
+    None:     0.00,
 }
+
+def _get_success_prob(verdict: str | None) -> float:
+    return _VERDICT_TO_PROB.get(verdict, 0.00)
 
 # 품목별 관련 사이트 (양식 §1)
 _RELATED_SITES: dict[str, dict[str, list[tuple[str, str]]]] = {
@@ -86,8 +86,7 @@ _RELATED_SITES: dict[str, dict[str, list[tuple[str, str]]]] = {
         ],
         "private": [
             ("MIMS Singapore", "https://www.mims.com/singapore"),
-            ("Watsons SG", "https://www.watsons.com.sg"),
-            ("Guardian SG", "https://www.guardian.com.sg"),
+            ("SingHealth Drug Information", "https://www.singhealth.com.sg/patient-care/patient-education/medications"),
         ],
         "papers": [
             ("PubMed Central", "https://www.ncbi.nlm.nih.gov/pmc"),
@@ -128,7 +127,6 @@ def build_report(
     refs_by_pid: dict[str, list] = references or {}
 
     items = []
-    price_filled = 0
     total = len(_EXPECTED_PRODUCTS)
 
     for pid in _EXPECTED_PRODUCTS:
@@ -138,52 +136,37 @@ def build_report(
         ana = analysis_by_pid.get(pid, {})
 
         if row:
-            price = row.get("price_local")
-            raw = {}
-            try:
-                raw = json.loads(row.get("raw_payload") or "{}")
-            except Exception:
-                pass
             item: dict[str, Any] = {
                 "product_id": pid,
                 "trade_name": row.get("trade_name") or trade,
                 "inn_label": inn,
-                "price_local_sgd": price,
-                "currency": "SGD",
-                "confidence": row.get("confidence"),
-                "source_name": row.get("source_name"),
-                "source_tier": row.get("source_tier"),
                 "market_segment": row.get("market_segment"),
-                "inn_name": row.get("inn_name"),
-                "inn_match_type": row.get("inn_match_type"),
                 "regulatory_id": row.get("regulatory_id"),
-                "scientific_name": row.get("scientific_name"),
-                "sg_source_type": raw.get("sg_source_type"),
-                "sar_feasibility": raw.get("sar_feasibility"),
-                "outlier_flagged": raw.get("outlier_flagged", False),
                 "crawled_at": row.get("crawled_at"),
-                "success_prob": _SUCCESS_PROB.get(pid),
-                "status": "collected" if price is not None else "price_missing",
+                "status": "collected",
             }
-            if price is not None:
-                price_filled += 1
         else:
             item = {
                 "product_id": pid,
                 "trade_name": trade,
                 "inn_label": inn,
-                "price_local_sgd": None,
+                "market_segment": None,
+                "regulatory_id": None,
                 "status": "not_crawled",
-                "success_prob": _SUCCESS_PROB.get(pid),
             }
 
         # 분석 결과 병합
-        item["verdict"] = ana.get("verdict")          # None = API 미설정
+        verdict = ana.get("verdict")
+        item["verdict"] = verdict                      # None = API 미설정
         item["verdict_en"] = ana.get("verdict_en")
         item["rationale"] = ana.get("rationale", "")
         item["key_factors"] = ana.get("key_factors", [])
+        item["entry_pathway"] = ana.get("entry_pathway", "")
+        item["hsa_reg"] = ana.get("hsa_reg", "")
+        item["product_type"] = ana.get("product_type", "")
         item["analysis_sources"] = ana.get("sources", [])
         item["analysis_model"] = ana.get("analysis_model", "")
+        item["success_prob"] = _get_success_prob(verdict)
 
         # ── 관련 사이트 — DB 소스 + Perplexity 논문 ────────────────────────────
         base_sites = _RELATED_SITES.get(pid, {"public": [], "private": [], "papers": []})
@@ -217,16 +200,12 @@ def build_report(
 
         items.append(item)
 
-    coverage = round(price_filled / total, 3) if total > 0 else 0.0
-    avg_conf = (
-        round(
-            sum(r["confidence"] for r in products if r.get("confidence"))
-            / max(len(products), 1),
-            3,
-        )
-        if products
-        else 0.0
-    )
+    verdict_counts = {
+        "적합": sum(1 for it in items if it.get("verdict") == "적합"),
+        "조건부": sum(1 for it in items if it.get("verdict") == "조건부"),
+        "부적합": sum(1 for it in items if it.get("verdict") == "부적합"),
+        "미분석": sum(1 for it in items if it.get("verdict") is None),
+    }
 
     return {
         "meta": {
@@ -234,10 +213,9 @@ def build_report(
             "country": "SG",
             "currency": "SGD",
             "total_products": total,
-            "price_collected": price_filled,
-            "coverage_ratio": coverage,
-            "avg_confidence": avg_conf,
-            "note": "fob_estimated_usd 는 2공정 FOB 역산 모듈에 위임",
+            "verdict_summary": verdict_counts,
+            "data_sources": ["HSA CSV", "GeBIZ CSV", "브로슈어 PDF", "Perplexity API"],
+            "note": "가격 데이터 미수집 — 싱가포르 병원·조달 채널 특성상 공개 비대상. fob_estimated_usd는 2공정 위임.",
         },
         "products": items,
     }
@@ -567,10 +545,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[report] PDF  → {pdf_path}")
 
     meta = report["meta"]
+    vs = meta.get("verdict_summary", {})
     print(
-        f"\n[report] 커버리지 {int(meta['coverage_ratio'] * 100)}% "
-        f"({meta['price_collected']}/{meta['total_products']}), "
-        f"평균 confidence {meta['avg_confidence']:.3f}"
+        f"\n[report] 판정 결과 — "
+        f"적합: {vs.get('적합', 0)}건 / "
+        f"조건부: {vs.get('조건부', 0)}건 / "
+        f"부적합: {vs.get('부적합', 0)}건 / "
+        f"미분석: {vs.get('미분석', 0)}건 "
+        f"(총 {meta['total_products']}품목)"
     )
     return 0
 

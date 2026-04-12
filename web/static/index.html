@@ -219,11 +219,11 @@
         <table>
           <thead>
             <tr>
-              <th>품목 ID</th>
-              <th>이름</th>
-              <th>가격</th>
+              <th>품목명</th>
+              <th>INN</th>
+              <th>HSA 등재</th>
+              <th>판정</th>
               <th>신뢰도</th>
-              <th>출처</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
@@ -307,11 +307,11 @@
         const rows = await r.json();
         tbody.innerHTML = rows.map((p) => `
           <tr>
-            <td>${escapeHtml(p.product_id || "")}</td>
             <td>${escapeHtml(p.trade_name || "")}</td>
-            <td>${p.price_local != null ? p.price_local : "—"}</td>
+            <td>${escapeHtml(p.inn_name || "")}</td>
+            <td>${escapeHtml(p.regulatory_id ? "등재 (" + p.regulatory_id + ")" : "미등재")}</td>
+            <td>${escapeHtml(p.verdict || "—")}</td>
             <td>${p.confidence != null ? p.confidence : "—"}</td>
-            <td>${escapeHtml(p.source_name || "")}</td>
           </tr>
         `).join("");
       } catch (e) {

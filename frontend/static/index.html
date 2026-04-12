@@ -3,453 +3,634 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>싱가포르 1공정 대시보드</title>
+  <title>싱가포르 1공정 — UPharma Export AI</title>
   <style>
     :root {
-      --bg: #0d1117;
-      --panel: #161b22;
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --accent: #58a6ff;
-      --ok: #3fb950;
-      --warn: #d29922;
-      --err: #f85149;
-      --pending: #484f58;
+      --bg:        #FDF4F8;
+      --panel:     #FFFFFF;
+      --border:    #FBCFE8;
+      --border-2:  #F9A8D4;
+      --text:      #111827;
+      --muted:     #6B7280;
+      --primary:   #DB2777;
+      --primary-h: #BE185D;
+      --primary-l: #FCE7F3;
+      --primary-m: #F9A8D4;
+      --ok:        #059669;
+      --ok-bg:     #ECFDF5;
+      --warn:      #D97706;
+      --warn-bg:   #FFFBEB;
+      --err:       #DC2626;
+      --err-bg:    #FEF2F2;
+      --accent:    #EC4899;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
-      font-size: 13px;
-      line-height: 1.5;
+      font-size: 14px;
+      line-height: 1.6;
     }
 
     /* ── Header ── */
     header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 20px;
-      border-bottom: 1px solid var(--border);
-      background: var(--panel);
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 100;
+      box-shadow: 0 1px 8px rgba(219,39,119,.08);
     }
-    header h1 { font-size: 15px; font-weight: 600; }
-    header .badges { display: flex; gap: 8px; align-items: center; }
-    .badge {
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      border: 1px solid;
-    }
-    .badge-ok    { color: var(--ok);   border-color: var(--ok); }
-    .badge-warn  { color: var(--warn); border-color: var(--warn); }
-    .badge-err   { color: var(--err);  border-color: var(--err); }
-    .badge-muted { color: var(--muted);border-color: var(--border); }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-flag { font-size: 36px; line-height: 1; }
+    .header-title h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+    .header-title p  { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
-    /* ── Layout ── */
-    .layout {
+    /* ── Main container ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
+
+    /* ── Macro boxes ── */
+    .macro-grid {
       display: grid;
-      grid-template-columns: 260px 1fr 320px;
-      grid-template-rows: auto 1fr;
-      height: calc(100vh - 45px);
-      overflow: hidden;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 28px;
     }
+    .macro-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(219,39,119,.06);
+    }
+    .macro-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .macro-value { font-size: 26px; font-weight: 800; color: var(--primary); line-height: 1.1; }
+    .macro-sub   { font-size: 11px; color: var(--muted); margin-top: 5px; }
 
-    /* ── Stat bar (full width top) ── */
-    .statbar {
-      grid-column: 1 / -1;
+    /* ── Selector card ── */
+    .selector-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(219,39,119,.06);
+    }
+    .selector-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+    .selector-row { display: flex; gap: 12px; align-items: center; }
+    select {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border-2);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23DB2777' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      cursor: pointer;
+      outline: none;
+      transition: border-color .15s;
+    }
+    select:focus { border-color: var(--primary); }
+    .btn-analyze {
+      padding: 10px 28px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s, opacity .15s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .btn-analyze:hover:not(:disabled) { background: var(--primary-h); }
+    .btn-analyze:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── Progress steps ── */
+    .progress-row {
       display: flex;
       gap: 0;
-      border-bottom: 1px solid var(--border);
-      background: var(--panel);
+      margin-top: 16px;
+      display: none;
     }
-    .stat {
+    .progress-row.visible { display: flex; }
+    .prog-step {
       flex: 1;
-      padding: 10px 16px;
-      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      align-items: center;
+      gap: 5px;
+      position: relative;
     }
-    .stat:last-child { border-right: none; }
-    .stat .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-    .stat .value { font-size: 18px; font-weight: 700; }
-    .stat .sub   { font-size: 10px; color: var(--muted); }
-
-    /* ── Left: Controls ── */
-    .controls {
-      padding: 14px;
-      border-right: 1px solid var(--border);
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .section-title {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      margin-bottom: 6px;
-    }
-    .btn {
+    .prog-step::after {
+      content: '';
+      position: absolute;
+      top: 13px;
+      right: -50%;
       width: 100%;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: none;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+    .prog-step:last-child::after { display: none; }
+    .prog-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--border-2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      z-index: 1; position: relative;
+      transition: all .3s;
+    }
+    .prog-step.active  .prog-dot { border-color: var(--primary); color: var(--primary); background: var(--primary-l); animation: pulse-dot 1.2s infinite; }
+    .prog-step.done    .prog-dot { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+    .prog-step.done::after { background: var(--ok); }
+    .prog-step.error   .prog-dot { border-color: var(--err); background: var(--err-bg); color: var(--err); }
+    .prog-label { font-size: 11px; color: var(--muted); text-align: center; }
+    .prog-step.active .prog-label { color: var(--primary); font-weight: 600; }
+    .prog-step.done   .prog-label { color: var(--ok); }
+    @keyframes pulse-dot { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+
+    /* ── Result + Papers cards ── */
+    .result-card, .papers-card, .report-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(219,39,119,.06);
+      display: none;
+    }
+    .result-card.visible, .papers-card.visible, .report-card.visible { display: block; }
+    .card-title {
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+
+    /* verdict */
+    .verdict-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+    .verdict-badge {
+      padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 800;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .v-ok   { background: var(--ok-bg);   color: var(--ok); }
+    .v-warn { background: var(--warn-bg); color: var(--warn); }
+    .v-err  { background: var(--err-bg);  color: var(--err); }
+    .v-none { background: #F3F4F6; color: var(--muted); }
+    .verdict-meta { flex: 1; }
+    .verdict-name { font-size: 17px; font-weight: 700; }
+    .verdict-inn  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .verdict-model { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .rationale-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+    }
+    .factors-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .factor-chip {
+      padding: 4px 12px;
+      background: var(--primary-l);
+      color: var(--primary);
+      border-radius: 20px;
       font-size: 12px;
       font-weight: 600;
-      cursor: pointer;
-      transition: opacity .15s;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      justify-content: center;
     }
-    .btn:hover { opacity: .85; }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-primary { background: var(--accent); color: #0d1117; }
-    .btn-secondary { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
-    .btn-success { background: var(--ok); color: #0d1117; }
-    .btn-warn { background: var(--warn); color: #0d1117; }
 
-    /* process steps */
-    .process-steps { display: flex; flex-direction: column; gap: 4px; }
-    .step {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 10px;
-      border-radius: 6px;
+    /* papers */
+    .paper-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .paper-item:last-child { border-bottom: none; }
+    .paper-arrow { color: var(--primary); flex-shrink: 0; font-size: 14px; margin-top: 2px; }
+    .paper-link {
+      color: var(--primary); text-decoration: none; font-weight: 600; font-size: 13px;
+    }
+    .paper-link:hover { text-decoration: underline; }
+    .paper-src { font-size: 11px; color: var(--muted); margin-left: 6px; }
+    .paper-reason { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .no-papers-msg { color: var(--muted); font-size: 13px; }
+
+    /* report card */
+    .btn-download {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 24px;
+      background: var(--primary-l);
+      color: var(--primary);
+      border: 1.5px solid var(--primary-m);
+      border-radius: 8px;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      transition: background .15s;
+    }
+    .btn-download:hover { background: var(--primary-m); }
+
+    /* ── Crawling status (compact) ── */
+    .crawl-section {
+      margin-top: 24px;
+      background: var(--panel);
       border: 1px solid var(--border);
-      background: var(--bg);
-      font-size: 11px;
+      border-radius: 12px;
+      overflow: hidden;
     }
-    .step .dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: var(--pending);
+    .crawl-header {
+      padding: 10px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+      border-bottom: 1px solid var(--border);
     }
-    .step.running .dot { background: var(--accent); animation: pulse 1s infinite; }
-    .step.done    .dot { background: var(--ok); }
-    .step.error   .dot { background: var(--err); }
-    .step.skipped .dot { background: var(--pending); }
-    .step .step-name { font-weight: 600; flex: 1; }
-    .step .step-status { color: var(--muted); font-size: 10px; }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; } 50% { opacity: .3; }
-    }
-
-    /* site grid */
-    .site-grid { display: flex; flex-direction: column; gap: 3px; }
+    .crawl-header-left { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .crawl-toggle { font-size: 11px; color: var(--muted); }
+    .crawl-body { padding: 10px 18px 14px; }
+    .site-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
     .site-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 8px;
-      border-radius: 5px;
-      background: var(--bg);
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; padding: 4px 6px; border-radius: 5px;
+      background: var(--bg); border: 1px solid var(--border);
+    }
+    .site-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .site-dot.pending { background: #D1D5DB; }
+    .site-dot.running { background: var(--primary); animation: pulse-site 1s infinite; }
+    .site-dot.ok      { background: var(--ok); }
+    .site-dot.warn    { background: var(--warn); }
+    .site-dot.error   { background: var(--err); }
+    @keyframes pulse-site { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .site-name { font-weight: 600; flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .site-msg  { color: var(--muted); font-size: 10px; max-width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Log (collapsible) ── */
+    .log-section {
+      margin-top: 12px;
+      background: var(--panel);
       border: 1px solid var(--border);
-      font-size: 11px;
-    }
-    .site-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%; flex-shrink: 0;
-    }
-    .site-dot.pending  { background: var(--pending); }
-    .site-dot.running  { background: var(--accent); animation: pulse 1s infinite; }
-    .site-dot.ok       { background: var(--ok); }
-    .site-dot.warn     { background: var(--warn); }
-    .site-dot.error    { background: var(--err); }
-    .site-row .site-name { flex: 1; font-weight: 500; }
-    .site-row .site-msg  { color: var(--muted); font-size: 10px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    /* ── Center: Products table ── */
-    .center {
-      overflow-y: auto;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-      text-align: left;
-      padding: 6px 10px;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      border-bottom: 1px solid var(--border);
-    }
-    tbody tr { border-bottom: 1px solid #1c2128; }
-    tbody tr:hover { background: #1c2128; }
-    tbody td { padding: 8px 10px; font-size: 12px; vertical-align: middle; }
-    .pill {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 10px;
-      font-size: 10px;
-      font-weight: 700;
-    }
-    .pill-ok   { background: #0f3320; color: var(--ok); }
-    .pill-warn { background: #2d1f07; color: var(--warn); }
-    .pill-err  { background: #2d0f0f; color: var(--err); }
-    .pill-muted{ background: #1c2128; color: var(--muted); }
-    .conf-bar {
-      width: 60px; height: 5px;
-      background: var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-      display: inline-block;
-      vertical-align: middle;
-    }
-    .conf-fill { height: 100%; border-radius: 3px; background: var(--accent); }
-
-    /* ── Right: Log stream ── */
-    .logpanel {
-      border-left: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
+      border-radius: 12px;
       overflow: hidden;
     }
-    .log-header {
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .log-summary {
+      list-style: none;
+      padding: 10px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+      font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
     }
-    .log-clear { cursor: pointer; color: var(--muted); font-size: 10px; }
-    .log-clear:hover { color: var(--text); }
+    .log-summary::-webkit-details-marker { display: none; }
+    .log-summary::after { content: '▸'; font-size: 12px; transition: transform .2s; }
+    details[open] .log-summary::after { transform: rotate(90deg); }
     #logbox {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
+      padding: 8px 12px 12px;
       font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 10.5px;
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex; flex-direction: column; gap: 1px;
+      border-top: 1px solid var(--border);
     }
-    .log-line {
-      padding: 2px 6px;
-      border-radius: 3px;
-      line-height: 1.4;
-      word-break: break-all;
-    }
+    .log-line { padding: 2px 6px; border-radius: 3px; line-height: 1.4; word-break: break-all; color: var(--muted); }
     .log-line.success { color: var(--ok); }
     .log-line.warn    { color: var(--warn); }
     .log-line.error   { color: var(--err); }
-    .log-line.info    { color: var(--muted); }
+    .log-line.info    { color: #8B5CF6; }
+    .log-clear { font-size: 11px; color: var(--muted); cursor: pointer; font-weight: 400; text-transform: none; letter-spacing: 0; }
+    .log-clear:hover { color: var(--primary); }
 
-    /* ── Analysis panel ── */
-    .analysis-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-    }
-    .analysis-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-    }
-    .analysis-row:last-child { border-bottom: none; }
-    .verdict-badge {
-      padding: 3px 9px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-    .v-ok   { background: #0f3320; color: var(--ok); }
-    .v-warn { background: #2d1f07; color: var(--warn); }
-    .v-err  { background: #2d0f0f; color: var(--err); }
-
-    /* responsive scroll hint */
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+
+    /* ── 이상치 검증 카드 ── */
+    .outlier-section {
+      margin-top: 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .outlier-header {
+      padding: 10px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .outlier-header-left { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .outlier-toggle { font-size: 11px; color: var(--muted); }
+    .outlier-body { padding: 14px 18px; display: none; }
+
+    .outlier-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .outlier-stat {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 14px; text-align: center;
+    }
+    .outlier-stat-value { font-size: 22px; font-weight: 800; line-height: 1.1; }
+    .outlier-stat-value.clr-ok  { color: var(--ok); }
+    .outlier-stat-value.clr-err { color: var(--err); }
+    .outlier-stat-value.clr-primary { color: var(--primary); }
+    .outlier-stat-label { font-size: 10px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .4px; }
+
+    .outlier-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+
+    /* 신뢰도 분포 바 */
+    .conf-chart-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .conf-chart-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 10px; }
+    .conf-bars { display: flex; align-items: flex-end; gap: 4px; height: 56px; }
+    .conf-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .conf-bar {
+      width: 100%; border-radius: 3px 3px 0 0;
+      background: var(--primary-m);
+      transition: height .4s;
+      min-height: 2px;
+    }
+    .conf-bar.outlier-bar { background: var(--err); }
+    .conf-bar-label { font-size: 9px; color: var(--muted); }
+
+    /* 이상치 도넛 */
+    .donut-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 16px; }
+    .donut-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+    .donut-svg-wrap { flex-shrink: 0; }
+    .donut-legend { display: flex; flex-direction: column; gap: 6px; }
+    .donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+    .donut-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* 품목별 테이블 */
+    .outlier-table-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+    .outlier-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .outlier-table th {
+      text-align: left; padding: 5px 8px;
+      color: var(--muted); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .outlier-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+    .outlier-table tr:last-child td { border-bottom: none; }
+    .outlier-table tr:hover td { background: var(--bg); }
+    .conf-mini-bar { height: 5px; border-radius: 3px; background: var(--border); position: relative; width: 60px; display: inline-block; vertical-align: middle; }
+    .conf-mini-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px; }
+    .pill {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 700;
+    }
+    .pill.normal  { background: var(--ok-bg);   color: var(--ok); }
+    .pill.outlier { background: var(--err-bg);  color: var(--err); }
+    .pill.missing { background: #F3F4F6; color: var(--muted); }
+
+    @media (max-width: 720px) {
+      .macro-grid { grid-template-columns: repeat(2, 1fr); }
+      .site-grid  { grid-template-columns: repeat(2, 1fr); }
+      .selector-row { flex-direction: column; }
+      .btn-analyze { width: 100%; justify-content: center; }
+      .outlier-charts { grid-template-columns: 1fr; }
+      .outlier-summary { grid-template-columns: repeat(3, 1fr); }
+    }
   </style>
 </head>
 <body>
 
 <!-- ── Header ── -->
 <header>
-  <h1>🇸🇬 싱가포르 1공정 대시보드</h1>
-  <div class="badges">
-    <span class="badge badge-muted" id="hdr-status">대기 중</span>
-    <span class="badge badge-muted" id="hdr-coverage">커버리지 —</span>
-    <span class="badge badge-muted" id="hdr-conf">평균 conf —</span>
+  <div class="header-left">
+    <div class="header-flag">🇸🇬</div>
+    <div class="header-title">
+      <h1>싱가포르 국가 개요</h1>
+      <p>거시 지표 요약 및 8개 INN 진출 적합 분석 · UPharma Export AI</p>
+    </div>
   </div>
 </header>
 
-<div class="layout">
+<div class="container">
 
-  <!-- ── Stat bar ── -->
-  <div class="statbar">
-    <div class="stat">
-      <div class="label">가격 수집</div>
-      <div class="value" id="stat-price">0 / 8</div>
-      <div class="sub">price_local (SGD)</div>
+  <!-- ── 거시지표 박스 ── -->
+  <div class="macro-grid" id="macro-grid">
+    <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
+    <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
+    <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
+    <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
+  </div>
+
+  <!-- ── 품목 선택 + 분석 버튼 ── -->
+  <div class="selector-card">
+    <div class="selector-label">품목 선택 후 진출 적합 분석 실행</div>
+    <div class="selector-row">
+      <select id="product-select">
+        <option value="SG_hydrine_hydroxyurea_500">하이드린 캡슐 — Hydroxyurea 500mg</option>
+        <option value="SG_gadvoa_gadobutrol_604">Gadvoa Inj. — Gadobutrol 604mg</option>
+        <option value="SG_sereterol_activair">Sereterol Activair — Fluticasone / Salmeterol</option>
+        <option value="SG_omethyl_omega3_2g">Omethyl — Omega-3 EE 2g</option>
+        <option value="SG_rosumeg_combigel">Rosumeg Combigel — Rosuvastatin + Omega-3</option>
+        <option value="SG_atmeg_combigel">Atmeg Combigel — Atorvastatin + Omega-3</option>
+        <option value="SG_ciloduo_cilosta_rosuva">Ciloduo — Cilostazol + Rosuvastatin</option>
+        <option value="SG_gastiin_cr_mosapride">Gastiin CR — Mosapride (서방정)</option>
+      </select>
+      <button class="btn-analyze" id="btn-analyze" onclick="runPipeline()">
+        <span id="btn-icon">▶</span> 진출 적합 분석
+      </button>
     </div>
-    <div class="stat">
-      <div class="label">분석 완료</div>
-      <div class="value" id="stat-analysis">—</div>
-      <div class="sub">Claude 분석</div>
-    </div>
-    <div class="stat">
-      <div class="label">평균 Confidence</div>
-      <div class="value" id="stat-conf">—</div>
-      <div class="sub">IQR 이상치 제외</div>
-    </div>
-    <div class="stat">
-      <div class="label">크롤 상태</div>
-      <div class="value" id="stat-state" style="color:var(--muted)">대기</div>
-      <div class="sub" id="stat-events">이벤트 0건</div>
+
+    <!-- 진행 단계 -->
+    <div class="progress-row" id="progress-row">
+      <div class="prog-step" id="prog-crawl">
+        <div class="prog-dot">1</div>
+        <div class="prog-label">크롤링</div>
+      </div>
+      <div class="prog-step" id="prog-analyze">
+        <div class="prog-dot">2</div>
+        <div class="prog-label">Claude 분석</div>
+      </div>
+      <div class="prog-step" id="prog-refs">
+        <div class="prog-dot">3</div>
+        <div class="prog-label">논문 검색</div>
+      </div>
+      <div class="prog-step" id="prog-report">
+        <div class="prog-dot">4</div>
+        <div class="prog-label">PDF 생성</div>
+      </div>
     </div>
   </div>
 
-  <!-- ── Left: Controls + Process ── -->
-  <div class="controls">
-
-    <div>
-      <div class="section-title">크롤링</div>
-      <div style="display:flex;gap:6px;flex-direction:column">
-        <button class="btn btn-primary" id="btn-crawl" onclick="startCrawl(false)">
-          ▶ 크롤 시작
-        </button>
-        <button class="btn btn-secondary" id="btn-crawl-ai" onclick="startCrawl(true)">
-          ✦ AI 탐색 포함
-        </button>
+  <!-- ── 분석 결과 카드 ── -->
+  <div class="result-card" id="result-card">
+    <div class="card-title"><div class="card-title-dot"></div> 수출 적합성 분석 결과</div>
+    <div class="verdict-row">
+      <span class="verdict-badge v-none" id="verdict-badge">—</span>
+      <div class="verdict-meta">
+        <div class="verdict-name" id="verdict-name">—</div>
+        <div class="verdict-inn"  id="verdict-inn">—</div>
+        <div class="verdict-model" id="verdict-model"></div>
       </div>
     </div>
+    <div class="rationale-box" id="rationale-box">분석 결과를 불러오는 중입니다…</div>
+    <div class="factors-row" id="factors-row"></div>
+  </div>
 
-    <div>
-      <div class="section-title">분석 · 보고서</div>
-      <div style="display:flex;gap:6px;flex-direction:column">
-        <button class="btn btn-warn" onclick="startAnalysis()">
-          ⚡ 수출 적합성 분석
-        </button>
-        <button class="btn btn-success" onclick="generateReport()">
-          📄 PDF 보고서 생성
-        </button>
-        <button class="btn btn-secondary" onclick="downloadReport()">
-          ⬇ 최신 PDF 다운로드
-        </button>
+  <!-- ── 관련 논문 카드 ── -->
+  <div class="papers-card" id="papers-card">
+    <div class="card-title"><div class="card-title-dot"></div> Perplexity 추천 논문</div>
+    <div id="papers-list"></div>
+  </div>
+
+  <!-- ── 보고서 다운로드 카드 ── -->
+  <div class="report-card" id="report-card">
+    <div class="card-title"><div class="card-title-dot"></div> PDF 보고서</div>
+    <a class="btn-download" id="btn-download" href="/api/report/download" target="_blank">
+      📄 PDF 보고서 다운로드
+    </a>
+    <p style="margin-top:10px;font-size:12px;color:var(--muted)">
+      싱가포르 1공정 시장조사 보고서 (전 품목 포함)
+    </p>
+  </div>
+
+  <!-- ── 크롤링 상태 (compact) ── -->
+  <div class="crawl-section">
+    <div class="crawl-header" onclick="toggleCrawl()">
+      <div class="crawl-header-left">
+        <span>🔍</span> 크롤링 사이트 상태
       </div>
+      <span class="crawl-toggle" id="crawl-toggle">펼치기 ▾</span>
     </div>
-
-    <div>
-      <div class="section-title">전체 프로세스</div>
-      <div class="process-steps" id="process-steps">
-        <div class="step" id="step-crawl">
-          <div class="dot"></div>
-          <div class="step-name">크롤링</div>
-          <div class="step-status" id="step-crawl-s">대기</div>
-        </div>
-        <div class="step" id="step-db">
-          <div class="dot"></div>
-          <div class="step-name">DB 저장</div>
-          <div class="step-status" id="step-db-s">대기</div>
-        </div>
-        <div class="step" id="step-analysis">
-          <div class="dot"></div>
-          <div class="step-name">Claude 분석</div>
-          <div class="step-status" id="step-analysis-s">대기</div>
-        </div>
-        <div class="step" id="step-report">
-          <div class="dot"></div>
-          <div class="step-name">PDF 보고서</div>
-          <div class="step-status" id="step-report-s">대기</div>
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="section-title">사이트별 상태</div>
+    <div class="crawl-body" id="crawl-body" style="display:none">
       <div class="site-grid" id="site-grid">
         <div class="site-row"><div class="site-dot pending"></div><div class="site-name" style="color:var(--muted)">크롤 전</div></div>
       </div>
     </div>
-
   </div>
 
-  <!-- ── Center: Products + Analysis ── -->
-  <div class="center">
+  <!-- ── 실시간 로그 (collapsible) ── -->
+  <details class="log-section">
+    <summary class="log-summary">
+      실시간 로그
+      <span class="log-clear" onclick="event.stopPropagation();clearLog()">지우기</span>
+    </summary>
+    <div id="logbox"></div>
+  </details>
 
-    <div>
-      <div class="section-title" style="margin-bottom:8px">품목별 수집 현황</div>
-      <table>
+  <!-- ── 이상치 검증 카드 ── -->
+  <div class="outlier-section">
+    <div class="outlier-header" onclick="toggleOutlier()">
+      <div class="outlier-header-left">
+        <span>📊</span> 이상치 검증 현황
+      </div>
+      <span class="outlier-toggle" id="outlier-toggle">펼치기 ▾</span>
+    </div>
+    <div class="outlier-body" id="outlier-body">
+
+      <!-- 요약 stats -->
+      <div class="outlier-summary">
+        <div class="outlier-stat">
+          <div class="outlier-stat-value clr-ok" id="ot-normal">—</div>
+          <div class="outlier-stat-label">정상</div>
+        </div>
+        <div class="outlier-stat">
+          <div class="outlier-stat-value clr-err" id="ot-outlier">—</div>
+          <div class="outlier-stat-label">이상치</div>
+        </div>
+        <div class="outlier-stat">
+          <div class="outlier-stat-value clr-primary" id="ot-conf">—</div>
+          <div class="outlier-stat-label">평균 신뢰도</div>
+        </div>
+      </div>
+
+      <!-- 차트 2열 -->
+      <div class="outlier-charts">
+
+        <!-- 신뢰도 분포 바 차트 -->
+        <div class="conf-chart-wrap">
+          <div class="conf-chart-title">신뢰도 분포</div>
+          <div class="conf-bars" id="conf-bars">
+            <div style="color:var(--muted);font-size:11px">로딩 중…</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--muted)">
+            <span>0.0</span><span>0.5</span><span>1.0</span>
+          </div>
+        </div>
+
+        <!-- 이상치 도넛 -->
+        <div class="donut-wrap">
+          <div style="flex:1">
+            <div class="donut-title">이상치 비율</div>
+            <div style="display:flex;align-items:center;gap:16px">
+              <div class="donut-svg-wrap">
+                <svg id="donut-svg" width="80" height="80" viewBox="0 0 80 80">
+                  <circle id="donut-bg"  cx="40" cy="40" r="28" fill="none" stroke="var(--border)" stroke-width="12"/>
+                  <circle id="donut-ok"  cx="40" cy="40" r="28" fill="none" stroke="var(--ok)"    stroke-width="12"
+                    stroke-dasharray="0 175.9" stroke-linecap="round"
+                    transform="rotate(-90 40 40)" style="transition:stroke-dasharray .6s"/>
+                  <circle id="donut-err" cx="40" cy="40" r="28" fill="none" stroke="var(--err)"   stroke-width="12"
+                    stroke-dasharray="0 175.9" stroke-linecap="round"
+                    transform="rotate(-90 40 40)" style="transition:stroke-dasharray .6s"/>
+                  <text x="40" y="44" text-anchor="middle" font-size="13" font-weight="800" fill="var(--text)" id="donut-label">—</text>
+                </svg>
+              </div>
+              <div class="donut-legend">
+                <div class="donut-legend-item"><div class="donut-dot" style="background:var(--ok)"></div><span id="legend-normal">정상 —</span></div>
+                <div class="donut-legend-item"><div class="donut-dot" style="background:var(--err)"></div><span id="legend-outlier">이상치 —</span></div>
+                <div class="donut-legend-item"><div class="donut-dot" style="background:#D1D5DB"></div><span id="legend-missing">미분석 —</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /outlier-charts -->
+
+      <!-- 품목별 테이블 -->
+      <div class="outlier-table-title">품목별 상세</div>
+      <table class="outlier-table">
         <thead>
           <tr>
-            <th>브랜드명</th>
-            <th>INN</th>
-            <th>현지가 (SGD)</th>
-            <th>Confidence</th>
-            <th>소스</th>
-            <th>세그먼트</th>
-            <th>상태</th>
+            <th>품목</th>
+            <th>진입 경로</th>
+            <th>신뢰도</th>
+            <th>판정</th>
           </tr>
         </thead>
-        <tbody id="products-tbody">
-          <tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">크롤 전 — ▶ 크롤 시작을 눌러주세요</td></tr>
+        <tbody id="outlier-tbody">
+          <tr><td colspan="4" style="color:var(--muted);text-align:center">크롤 실행 후 데이터가 표시됩니다</td></tr>
         </tbody>
       </table>
-    </div>
 
-    <div id="analysis-section" style="display:none">
-      <div class="section-title" style="margin-bottom:8px">수출 적합성 분석</div>
-      <div class="analysis-panel" id="analysis-panel"></div>
-    </div>
-
+    </div><!-- /outlier-body -->
   </div>
 
-  <!-- ── Right: Log ── -->
-  <div class="logpanel">
-    <div class="log-header">
-      <span>실시간 로그</span>
-      <span class="log-clear" onclick="clearLog()">지우기</span>
-    </div>
-    <div id="logbox"></div>
-  </div>
-
-</div>
+</div><!-- /container -->
 
 <script>
-  // ── 상수 / 상태 ─────────────────────────────────────────────────────────────
-  const INN = {
+  // ── 상수 ──────────────────────────────────────────────────────────────────
+  const INN_MAP = {
     SG_hydrine_hydroxyurea_500: 'Hydroxyurea 500mg',
     SG_gadvoa_gadobutrol_604:   'Gadobutrol 604mg',
-    SG_sereterol_activair:      'Fluticasone/Salmeterol',
+    SG_sereterol_activair:      'Fluticasone / Salmeterol',
     SG_omethyl_omega3_2g:       'Omega-3 EE 2g',
-    SG_rosumeg_combigel:        'Rosuvastatin+Omega-3',
-    SG_atmeg_combigel:          'Atorvastatin+Omega-3',
-    SG_ciloduo_cilosta_rosuva:  'Cilostazol+Rosuvastatin',
+    SG_rosumeg_combigel:        'Rosuvastatin + Omega-3',
+    SG_atmeg_combigel:          'Atorvastatin + Omega-3',
+    SG_ciloduo_cilosta_rosuva:  'Cilostazol + Rosuvastatin',
     SG_gastiin_cr_mosapride:    'Mosapride CR',
   };
-  let _sse = null;
-  let _analysisResult = null;
 
-  // ── 로그 ─────────────────────────────────────────────────────────────────────
+  let _sse = null;
+  let _pollTimer = null;
+  let _currentKey = null;
+  let _crawlOpen = false;
+
+  // ── 로그 ─────────────────────────────────────────────────────────────────
   function log(msg, level='info') {
     const box = document.getElementById('logbox');
     const line = document.createElement('div');
@@ -458,19 +639,36 @@
     line.textContent = `${t}  ${msg}`;
     box.appendChild(line);
     box.scrollTop = box.scrollHeight;
-    if (box.children.length > 400) box.removeChild(box.firstChild);
+    if (box.children.length > 300) box.removeChild(box.firstChild);
   }
   function clearLog() { document.getElementById('logbox').innerHTML = ''; }
 
-  // ── 프로세스 스텝 ───────────────────────────────────────────────────────────
-  function setStep(id, state, text) {
-    const el = document.getElementById(`step-${id}`);
-    if (!el) return;
-    el.className = `step ${state}`;
-    document.getElementById(`step-${id}-s`).textContent = text;
+  // ── 거시지표 로드 ─────────────────────────────────────────────────────────
+  async function loadMacro() {
+    try {
+      const res = await fetch('/api/macro');
+      const data = await res.json();
+      const grid = document.getElementById('macro-grid');
+      grid.innerHTML = '';
+      for (const item of data) {
+        const card = document.createElement('div');
+        card.className = 'macro-card';
+        card.innerHTML = `
+          <div class="macro-label">${item.label}</div>
+          <div class="macro-value">${item.value}</div>
+          <div class="macro-sub">${item.sub}</div>`;
+        grid.appendChild(card);
+      }
+    } catch(e) { log('거시지표 로드 실패: ' + e, 'warn'); }
   }
 
-  // ── 사이트 그리드 갱신 ───────────────────────────────────────────────────────
+  // ── 크롤링 사이트 상태 ────────────────────────────────────────────────────
+  function toggleCrawl() {
+    _crawlOpen = !_crawlOpen;
+    document.getElementById('crawl-body').style.display = _crawlOpen ? 'block' : 'none';
+    document.getElementById('crawl-toggle').textContent = _crawlOpen ? '접기 ▴' : '펼치기 ▾';
+  }
+
   async function refreshSites() {
     try {
       const res = await fetch('/api/sites');
@@ -480,278 +678,337 @@
       for (const s of sites) {
         const row = document.createElement('div');
         row.className = 'site-row';
-        row.innerHTML = `<div class="site-dot ${s.status}"></div>
-          <div class="site-name">${s.name}</div>
+        row.innerHTML = `
+          <div class="site-dot ${s.status}"></div>
+          <div class="site-name" title="${s.name}">${s.name}</div>
           <div class="site-msg" title="${s.message}">${s.message||'—'}</div>`;
         grid.appendChild(row);
       }
     } catch(e) {}
   }
 
-  // ── 제품 테이블 갱신 ─────────────────────────────────────────────────────────
-  async function refreshProducts() {
-    try {
-      const res = await fetch('/api/products');
-      const rows = await res.json();
-      const tbody = document.getElementById('products-tbody');
-      if (!rows.length) return;
-
-      let priceCount = 0, confSum = 0, confN = 0;
-      tbody.innerHTML = '';
-
-      const byPid = {};
-      for (const r of rows) byPid[r.product_id] = r;
-
-      const ORDER = Object.keys(INN);
-      for (const pid of ORDER) {
-        const r = byPid[pid];
-        const tr = document.createElement('tr');
-        if (!r) {
-          tr.innerHTML = `<td>${pid.replace('SG_','').replace(/_/g,' ')}</td>
-            <td style="color:var(--muted)">${INN[pid]||'—'}</td>
-            <td colspan="5" style="color:var(--muted)">미수집</td>`;
-        } else {
-          const price = r.price_local != null ? `S$${r.price_local.toFixed(2)}` : '<span style="color:var(--muted)">—</span>';
-          const conf  = r.confidence != null ? r.confidence : 0;
-          const confPct = Math.round(conf * 100);
-          const confColor = conf >= 0.8 ? 'var(--ok)' : conf >= 0.6 ? 'var(--warn)' : 'var(--err)';
-          const seg = r.market_segment || '—';
-          const src = (r.source_name||'—').replace('_',' ');
-          const statusMap = {collected:'pill-ok', price_missing:'pill-warn', not_crawled:'pill-muted'};
-          const statusLabel = {collected:'수집', price_missing:'가격없음', not_crawled:'미실행'};
-          const st = r.price_local != null ? 'collected' : 'price_missing';
-
-          tr.innerHTML = `
-            <td><b>${r.trade_name||pid}</b></td>
-            <td style="color:var(--muted)">${INN[pid]||r.scientific_name||'—'}</td>
-            <td>${price}</td>
-            <td>
-              <div class="conf-bar"><div class="conf-fill" style="width:${confPct}%;background:${confColor}"></div></div>
-              <span style="margin-left:4px;color:${confColor}">${conf.toFixed(2)}</span>
-            </td>
-            <td style="color:var(--muted)">${src}</td>
-            <td style="color:var(--muted)">${seg}</td>
-            <td><span class="pill ${statusMap[st]||'pill-muted'}">${statusLabel[st]||'—'}</span></td>`;
-
-          if (r.price_local != null) priceCount++;
-          if (r.confidence != null) { confSum += r.confidence; confN++; }
-        }
-        tbody.appendChild(tr);
-      }
-
-      document.getElementById('stat-price').textContent = `${priceCount} / 8`;
-      document.getElementById('stat-conf').textContent  = confN ? (confSum/confN).toFixed(3) : '—';
-      document.getElementById('hdr-coverage').textContent = `커버리지 ${Math.round(priceCount/8*100)}%`;
-      document.getElementById('hdr-conf').textContent = confN ? `conf ${(confSum/confN).toFixed(3)}` : 'conf —';
-    } catch(e) {}
-  }
-
-  // ── SSE 연결 ──────────────────────────────────────────────────────────────────
+  // ── SSE 연결 ─────────────────────────────────────────────────────────────
   function connectSSE() {
-    if (_sse) { _sse.close(); }
+    if (_sse) _sse.close();
     _sse = new EventSource('/api/stream');
     _sse.onmessage = (e) => {
       const ev = JSON.parse(e.data);
       const level = ev.level || 'info';
-      const msg = ev.message || JSON.stringify(ev);
-      log(`[${ev.phase||'?'}] ${msg}`, level);
-
-      // 단계별 상태 반영
-      const phase = ev.phase || '';
-      if (phase.includes('crawl') || phase.includes('pipeline')) {
-        setStep('crawl', level === 'error' ? 'error' : 'running', msg.slice(0,20)+'…');
-      }
-      if (phase.includes('db') || phase === 'upsert') {
-        setStep('db', level === 'error' ? 'error' : 'done', '저장됨');
+      const msg = ev.message || '';
+      if (msg) log(`[${ev.phase||'?'}] ${msg}`, level);
+      // 크롤링 중이면 사이트 상태 갱신
+      if ((ev.phase||'').includes('crawl') || ev.phase === 'site_progress') {
+        refreshSites();
       }
     };
-    _sse.onerror = () => log('SSE 연결 끊김 — 재연결 대기', 'warn');
+    _sse.onerror = () => {};
   }
 
-  // ── 상태 폴링 ────────────────────────────────────────────────────────────────
-  async function pollStatus() {
+  // ── 진행 단계 표시 ────────────────────────────────────────────────────────
+  const STEP_MAP = {
+    init:    null,
+    crawl:   'prog-crawl',
+    analyze: 'prog-analyze',
+    refs:    'prog-refs',
+    report:  'prog-report',
+    done:    null,
+    error:   null,
+  };
+  const STEP_ORDER = ['crawl', 'analyze', 'refs', 'report'];
+
+  function setProgress(currentStep, status) {
+    document.getElementById('progress-row').classList.add('visible');
+    const idx = STEP_ORDER.indexOf(currentStep);
+    for (let i = 0; i < STEP_ORDER.length; i++) {
+      const el = document.getElementById('prog-' + STEP_ORDER[i]);
+      if (!el) continue;
+      if (status === 'error' && i === idx) {
+        el.className = 'prog-step error';
+      } else if (i < idx || (i === idx && status === 'done')) {
+        el.className = 'prog-step done';
+        el.querySelector('.prog-dot').textContent = '✓';
+      } else if (i === idx) {
+        el.className = 'prog-step active';
+      } else {
+        el.className = 'prog-step';
+        el.querySelector('.prog-dot').textContent = i + 1;
+      }
+    }
+  }
+
+  function resetProgress() {
+    document.getElementById('progress-row').classList.remove('visible');
+    for (let i = 0; i < STEP_ORDER.length; i++) {
+      const el = document.getElementById('prog-' + STEP_ORDER[i]);
+      if (el) {
+        el.className = 'prog-step';
+        el.querySelector('.prog-dot').textContent = i + 1;
+      }
+    }
+  }
+
+  // ── 파이프라인 실행 ───────────────────────────────────────────────────────
+  async function runPipeline() {
+    const sel = document.getElementById('product-select');
+    const productKey = sel.value;
+    _currentKey = productKey;
+
+    // UI 초기화
+    resetProgress();
+    document.getElementById('result-card').classList.remove('visible');
+    document.getElementById('papers-card').classList.remove('visible');
+    document.getElementById('report-card').classList.remove('visible');
+    document.getElementById('btn-analyze').disabled = true;
+    document.getElementById('btn-icon').textContent = '⏳';
+
+    // 크롤링 상태 패널 자동 열기
+    if (!_crawlOpen) toggleCrawl();
+
+    log(`파이프라인 시작 — ${productKey}`, 'info');
+
     try {
-      const r = await fetch('/api/status');
-      const d = await r.json();
-      const el = document.getElementById('stat-state');
-      el.textContent = d.running ? '실행 중' : '대기';
-      el.style.color = d.running ? 'var(--accent)' : 'var(--muted)';
-      document.getElementById('stat-events').textContent = `이벤트 ${d.event_count}건`;
+      const res = await fetch(`/api/pipeline/${encodeURIComponent(productKey)}`, {method: 'POST'});
+      if (!res.ok) {
+        const d = await res.json();
+        log('파이프라인 오류: ' + (d.detail || res.status), 'error');
+        document.getElementById('btn-analyze').disabled = false;
+        document.getElementById('btn-icon').textContent = '▶';
+        return;
+      }
+      connectSSE();
+      _pollTimer = setInterval(() => pollPipeline(productKey), 2500);
+    } catch(e) {
+      log('요청 실패: ' + e, 'error');
+      document.getElementById('btn-analyze').disabled = false;
+      document.getElementById('btn-icon').textContent = '▶';
+    }
+  }
 
-      const hdr = document.getElementById('hdr-status');
-      hdr.textContent = d.running ? '실행 중' : '대기 중';
-      hdr.className = `badge ${d.running ? 'badge-ok' : 'badge-muted'}`;
+  async function pollPipeline(productKey) {
+    try {
+      const res = await fetch(`/api/pipeline/${encodeURIComponent(productKey)}/status`);
+      const d = await res.json();
 
-      document.getElementById('btn-crawl').disabled = d.running;
-      document.getElementById('btn-crawl-ai').disabled = d.running;
+      if (d.status === 'idle') return;
+      if (d.step && d.step !== 'done' && d.step !== 'error') {
+        setProgress(d.step, 'running');
+        log(`[${d.step}] ${d.step_label}`, 'info');
+      }
 
-      if (!d.running) {
-        setStep('crawl', 'done', '완료');
-        setStep('db', 'done', '완료');
-        refreshProducts();
+      if (d.status === 'done') {
+        clearInterval(_pollTimer);
+        // 모든 스텝 완료 표시
+        for (const s of STEP_ORDER) setProgress(s, 'done');
+        // 결과 로드
+        const r2 = await fetch(`/api/pipeline/${encodeURIComponent(productKey)}/result`);
+        const data = await r2.json();
+        renderResult(data.result, data.refs, data.pdf);
+        document.getElementById('btn-analyze').disabled = false;
+        document.getElementById('btn-icon').textContent = '▶';
+        log('파이프라인 완료 ✓', 'success');
         refreshSites();
+        if (_outlierOpen) refreshOutlier();
+      }
+
+      if (d.status === 'error') {
+        clearInterval(_pollTimer);
+        setProgress(d.step || 'crawl', 'error');
+        log('파이프라인 오류: ' + d.step_label, 'error');
+        document.getElementById('btn-analyze').disabled = false;
+        document.getElementById('btn-icon').textContent = '▶';
       }
     } catch(e) {}
   }
 
-  // ── 크롤 시작 ────────────────────────────────────────────────────────────────
-  async function startCrawl(withAI) {
-    setStep('crawl', 'running', '실행 중');
-    setStep('db', 'running', '대기');
-    log('크롤 요청 전송…', 'info');
-    try {
-      const res = await fetch('/api/run', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({use_ai_discovery: withAI}),
-      });
-      const d = await res.json();
-      log(d.message || '크롤 시작됨', res.ok ? 'success' : 'error');
-      if (res.ok) connectSSE();
-    } catch(e) {
-      log('크롤 요청 실패: ' + e, 'error');
-      setStep('crawl', 'error', '실패');
-    }
-  }
+  // ── 결과 렌더링 ───────────────────────────────────────────────────────────
+  function renderResult(result, refs, pdfName) {
+    // 분석 결과 카드
+    if (result) {
+      const verdict  = result.verdict;
+      const vc = verdict === '적합' ? 'v-ok' : verdict === '부적합' ? 'v-err' : verdict ? 'v-warn' : 'v-none';
+      const vLabel = verdict || 'API 키 미설정';
 
-  // ── 분석 시작 ────────────────────────────────────────────────────────────────
-  async function startAnalysis() {
-    setStep('analysis', 'running', '실행 중');
-    log('Claude 분석 요청…', 'info');
-    try {
-      const res = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({use_perplexity: false, force_refresh: true}),
-      });
-      const d = await res.json();
-      log(d.message || '분석 시작', res.ok ? 'success' : 'error');
-      if (res.ok) pollAnalysis();
-    } catch(e) {
-      log('분석 요청 실패: ' + e, 'error');
-      setStep('analysis', 'error', '실패');
-    }
-  }
+      document.getElementById('verdict-badge').className = `verdict-badge ${vc}`;
+      document.getElementById('verdict-badge').textContent = vLabel;
+      document.getElementById('verdict-name').textContent  = result.trade_name || result.product_id || '';
+      document.getElementById('verdict-inn').textContent   = INN_MAP[result.product_id] || result.inn || '';
+      document.getElementById('verdict-model').textContent = result.analysis_model ? `분석 모델: ${result.analysis_model}` : '';
+      document.getElementById('rationale-box').textContent = result.rationale || '—';
 
-  async function pollAnalysis() {
-    const res = await fetch('/api/analyze/status');
-    const d = await res.json();
-    if (d.running) {
-      setTimeout(pollAnalysis, 2000);
-    } else {
-      const r2 = await fetch('/api/analyze/result');
-      if (r2.ok) {
-        const data = await r2.json();
-        _analysisResult = data.results;
-        renderAnalysis(_analysisResult);
-        setStep('analysis', 'done', `${data.count}품목 완료`);
-        document.getElementById('stat-analysis').textContent = data.count + ' / 8';
-        log(`분석 완료 ${data.count}품목`, 'success');
-      } else {
-        setStep('analysis', 'error', '실패');
+      const factorsRow = document.getElementById('factors-row');
+      factorsRow.innerHTML = '';
+      for (const f of (result.key_factors || [])) {
+        const chip = document.createElement('span');
+        chip.className = 'factor-chip';
+        chip.textContent = f;
+        factorsRow.appendChild(chip);
       }
+      document.getElementById('result-card').classList.add('visible');
     }
-  }
 
-  function renderAnalysis(results) {
-    const sec = document.getElementById('analysis-section');
-    const panel = document.getElementById('analysis-panel');
-    sec.style.display = 'block';
-    panel.innerHTML = '';
-
-    let hasAnyRefs = results.some(r => (r.references||[]).length > 0);
-
-    for (const r of results) {
-      const vc = r.verdict === '적합' ? 'v-ok' : r.verdict === '부적합' ? 'v-err' : 'v-warn';
-      const factors = (r.key_factors||[]).slice(0,3).join(' · ');
-      const refs = r.references || [];
-
-      // 논문 링크 HTML
-      let refsHtml = '';
-      if (refs.length > 0) {
-        const links = refs.map(ref =>
-          `<div style="margin-top:4px;display:flex;gap:6px;align-items:flex-start">
-            <span style="color:var(--muted);flex-shrink:0">▸</span>
+    // 논문 카드 (별도)
+    const papersList = document.getElementById('papers-list');
+    papersList.innerHTML = '';
+    if (refs && refs.length > 0) {
+      for (const ref of refs) {
+        const item = document.createElement('div');
+        item.className = 'paper-item';
+        item.innerHTML = `
+          <span class="paper-arrow">▸</span>
+          <div>
             <div>
-              <a href="${ref.url}" target="_blank" rel="noopener"
-                style="color:var(--accent);text-decoration:none;font-size:11px;line-height:1.4"
-                onmouseover="this.style.textDecoration='underline'"
-                onmouseout="this.style.textDecoration='none'"
-              >${ref.title||ref.url}</a>
-              <span style="color:var(--muted);font-size:10px;margin-left:4px">[${ref.source||''}]</span>
-              <div style="color:var(--muted);font-size:10px;margin-top:1px">${ref.reason||''}</div>
+              <a class="paper-link" href="${ref.url}" target="_blank" rel="noopener">${ref.title || ref.url}</a>
+              <span class="paper-src">[${ref.source || ''}]</span>
             </div>
-          </div>`
-        ).join('');
-        refsHtml = `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${links}</div>`;
-      } else if (!hasAnyRefs) {
-        refsHtml = `<div style="margin-top:4px;font-size:10px;color:var(--pending)">
-          PERPLEXITY_API_KEY 설정 시 관련 논문이 표시됩니다</div>`;
+            <div class="paper-reason">${ref.reason || ''}</div>
+          </div>`;
+        papersList.appendChild(item);
       }
-
-      const row = document.createElement('div');
-      row.className = 'analysis-row';
-      row.style.flexDirection = 'column';
-      row.style.alignItems = 'stretch';
-      row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="verdict-badge ${vc}">${r.verdict}</span>
-          <div style="flex:1">
-            <div style="font-weight:600">${r.trade_name||r.product_id}</div>
-            <div style="color:var(--muted);font-size:11px;margin-top:2px">${factors||r.confidence_note||''}</div>
-          </div>
-          <div style="font-size:10px;color:var(--muted)">${r.analysis_model||''}</div>
-        </div>
-        ${refsHtml}`;
-      panel.appendChild(row);
+    } else {
+      papersList.innerHTML = `<div class="no-papers-msg">
+        PERPLEXITY_API_KEY 설정 시 관련 논문이 자동 검색됩니다.</div>`;
     }
+    document.getElementById('papers-card').classList.add('visible');
 
-    if (hasAnyRefs) {
-      log(`관련 논문 ${results.reduce((s,r)=>s+(r.references||[]).length,0)}건 로드됨`, 'success');
+    // 보고서 카드
+    if (pdfName) {
+      document.getElementById('report-card').classList.add('visible');
     }
   }
 
-  // ── 보고서 ───────────────────────────────────────────────────────────────────
-  async function generateReport() {
-    setStep('report', 'running', '생성 중');
-    log('PDF 보고서 생성 요청…', 'info');
+  // ── 이상치 카드 ──────────────────────────────────────────────────────────
+  let _outlierOpen = false;
+
+  function toggleOutlier() {
+    _outlierOpen = !_outlierOpen;
+    document.getElementById('outlier-body').style.display = _outlierOpen ? 'block' : 'none';
+    document.getElementById('outlier-toggle').textContent = _outlierOpen ? '접기 ▴' : '펼치기 ▾';
+    if (_outlierOpen) refreshOutlier();
+  }
+
+  const TRADE_NAMES = {
+    SG_hydrine_hydroxyurea_500: 'Hydrine',
+    SG_gadvoa_gadobutrol_604:   'Gadvoa Inj.',
+    SG_sereterol_activair:      'Sereterol',
+    SG_omethyl_omega3_2g:       'Omethyl',
+    SG_rosumeg_combigel:        'Rosumeg',
+    SG_atmeg_combigel:          'Atmeg',
+    SG_ciloduo_cilosta_rosuva:  'Ciloduo',
+    SG_gastiin_cr_mosapride:    'Gastiin CR',
+  };
+
+  async function refreshOutlier() {
     try {
-      const res = await fetch('/api/report', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({run_analysis: false}),
-      });
-      const d = await res.json();
-      log(d.message || '보고서 생성 시작', res.ok ? 'success' : 'error');
-      if (res.ok) {
-        setTimeout(async () => {
-          const s = await fetch('/api/report/status');
-          const sd = await s.json();
-          if (sd.latest_pdf) {
-            setStep('report', 'done', '완료');
-            log('PDF 생성 완료 — 다운로드 가능', 'success');
-          }
-        }, 4000);
+      const res = await fetch('/api/products');
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!rows || rows.length === 0) return;
+
+      let normalCount = 0, outlierCount = 0, missingCount = 0;
+      const confs = [];
+      const items = [];
+
+      for (const r of rows) {
+        const raw = r.raw_payload || {};
+        const verdict = r.verdict || raw.verdict || null;
+        const entryPathway = raw.entry_pathway || r.entry_pathway || null;
+        const conf = parseFloat(raw.conf ?? raw.confidence ?? r.confidence ?? 0) || 0;
+        const name = r.trade_name || TRADE_NAMES[r.product_key] || r.product_key || '—';
+
+        if (verdict == null) missingCount++;
+        else if (verdict === '적합') normalCount++;
+        else outlierCount++;
+
+        if (conf > 0) confs.push(conf);
+        items.push({ name, entryPathway, conf, verdict });
       }
-    } catch(e) {
-      log('보고서 생성 실패: ' + e, 'error');
-      setStep('report', 'error', '실패');
-    }
+
+      const total = normalCount + outlierCount + missingCount;
+      const avgConf = confs.length ? (confs.reduce((a,b)=>a+b,0)/confs.length) : 0;
+
+      // 요약 stats
+      document.getElementById('ot-normal').textContent  = normalCount;
+      document.getElementById('ot-outlier').textContent = outlierCount;
+      document.getElementById('ot-conf').textContent    = avgConf.toFixed(2);
+
+      // 도넛 차트 (SVG stroke-dasharray)
+      const circ = 2 * Math.PI * 28; // ≈ 175.9
+      const okPct     = total ? normalCount  / total : 0;
+      const errPct    = total ? outlierCount / total : 0;
+      const okLen     = okPct  * circ;
+      const errLen    = errPct * circ;
+      const okOffset  = 0;
+      const errOffset = okLen;
+
+      const donutOk  = document.getElementById('donut-ok');
+      const donutErr = document.getElementById('donut-err');
+      donutOk.setAttribute('stroke-dasharray',  `${okLen}  ${circ - okLen}`);
+      donutOk.setAttribute('stroke-dashoffset', '0');
+      donutErr.setAttribute('stroke-dasharray', `${errLen} ${circ - errLen}`);
+      donutErr.setAttribute('stroke-dashoffset', `-${errOffset}`);
+      document.getElementById('donut-label').textContent =
+        total ? Math.round(okPct * 100) + '%' : '—';
+
+      document.getElementById('legend-normal').textContent  = `적합 ${normalCount}건`;
+      document.getElementById('legend-outlier').textContent = `조건부·부적합 ${outlierCount}건`;
+      document.getElementById('legend-missing').textContent = `미분석 ${missingCount}건`;
+
+      // 신뢰도 분포 바 차트 (0.3~1.0 구간 10개 버킷)
+      const BUCKETS = 7;
+      const MIN_CONF = 0.3, MAX_CONF = 1.0;
+      const step = (MAX_CONF - MIN_CONF) / BUCKETS;
+      const buckets = Array(BUCKETS).fill(0);
+      for (const c of confs) {
+        const idx = Math.min(BUCKETS - 1, Math.floor((c - MIN_CONF) / step));
+        if (idx >= 0) buckets[idx]++;
+      }
+      const maxBucket = Math.max(...buckets, 1);
+      const barsEl = document.getElementById('conf-bars');
+      barsEl.innerHTML = '';
+      buckets.forEach((cnt, i) => {
+        const pct = (cnt / maxBucket) * 100;
+        const label = (MIN_CONF + step * i).toFixed(1);
+        const col = document.createElement('div');
+        col.className = 'conf-bar-col';
+        // outlier 구간(낮은 신뢰도) 색 구분
+        const barClass = 'conf-bar' + (i < 2 ? ' outlier-bar' : '');
+        col.innerHTML = `
+          <div class="${barClass}" style="height:${Math.max(pct * 0.56, 2)}px"></div>
+          <div class="conf-bar-label">${label}</div>`;
+        barsEl.appendChild(col);
+      });
+
+      // 품목별 테이블
+      const tbody = document.getElementById('outlier-tbody');
+      tbody.innerHTML = '';
+      for (const item of items) {
+        const statusClass = item.verdict == null ? 'missing' : item.verdict === '적합' ? 'normal' : 'outlier';
+        const statusLabel = item.verdict ?? '미분석';
+        const confPct = Math.round(item.conf * 100);
+        const fillColor = item.conf >= 0.75 ? 'var(--ok)' : item.conf >= 0.5 ? 'var(--warn)' : 'var(--err)';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight:600">${item.name}</td>
+          <td style="color:var(--muted)">${item.entryPathway ?? '—'}</td>
+          <td>
+            <span class="conf-mini-bar">
+              <span class="conf-mini-fill" style="width:${confPct}%;background:${fillColor}"></span>
+            </span>
+            <span style="font-size:10px;color:var(--muted);margin-left:5px">${item.conf ? item.conf.toFixed(2) : '—'}</span>
+          </td>
+          <td><span class="pill ${statusClass}">${statusLabel}</span></td>`;
+        tbody.appendChild(tr);
+      }
+
+    } catch(e) {}
   }
 
-  async function downloadReport() {
-    log('PDF 다운로드…', 'info');
-    window.location.href = '/api/report/download';
-  }
-
-  // ── 초기화 ───────────────────────────────────────────────────────────────────
+  // ── 초기화 ────────────────────────────────────────────────────────────────
+  loadMacro();
   connectSSE();
   refreshSites();
-  refreshProducts();
-  setInterval(pollStatus, 3000);
-  setInterval(refreshProducts, 8000);
-  setInterval(refreshSites, 5000);
-  log('대시보드 초기화 완료', 'info');
+  setInterval(refreshSites, 6000);
+  log('대시보드 초기화 완료', 'success');
 </script>
 </body>
 </html>
