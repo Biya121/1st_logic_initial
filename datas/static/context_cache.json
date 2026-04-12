@@ -1,0 +1,557 @@
+{
+  "SG_hydrine_hydroxyurea_500": {
+    "product_id": "SG_hydrine_hydroxyurea_500",
+    "hsa_matches": [
+      {
+        "licence_no": "SIN11083P",
+        "product_name": "HYDRINE CAPSULES 500 mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "L01XX05",
+        "active_ingredients": "HYDROXYUREA"
+      }
+    ],
+    "hsa_registered": true,
+    "competitor_count": 1,
+    "prescription_only": true,
+    "pdf_snippets": [
+      {
+        "source": "가격 정책 리뷰",
+        "page": "10",
+        "keyword": "cancer",
+        "text": "upply-side interventions.  2.2 PRICING POLICIES The pricing interventions evaluated across the 11 countries stem from the 2020 WHO guidelines on pricing policies and the 2019 WHO report on pricing of cancer medicines.5 While the pricing guidelines mainly detail the technical elements and required administrative complexity of each of these policies, the WHO 2019 medicines report highlights the impa"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "10",
+        "keyword": "cancer",
+        "text": "4 World Health Organization. (2020). WHO guideline on country pharmaceutical pricing policies, second edition. ISBN 9789240011878.  5 World Health Organization. (2019). Technical report: pricing of cancer medicines and its impacts: a comprehensive technical report for the World Health Assembly Resolution 70.12: operative paragraph 2.9 on pricing approaches and their impacts on availability and a"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "10",
+        "keyword": "cancer",
+        "text": "port for the World Health Assembly Resolution 70.12: operative paragraph 2.9 on pricing approaches and their impacts on availability and affordability of medicines for the prevention and treatment of cancer. World Health Organization. Available at: https://apps.who.int/iris/handle/10665/277190. License: CC BY-NC-SA 3.0 IGO."
+      },
+      {
+        "source": "의약품 시장 논문",
+        "page": "4",
+        "keyword": "cancer",
+        "text": "ing agreements that are contract-\nspecific and rely on metrics such as total sales, per patient\ncap etc. South Korea and Thailand also practise perfor-\nmance based risk-sharing for medicines to treat cancer\nand rare diseases, where the clinical benefits of a drug in\neach patient are monitored and costs are covered by the\nmanufacturer if the drug fails to demonstrate effectiveness.\nI ns o m ec a s"
+      },
+      {
+        "source": "의약품 시장 논문",
+        "page": "8",
+        "keyword": "cancer",
+        "text": "rofile Australia. Paris, France: OECD; 2014.\n[24] PHARMAC. Medicines and medical devices contract\nnegotiation. 2016.\n[25] Kim E-S, Kim J-A, Lee E-K. National reimbursement listing\ndeterminants of new cancer drugs: a retrospective ana-\nlysis of 58 cancer treatment appraisals in 2007 –2016 in\nSouth Korea. Expert Rev Pharmacoecon Outcomes Res.\n2017;17(4):401–409.\n[26] Hsiao FY, Tsai YW, Huang WF. Pri"
+      },
+      {
+        "source": "의약품 시장 논문",
+        "page": "8",
+        "keyword": "cancer",
+        "text": "4] PHARMAC. Medicines and medical devices contract\nnegotiation. 2016.\n[25] Kim E-S, Kim J-A, Lee E-K. National reimbursement listing\ndeterminants of new cancer drugs: a retrospective ana-\nlysis of 58 cancer treatment appraisals in 2007 –2016 in\nSouth Korea. Expert Rev Pharmacoecon Outcomes Res.\n2017;17(4):401–409.\n[26] Hsiao FY, Tsai YW, Huang WF. Price regulation, new\nentry, and information shock"
+      }
+    ],
+    "regulatory_summary": "HSA 등재 경쟁품 1건 확인.  처방전 필요(Rx): 1건, 일반(OTC): 0건.  대표 사례: HYDRINE CAPSULES 500 mg (SIN11083P, Prescription Only)  최초 승인일: 1999-08-25",
+    "built_at": "2026-04-11T13:07:31.042157+00:00"
+  },
+  "SG_gadvoa_gadobutrol_604": {
+    "product_id": "SG_gadvoa_gadobutrol_604",
+    "hsa_matches": [
+      {
+        "licence_no": "SIN13807P",
+        "product_name": "GADOVIST 1MMOL/ML PREFILLED SYRINGE 5.0 ML",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "V08CA09",
+        "active_ingredients": "GADOBUTROL"
+      },
+      {
+        "licence_no": "SIN12399P",
+        "product_name": "GADOVIST INJECTION 1.0 mmol/ml",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "V08CA09",
+        "active_ingredients": "GADOBUTROL"
+      }
+    ],
+    "hsa_registered": true,
+    "competitor_count": 2,
+    "prescription_only": true,
+    "pdf_snippets": [],
+    "regulatory_summary": "HSA 등재 경쟁품 2건 확인.  처방전 필요(Rx): 2건, 일반(OTC): 0건.  대표 사례: GADOVIST 1MMOL/ML PREFILLED SYRINGE 5.0 ML (SIN13807P, Prescription Only)  최초 승인일: 2010-05-21",
+    "built_at": "2026-04-11T13:07:32.402010+00:00"
+  },
+  "SG_sereterol_activair": {
+    "product_id": "SG_sereterol_activair",
+    "hsa_matches": [
+      {
+        "licence_no": "SIN13983P",
+        "product_name": "APO-FLUTICASONE AQUEOUS NASAL SPRAY 50MCG/SPRAY",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "R01AD08",
+        "active_ingredients": "FLUTICASONE PROPIONATE (micronized)"
+      },
+      {
+        "licence_no": "SIN11529P",
+        "product_name": "SERETIDE EVOHALER 25/50 mcg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "R03AK06",
+        "active_ingredients": "FLUTICASONE PROPIONATE&&SALMETEROL"
+      },
+      {
+        "licence_no": "SIN11530P",
+        "product_name": "SERETIDE EVOHALER 25/125 mcg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "R03AK06",
+        "active_ingredients": "FLUTICASONE PROPIONATE&&SALMETEROL"
+      },
+      {
+        "licence_no": "SIN11531P",
+        "product_name": "SERETIDE EVOHALER 25/250 mcg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "R03AK06",
+        "active_ingredients": "FLUTICASONE PROPIONATE&&SALMETEROL"
+      },
+      {
+        "licence_no": "SIN11347P",
+        "product_name": "FLIXOTIDE EVOHALER 125 mcg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "R03BA05",
+        "active_ingredients": "FLUTICASONE PROPIONATE"
+      },
+      {
+        "licence_no": "SIN08628P",
+        "product_name": "CUTIVATE CREAM 0.05% w/w",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "D07AC17",
+        "active_ingredients": "FLUTICASONE PROPIONATE"
+      },
+      {
+        "licence_no": "SIN11358P",
+        "product_name": "FLIXOTIDE EVOHALER 50 mcg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "R03BA05",
+        "active_ingredients": "FLUTICASONE PROPIONATE"
+      },
+      {
+        "licence_no": "SIN07090P",
+        "product_name": "FLIXONASE AQUEOUS NASAL SPRAY 0.05% w/w",
+        "forensic_classification": "Pharmacy Only",
+        "atc_code": "R01AD08",
+        "active_ingredients": "FLUTICASONE PROPIONATE"
+      },
+      {
+        "licence_no": "SIN16909P",
+        "product_name": "SALFLUMIX EASYHALER INHALATION POWDER 50µG/250µG/DOSE",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "R03AK06",
+        "active_ingredients": "Fluticasone propionate&&Salmeterol xinafoate eqv Salmeterol"
+      },
+      {
+        "licence_no": "SIN15256P",
+        "product_name": "SYNAZE NASAL SPRAY",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "R01AD58",
+        "active_ingredients": "Azelastine hydrochloride&&Fluticasone propionate"
+      }
+    ],
+    "hsa_registered": true,
+    "competitor_count": 23,
+    "prescription_only": true,
+    "pdf_snippets": [
+      {
+        "source": "HSA 등록 가이드",
+        "page": "10",
+        "keyword": "ICS",
+        "text": "ct obtained by chemical change or synthesis (including \nmacromolecules produced by chemical synthesis, such as peptides/oligo- nucleotides), \nor any metabolites from a micro-organism (such as antibiotics). \n \nA biological entity refers to any macromolecule extracted from an organism (such as \nproteins, nucleic acids, proteoglycans, cytokines and growth factors), or any substance \nderived from a bi"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "4",
+        "keyword": "ICS",
+        "text": "gapore, El Instituto de Evaluacion Technologica en Salud, IC Consultants, Imperial Health Sciences, MedSource, QuintilesIMS, University of Washington \nCapacity Resource Partners \nAfrican Health Economics and Policy Association, Ecumenical Pharmaceutical Network, U3 SystemsWork, University of Ibadan, University of Ghana’s World Health Organizations (WHO) Pharmacovigilance Collaborating Center, Kili"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "7",
+        "keyword": "ICS",
+        "text": "LMICs low- and middle-income countries  MEA managed entry agreement MHIF Mandatory Health Insurance Fund MOH Ministry of Health MPA Minimum Package of Activity  MRP maximum retail price MSH Management S"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "12",
+        "keyword": "ICS",
+        "text": "All types or only certain categories of medicines. A universal clawback rate applied to all products tends to have a negative impact on availability of older, lower-profit margin medicines like generics where there is a risk that the profit margin is lower than the clawback rate.  Prices set at: There is no set price for one product, just a capped amount of money/budget.  \n \nClawback on sales"
+      },
+      {
+        "source": "의약품 시장 논문",
+        "page": "1",
+        "keyword": "ICS",
+        "text": "tries,\ndocument key differences in implementation with\nexamples across countries, and discuss the pros and\ncons of each strategy. This review will inform industry\nprofessionals, regulators, and academics interested to\nCONTACT Eric Andrew Finkelstein eric.finkelstein@duke-nus.edu.sg Duke-NUS Graduate Medical School, 8 College Road, Singapore 169857 Singapore\nJOURNAL OF MARKET ACCESS & HEALTH POLICY"
+      },
+      {
+        "source": "의약품 시장 논문",
+        "page": "3",
+        "keyword": "ICS",
+        "text": "equiva-\nlent to the lowest priced medicine in the class, or derived\nas a percentage of a similar medicine in the class. Broadly,\nIRP can be classified based on whether medicines refer-\nenced are generics (i.e., have identical active ingredients\nas the patented medicine) or are therapeutically similar\n(i.e., somewhat equivalent products within the medicine\nclass, but do not necessarily have the sam"
+      },
+      {
+        "source": "의약품 시장 논문",
+        "page": "3",
+        "keyword": "ICS",
+        "text": "quivalence. Japan has two IRP strategies, one for\nmedicines that are generic (these drugs are reimbursed at\n80% of what is paid for branded medicines in the class; or\n90% if there are 20 or more generics) and another for\nmedicines that are therapeutically similar (i.e., ‘me-too’\nmedicines) but not identical [12]. For the latter, medicine\nreimbursement is usually set at a value that is lower than\nw"
+      },
+      {
+        "source": "의약품 시장 논문",
+        "page": "3",
+        "keyword": "ICS",
+        "text": "eria include addressing public health priorities\nand representing a significant share of the market [ 20].\nCountries practicing ERP tend to reference other\ncountries with similar economic characteristics, such as\nGDP per capita. As an example, South Korea, with\na relatively high GDP per capita in the region, has\na reference basket which includes two high income\ncountries, Taiwan and Singapore [ 18"
+      }
+    ],
+    "regulatory_summary": "HSA 등재 경쟁품 23건 확인.  처방전 필요(Rx): 22건, 일반(OTC): 1건.  대표 사례: APO-FLUTICASONE AQUEOUS NASAL SPRAY 50MCG/SPRAY (SIN13983P, Prescription Only)  최초 승인일: 2011-07-05",
+    "built_at": "2026-04-11T13:07:33.728212+00:00"
+  },
+  "SG_omethyl_omega3_2g": {
+    "product_id": "SG_omethyl_omega3_2g",
+    "hsa_matches": [
+      {
+        "licence_no": "SIN14504P",
+        "product_name": "Omacor Soft Capsule 1000mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AX06",
+        "active_ingredients": "Omega-3-acid ethyl esters 90 (containing: Eicosapent (EPA) 460mg and doconexent (DHA) 380mg ethyl esters and α-tocophero"
+      }
+    ],
+    "hsa_registered": true,
+    "competitor_count": 1,
+    "prescription_only": true,
+    "pdf_snippets": [],
+    "regulatory_summary": "HSA 등재 경쟁품 1건 확인.  처방전 필요(Rx): 1건, 일반(OTC): 0건.  대표 사례: Omacor Soft Capsule 1000mg (SIN14504P, Prescription Only)  최초 승인일: 2014-02-11",
+    "built_at": "2026-04-11T13:07:35.037330+00:00"
+  },
+  "SG_rosumeg_combigel": {
+    "product_id": "SG_rosumeg_combigel",
+    "hsa_matches": [
+      {
+        "licence_no": "SIN15468P",
+        "product_name": "NUTRIFLEX® OMEGA PLUS EMULSION FOR INFUSION",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "B05BA10",
+        "active_ingredients": "Alanine&&Arginine&&Aspartic acid&&Calcium chloride dihydrate&&Glucose monohydrate eqv to anhydrous glucose 120.0g/1000ml"
+      },
+      {
+        "licence_no": "SIN15595P",
+        "product_name": "ROVAST FILM COATED TABLET 10 MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium 10.42mg eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN15690P",
+        "product_name": "CHOLOSTAR FILM COATED TABLET 10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium 10.4mg eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN15636P",
+        "product_name": "ROVAS-20 FILM-COATED TABLET 20MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin calcium 20.8mg eqv rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16550P",
+        "product_name": "ROZAT 10 FILM COATED TABLET 10 MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "ROSUVASTATIN CALCIUM EQV ROSUVASTATIN"
+      },
+      {
+        "licence_no": "SIN15635P",
+        "product_name": "ROVAS-10 FILM-COATED TABLET 10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin calcium 10.4mg eqv rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16549P",
+        "product_name": "ROZAT 20 FILM COATED TABLET 20 MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "ROSUVASTATIN CALCIUM EQV ROSUVASTATIN"
+      },
+      {
+        "licence_no": "SIN16380P",
+        "product_name": "ROSTAT FILM COATED TABLET 20MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16382P",
+        "product_name": "ROSTAT FILM COATED TABLET 5MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16381P",
+        "product_name": "ROSTAT FILM COATED TABLET 10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium eqv Rosuvastatin"
+      }
+    ],
+    "hsa_registered": true,
+    "competitor_count": 62,
+    "prescription_only": true,
+    "pdf_snippets": [
+      {
+        "source": "HSA 등록 가이드",
+        "page": "6",
+        "keyword": "statin",
+        "text": "ain \nin or relating to the application. \n \nHSA may register the product subject to post -approval commitments. In such \ncircumstances, the applicant will be required to furnish a letter of commitment stating the \nundertakings concerned. Upon the approval of an application to register a therapeutic \nproduct, the product is registered and is assigned a registration number and entered in \nthe Registe"
+      },
+      {
+        "source": "HSA 등록 가이드",
+        "page": "11",
+        "keyword": "combination",
+        "text": "): \nNDA New Drug Application \n \n \nNDA-1: For the first strength of a product containing a new 3 chemical or biological \nentity. \n \nNDA-2: (a) For the first strength of a product \n(i) containing a new combination of registered chemical or biological \nentities; \n(ii) containing registered chemical or biological entity(ies) in a new \ndosage form (e.g. tablets, capsules, injectables), new presentation"
+      },
+      {
+        "source": "HSA 등록 가이드",
+        "page": "24",
+        "keyword": "statin",
+        "text": "rately \ncompleted, and the dossier is compiled according to the required format before \nsubmitting the application to HSA. \nIf deficiencies are identified in an application dossier, a screening query stating the \ndeficiencies will be issued via Input Request to the applicant. The stop-clock starts \nwhen an Input Request is sent and ends upon receipt of the applicant’s response. The \ntotal number o"
+      },
+      {
+        "source": "HSA 등록 가이드",
+        "page": "30",
+        "keyword": "statin",
+        "text": "the Register of Therapeutic \nProducts. \n \nHSA may register the product subject to post -approval commitments. In such \ncircumstances, the applicant will be required to furnish a letter of commitment stating \nthe undertakings concerned. \n \nApplicants must take note of the registration conditions and the post -approval \ncommitments specified in the registration. The registration conditions can be v"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "12",
+        "keyword": "statin",
+        "text": "for example, with the difference being paid OOP.  Applied to: Medicines for which multiple generic versions are already available; classes of medicines with multiple similar treatment options (e.g., statins). Price set at: Most commonly used to set retail-level prices; can also be used to set manufacturer or wholesaler prices during registration of medicines in the country by comparing the reques"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "12",
+        "keyword": "combination",
+        "text": "ns \n \nDefinition: A mark-up, or margin, represents the additional charges and costs that are applied to the price of a commodity. In pharmaceutical policy, mark-ups applied are the result of one or a combination of regressive/progressive and/or linear/fixed margins. It is a policy intervention most common in countries where ex-manufacturer prices are set through a different pricing policy (e.g., E"
+      }
+    ],
+    "regulatory_summary": "HSA 등재 경쟁품 62건 확인.  처방전 필요(Rx): 62건, 일반(OTC): 0건.  대표 사례: NUTRIFLEX® OMEGA PLUS EMULSION FOR INFUSION (SIN15468P, Prescription Only)  최초 승인일: 2018-04-23",
+    "built_at": "2026-04-11T13:07:36.352427+00:00"
+  },
+  "SG_atmeg_combigel": {
+    "product_id": "SG_atmeg_combigel",
+    "hsa_matches": [
+      {
+        "licence_no": "SIN15468P",
+        "product_name": "NUTRIFLEX® OMEGA PLUS EMULSION FOR INFUSION",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "B05BA10",
+        "active_ingredients": "Alanine&&Arginine&&Aspartic acid&&Calcium chloride dihydrate&&Glucose monohydrate eqv to anhydrous glucose 120.0g/1000ml"
+      },
+      {
+        "licence_no": "SIN16490P",
+        "product_name": "DUALPRESS FILM-COATED TABLET 5MG/10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10BX03",
+        "active_ingredients": "Amlodipine besylate eqv Amlodipine&&Atorvastatin calcium trihydrate eqv Atorvastatin"
+      },
+      {
+        "licence_no": "SIN14216P",
+        "product_name": "ATORIS film-coated Tablet 10mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA05",
+        "active_ingredients": "Atorvastatin Calcium 10.36mg eqv. Atorvastatin"
+      },
+      {
+        "licence_no": "SIN14217P",
+        "product_name": "ATORIS film-coated Tablet 20mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA05",
+        "active_ingredients": "Atorvastatin Calcium 20.72mg eqv. Atorvastatin"
+      },
+      {
+        "licence_no": "SIN15795P",
+        "product_name": "ATOCOR 10 FILM COATED TABLET 10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA05",
+        "active_ingredients": "Atorvastatin Calcium 10.34mg eqv Atorvastatin"
+      },
+      {
+        "licence_no": "SIN14312P",
+        "product_name": "Atorvon film-coated tablets 10mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA05",
+        "active_ingredients": "Atorvastatin calcium 10.34mg eq. to Atorvastatin"
+      },
+      {
+        "licence_no": "SIN14313P",
+        "product_name": "Atorvon film-coated tablets 20mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA05",
+        "active_ingredients": "Atorvastatin calcium 20.68mg eq. to Atorvastatin"
+      },
+      {
+        "licence_no": "SIN15430P",
+        "product_name": "TRIVERAM FILM-COATED TABLET 40 mg/10 mg/10 mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10BX11",
+        "active_ingredients": "Amlodipine besilate 13.87 mg eqv amlodipine&&Atorvastatin calcium trihydrate 43.28 mg eqv atorvastatin&&Perindopril 6.79"
+      },
+      {
+        "licence_no": "SIN15429P",
+        "product_name": "TRIVERAM FILM-COATED TABLET 20 mg/10 mg/10 mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10BX11",
+        "active_ingredients": "Amlodipine besilate 13.87 mg eqv amlodipine&&Atorvastatin calcium trihydrate 21.64 mg eqv atorvastatin&&Perindopril 6.79"
+      },
+      {
+        "licence_no": "SIN15428P",
+        "product_name": "TRIVERAM FILM-COATED TABLET 20 mg/10 mg/5 mg",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10BX11",
+        "active_ingredients": "Amlodipine besilate 6.935 mg eqv amlodipine&&Atorvastatin calcium trihydrate 21.64 mg eqv atorvastatin&&Perindopril 6.79"
+      }
+    ],
+    "hsa_registered": true,
+    "competitor_count": 61,
+    "prescription_only": true,
+    "pdf_snippets": [
+      {
+        "source": "HSA 등록 가이드",
+        "page": "6",
+        "keyword": "statin",
+        "text": "ain \nin or relating to the application. \n \nHSA may register the product subject to post -approval commitments. In such \ncircumstances, the applicant will be required to furnish a letter of commitment stating the \nundertakings concerned. Upon the approval of an application to register a therapeutic \nproduct, the product is registered and is assigned a registration number and entered in \nthe Registe"
+      },
+      {
+        "source": "HSA 등록 가이드",
+        "page": "11",
+        "keyword": "combination",
+        "text": "): \nNDA New Drug Application \n \n \nNDA-1: For the first strength of a product containing a new 3 chemical or biological \nentity. \n \nNDA-2: (a) For the first strength of a product \n(i) containing a new combination of registered chemical or biological \nentities; \n(ii) containing registered chemical or biological entity(ies) in a new \ndosage form (e.g. tablets, capsules, injectables), new presentation"
+      },
+      {
+        "source": "HSA 등록 가이드",
+        "page": "24",
+        "keyword": "statin",
+        "text": "rately \ncompleted, and the dossier is compiled according to the required format before \nsubmitting the application to HSA. \nIf deficiencies are identified in an application dossier, a screening query stating the \ndeficiencies will be issued via Input Request to the applicant. The stop-clock starts \nwhen an Input Request is sent and ends upon receipt of the applicant’s response. The \ntotal number o"
+      },
+      {
+        "source": "HSA 등록 가이드",
+        "page": "30",
+        "keyword": "statin",
+        "text": "the Register of Therapeutic \nProducts. \n \nHSA may register the product subject to post -approval commitments. In such \ncircumstances, the applicant will be required to furnish a letter of commitment stating \nthe undertakings concerned. \n \nApplicants must take note of the registration conditions and the post -approval \ncommitments specified in the registration. The registration conditions can be v"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "12",
+        "keyword": "statin",
+        "text": "for example, with the difference being paid OOP.  Applied to: Medicines for which multiple generic versions are already available; classes of medicines with multiple similar treatment options (e.g., statins). Price set at: Most commonly used to set retail-level prices; can also be used to set manufacturer or wholesaler prices during registration of medicines in the country by comparing the reques"
+      },
+      {
+        "source": "가격 정책 리뷰",
+        "page": "12",
+        "keyword": "combination",
+        "text": "ns \n \nDefinition: A mark-up, or margin, represents the additional charges and costs that are applied to the price of a commodity. In pharmaceutical policy, mark-ups applied are the result of one or a combination of regressive/progressive and/or linear/fixed margins. It is a policy intervention most common in countries where ex-manufacturer prices are set through a different pricing policy (e.g., E"
+      }
+    ],
+    "regulatory_summary": "HSA 등재 경쟁품 61건 확인.  처방전 필요(Rx): 61건, 일반(OTC): 0건.  대표 사례: NUTRIFLEX® OMEGA PLUS EMULSION FOR INFUSION (SIN15468P, Prescription Only)  최초 승인일: 2018-04-23",
+    "built_at": "2026-04-11T13:07:37.648667+00:00"
+  },
+  "SG_ciloduo_cilosta_rosuva": {
+    "product_id": "SG_ciloduo_cilosta_rosuva",
+    "hsa_matches": [
+      {
+        "licence_no": "SIN15595P",
+        "product_name": "ROVAST FILM COATED TABLET 10 MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium 10.42mg eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN15690P",
+        "product_name": "CHOLOSTAR FILM COATED TABLET 10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium 10.4mg eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN15636P",
+        "product_name": "ROVAS-20 FILM-COATED TABLET 20MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin calcium 20.8mg eqv rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16550P",
+        "product_name": "ROZAT 10 FILM COATED TABLET 10 MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "ROSUVASTATIN CALCIUM EQV ROSUVASTATIN"
+      },
+      {
+        "licence_no": "SIN15635P",
+        "product_name": "ROVAS-10 FILM-COATED TABLET 10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin calcium 10.4mg eqv rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16549P",
+        "product_name": "ROZAT 20 FILM COATED TABLET 20 MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "ROSUVASTATIN CALCIUM EQV ROSUVASTATIN"
+      },
+      {
+        "licence_no": "SIN16380P",
+        "product_name": "ROSTAT FILM COATED TABLET 20MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16382P",
+        "product_name": "ROSTAT FILM COATED TABLET 5MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16381P",
+        "product_name": "ROSTAT FILM COATED TABLET 10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium eqv Rosuvastatin"
+      },
+      {
+        "licence_no": "SIN16759P",
+        "product_name": "BEACRESTIN FILM COATED TABLET 10MG",
+        "forensic_classification": "Prescription Only",
+        "atc_code": "C10AA07",
+        "active_ingredients": "Rosuvastatin Calcium eqv Rosuvastatin"
+      }
+    ],
+    "hsa_registered": true,
+    "competitor_count": 55,
+    "prescription_only": true,
+    "pdf_snippets": [],
+    "regulatory_summary": "HSA 등재 경쟁품 55건 확인.  처방전 필요(Rx): 55건, 일반(OTC): 0건.  대표 사례: ROVAST FILM COATED TABLET 10 MG (SIN15595P, Prescription Only)  최초 승인일: 2018-12-13",
+    "built_at": "2026-04-11T13:07:38.960479+00:00"
+  },
+  "SG_gastiin_cr_mosapride": {
+    "product_id": "SG_gastiin_cr_mosapride",
+    "hsa_matches": [],
+    "hsa_registered": false,
+    "competitor_count": 0,
+    "prescription_only": false,
+    "pdf_snippets": [],
+    "regulatory_summary": "HSA 등재 기록 없음 — 신규 등록 필요",
+    "built_at": "2026-04-11T13:07:40.295488+00:00"
+  }
+}

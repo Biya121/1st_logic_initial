@@ -1,0 +1,42 @@
+# 1공정 크롤 정책 (라이브 HTTP 부하 제한)
+# - max_live_http_requests_per_cycle: 사이클당 원격 HTTP(GET 등) 최대 횟수
+#   (HSA CSV·DB·시뮬 가격은 여기 포함 안 함)
+#   8곳 프로브를 한 사이클에 돌리려면 8 전후 권장. 부하를 줄이려면 1~3으로 낮추면 일부 단계는 warn/skip.
+# - min_delay_seconds_between_live_requests: 라이브 요청 사이 최소 간격
+# - dynamic_mid.live_fetch: true 시 MOH 약가 URL 1회 추가 GET (예산 1슬롯 소모)
+
+max_live_http_requests_per_cycle: 8
+min_delay_seconds_between_live_requests: 1.0
+
+ndf:
+  enabled: true
+
+moh_pdf:
+  enabled: true
+
+api_light:
+  moh_probe: true
+  moh_probe_urls:
+    - "https://www.moh.gov.sg/"
+    - "https://www.moh.gov.sg/cost-financing/healthcare-schemes-subsidies/drug-subsidies-and-medication-costs"
+
+dynamic_mid:
+  live_fetch: false
+  omethyl_demo_price_sgd: 86.4
+  # live_fetch: true 일 때 HTML에서 Omethyl 관련 키워드 주변 S$/SGD 금액을 찾습니다.
+  parse_price_from_html: true
+  omethyl_keywords:
+    - "Omethyl"
+    - "omega-3"
+    - "omega 3"
+    - "ethyl esters"
+    - "Omacor"
+
+playwright_heavy:
+  live_env: "PLAYWRIGHT_LIVE"
+  # PLAYWRIGHT_LIVE 가 꺼져 있을 때 홈페이지 HTTP GET 으로 연결만 확인(슬롯 2회까지 사용 가능)
+  http_probe_when_not_live: true
+
+gebiz_weekly:
+  live_env: "GEBIZ_LIVE"
+  http_probe_when_not_live: true

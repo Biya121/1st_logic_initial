@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>싱가포르 1공정 크롤 · 로컬 대시보드</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --accent: #3d9cf0;
+      --ok: #3ecf8e;
+      --warn: #e6b35c;
+      --err: #f07178;
+      --skip: #6b7c90;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #2a3544;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem 1rem;
+    }
+    h1 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      background: #2a3544;
+      color: var(--muted);
+    }
+    .badge.on { background: #1e3d32; color: var(--ok); }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem 1rem;
+    }
+    label.ai-opt {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    label.ai-opt input { accent-color: var(--accent); width: 1rem; height: 1rem; }
+    button.primary {
+      background: var(--accent);
+      color: #0a0e14;
+      border: none;
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .hint-bar {
+      width: 100%;
+      font-size: 0.76rem;
+      color: var(--warn);
+    }
+    .hint-bar code { color: var(--muted); }
+    .board-wrap {
+      padding: 0.75rem 1.25rem 0.5rem;
+      border-bottom: 1px solid #2a3544;
+    }
+    .board-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+    #sitesGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.55rem;
+    }
+    .site-card {
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid #2a3544;
+      min-height: 5.2rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .site-card .num {
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-bottom: 0.15rem;
+    }
+    .site-card .title { font-size: 0.78rem; font-weight: 600; line-height: 1.25; }
+    .site-card .domain { font-size: 0.65rem; color: var(--muted); margin-top: 0.2rem; }
+    .site-card .status-row {
+      margin-top: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .pill {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0.12rem 0.4rem;
+      border-radius: 999px;
+      background: #2a3544;
+      color: var(--text);
+    }
+    .pill.pending { background: #2a3544; color: var(--muted); }
+    .pill.running { background: #1a3050; color: var(--accent); }
+    .pill.ok { background: #1e3d32; color: var(--ok); }
+    .pill.skip { background: #2a333d; color: var(--skip); }
+    .pill.warn { background: #3d3420; color: var(--warn); }
+    .pill.error { background: #3d2024; color: var(--err); }
+    .site-card .msg {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      line-height: 1.35;
+      max-height: 2.7rem;
+      overflow: hidden;
+    }
+    .site-card.state-running { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(61, 156, 240, 0.25); }
+    .site-card.state-ok { border-color: rgba(62, 207, 142, 0.45); }
+    .site-card.state-warn { border-color: rgba(230, 179, 92, 0.5); }
+    .site-card.state-error { border-color: rgba(240, 113, 120, 0.55); }
+    main { display: grid; grid-template-columns: 1fr 1fr; gap: 0; min-height: 360px; }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+    section {
+      border-right: 1px solid #2a3544;
+      display: flex;
+      flex-direction: column;
+      min-height: 320px;
+    }
+    section:last-child { border-right: none; }
+    .section-head {
+      padding: 0.6rem 1rem;
+      background: var(--panel);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    #log {
+      flex: 1;
+      margin: 0;
+      padding: 0.75rem 1rem;
+      overflow: auto;
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 0.76rem;
+      line-height: 1.45;
+      list-style: none;
+    }
+    #log li { margin-bottom: 0.35rem; word-break: break-word; }
+    #log .phase { color: var(--accent); }
+    #log .success { color: var(--ok); }
+    #log .warn { color: var(--warn); }
+    #log .err { color: var(--err); }
+    #log .info { color: var(--muted); }
+    #log .muted { color: #5c6b7d; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.35rem 0.5rem;
+      border-bottom: 1px solid #2a3544;
+    }
+    th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--bg); }
+    .wrap { overflow: auto; flex: 1; padding: 0.5rem 0.75rem; }
+    footer {
+      padding: 0.5rem 1rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      border-top: 1px solid #2a3544;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>싱가포르 1공정 크롤</h1>
+    <span id="runBadge" class="badge">대기</span>
+    <div class="controls">
+      <label class="ai-opt" title="켜면 빈 가격을 AI로 추정해 채웁니다. 신뢰도가 낮을 수 있어요.">
+        <input type="checkbox" id="chkAi" />
+        <span>AI로 빈 가격 보완 (선택 시에만 실행)</span>
+      </label>
+      <button type="button" class="primary" id="btnRun">수집 시작</button>
+    </div>
+    <p class="hint-bar">
+      주소는 <code>http://127.0.0.1:8765</code> — Safari/Chrome에서 <code>localhost</code>만 쓰면 연결이 안 될 수 있어요.
+    </p>
+  </header>
+  <div class="board-wrap">
+    <div class="board-title">보고서 기준 8곳 — 지금 어디까지 왔는지</div>
+    <div id="sitesGrid" aria-live="polite"></div>
+  </div>
+  <main>
+    <section>
+      <div class="section-head">진행 메시지 (자세히)</div>
+      <ul id="log"></ul>
+    </section>
+    <section>
+      <div class="section-head">저장된 품목 (SQLite)</div>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>품목 ID</th>
+              <th>이름</th>
+              <th>가격</th>
+              <th>신뢰도</th>
+              <th>출처</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <footer>헌법 v3 · DB <code>datas/local_products.db</code> · 라이브 요청 한도 <code>crawl_policy.yaml</code> · 실제 브라우저 테스트: 터미널에서 <code>PLAYWRIGHT_LIVE=1</code> 또는 <code>GEBIZ_LIVE=1</code></footer>
+  <script>
+    const STATUS_KO = {
+      pending: "대기",
+      running: "진행 중",
+      ok: "완료",
+      skip: "이번엔 건너뜀",
+      warn: "주의",
+      error: "오류",
+    };
+
+    const logEl = document.getElementById("log");
+    const tbody = document.getElementById("tbody");
+    const btnRun = document.getElementById("btnRun");
+    const runBadge = document.getElementById("runBadge");
+    const sitesGrid = document.getElementById("sitesGrid");
+    const chkAi = document.getElementById("chkAi");
+
+    function escapeHtml(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function appendLog(ev) {
+      if (ev.phase === "site_progress") return;
+      const li = document.createElement("li");
+      const lv = ev.level || "info";
+      const phase = ev.phase || "?";
+      const msg = ev.message || JSON.stringify(ev);
+      const t = ev.ts ? new Date(ev.ts * 1000).toLocaleTimeString() : "";
+      li.innerHTML = `<span class="muted">${escapeHtml(t)}</span> <span class="phase">[${escapeHtml(phase)}]</span> <span class="${escapeHtml(lv)}">${escapeHtml(msg)}</span>`;
+      logEl.appendChild(li);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    async function refreshSites() {
+      try {
+        const r = await fetch("/api/sites");
+        const sites = await r.json();
+        const frag = document.createDocumentFragment();
+        sites.forEach((s, i) => {
+          const st = s.status || "pending";
+          const ko = STATUS_KO[st] || st;
+          const card = document.createElement("div");
+          const stateExtra =
+            st === "running" ? " state-running" :
+            st === "ok" ? " state-ok" :
+            st === "warn" ? " state-warn" :
+            st === "error" ? " state-error" : "";
+          card.className = "site-card" + stateExtra;
+          card.title = s.hint || "";
+          card.innerHTML = `
+            <div class="num">보고서 순서 ${i + 1} / ${sites.length}</div>
+            <div class="title">${escapeHtml(s.name)}</div>
+            <div class="domain">${escapeHtml(s.domain)}</div>
+            <div class="status-row">
+              <span class="pill ${escapeHtml(st)}">${escapeHtml(ko)}</span>
+            </div>
+            <div class="msg">${escapeHtml(s.message || "")}</div>
+          `;
+          frag.appendChild(card);
+        });
+        sitesGrid.innerHTML = "";
+        sitesGrid.appendChild(frag);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function refreshProducts() {
+      try {
+        const r = await fetch("/api/products");
+        const rows = await r.json();
+        tbody.innerHTML = rows.map((p) => `
+          <tr>
+            <td>${escapeHtml(p.product_id || "")}</td>
+            <td>${escapeHtml(p.trade_name || "")}</td>
+            <td>${p.price_local != null ? p.price_local : "—"}</td>
+            <td>${p.confidence != null ? p.confidence : "—"}</td>
+            <td>${escapeHtml(p.source_name || "")}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function pollStatus() {
+      try {
+        const r = await fetch("/api/status");
+        const s = await r.json();
+        runBadge.textContent = s.running ? "수집 중" : "대기";
+        runBadge.className = "badge" + (s.running ? " on" : "");
+        btnRun.disabled = s.running;
+      } catch (_) {}
+    }
+
+    const es = new EventSource("/api/stream");
+    es.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data);
+        appendLog(ev);
+        refreshProducts();
+        refreshSites();
+      } catch (_) {}
+    };
+    es.onerror = () => { /* reconnect */ };
+
+    btnRun.onclick = async () => {
+      btnRun.disabled = true;
+      try {
+        const r = await fetch("/api/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ use_ai_discovery: chkAi.checked }),
+        });
+        const j = await r.json();
+        if (!r.ok) alert(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail || j));
+      } catch (e) {
+        alert(String(e));
+      }
+      pollStatus();
+      refreshSites();
+    };
+
+    setInterval(() => { pollStatus(); refreshSites(); }, 800);
+    refreshProducts();
+    pollStatus();
+    refreshSites();
+  </script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+# 싱가포르 1공정 — 헌법 v3 (PDF) 기준 소스 메타. url_seed는 실제 엔드포인트 확인 후 교체.
+country: "SG"
+currency: "SGD"
+
+sources:
+  regulator_api:
+    tier: 1
+    url_seed: "https://www.hsa.gov.sg/"
+    auth: none
+    rate_limit_qps: 2.0
+    cron_slot: "0 23 * * *"
+
+  ndf_api:
+    tier: 1
+    url_seed: "https://www.ndf.gov.sg/"
+    auth: none
+    rate_limit_qps: 1.0
+    cron_slot: "5 23 * * *"
+
+  moh_drug_prices:
+    tier: 2
+    url_seed: "https://www.moh.gov.sg/cost-financing/healthcare-schemes-subsidies/drug-subsidies-and-medication-costs"
+    access_method: html_static
+    rate_limit_qps: 0.5
+    cron_slot: "10 23 * * *"
+
+  moh_pdf:
+    tier: 2
+    url_seed: "https://www.moh.gov.sg/news-highlights"
+    access_method: pdf
+    cron_slot: "0 0 * * *"
+
+  gebiz_weekly:
+    tier: 1
+    url_seed: "https://www.gebiz.gov.sg/"
+    access_method: playwright
+    cron_slot: "0 4 * * 1"
+
+  guardian_sg:
+    tier: 3
+    url_seed: "https://www.guardian.com.sg/"
+    access_method: playwright
+    proxy: residential
+    cron_slot: "30 23 * * *"
+
+  watsons_sg:
+    tier: 3
+    url_seed: "https://www.watsons.com.sg/"
+    access_method: playwright
+    proxy: residential
+    cron_slot: "45 23 * * *"

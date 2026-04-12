@@ -1,0 +1,11 @@
+httpx[http2]>=0.27
+pyyaml>=6.0
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-dotenv>=1.0
+tenacity>=8.3
+reportlab>=4.0
+# 선택: Claude API 분석 실행 시 필요
+# anthropic>=0.28
+# 선택: Playwright 실크롤 시 필요
+# playwright>=1.44  # 설치 후: playwright install chromium
