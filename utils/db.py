@@ -19,12 +19,31 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-# ── SQLite 스키마 ─────────────────────────────────────────────────────────────
+# ── UUID 헬퍼 — 헌법 §2: product_id UUID ─────────────────────────────────────
+
+# 프로젝트 고정 네임스페이스 (변경 금지 — 변경 시 모든 UUID가 달라짐)
+_NS = uuid.UUID("e7a3c1d2-4f5b-4a6e-9c8d-1b2f3e4a5c6d")
+
+
+def product_key_to_uuid(product_key: str) -> str:
+    """사람이 읽는 식별자(SG_xxx...)를 결정론적 UUID v5로 변환.
+
+    동일 product_key → 항상 동일 UUID.
+    2공정·허브 UNION VIEW에서 product_id UUID 타입으로 조인 가능.
+    """
+    return str(uuid.uuid5(_NS, product_key))
+
+
+# ── SQLite 스키마 — 헌법 §2 필수 6컬럼 포함 ──────────────────────────────────
+# product_id  : UUID v5 (헌법 §2 요구 타입)
+# product_key : 사람이 읽는 식별자 (SG_hydrine_... 등), UNIQUE 제약 — 내부 upsert 기준
+# fob_estimated_usd: 헌법 §2 필수 컬럼 — 1공정은 NULL, 2공정이 채움
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY,
-  product_id TEXT UNIQUE NOT NULL,
+  product_id TEXT NOT NULL,
+  product_key TEXT UNIQUE NOT NULL,
   country TEXT NOT NULL,
   currency TEXT NOT NULL,
   trade_name TEXT,
@@ -48,8 +67,40 @@ CREATE TABLE IF NOT EXISTS products (
 );
 """
 
-# 기존 DB에 fob_estimated_usd 컬럼이 없을 경우 마이그레이션
-_MIGRATION = "ALTER TABLE products ADD COLUMN fob_estimated_usd REAL;"
+# 마이그레이션: 기존 DB 컬럼 추가
+_MIGRATIONS = [
+    # fob_estimated_usd 누락 DB 대비
+    "ALTER TABLE products ADD COLUMN fob_estimated_usd REAL;",
+    # product_key 컬럼 추가 (기존 product_id 값으로 채움)
+    "ALTER TABLE products ADD COLUMN product_key TEXT;",
+]
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(products)")}
+
+    if "fob_estimated_usd" not in cols:
+        conn.execute(_MIGRATIONS[0])
+
+    if "product_key" not in cols:
+        conn.execute(_MIGRATIONS[1])
+        # 기존 행: product_id(TEXT)가 사람이 읽는 키였으므로 그대로 복사
+        conn.execute("UPDATE products SET product_key = product_id WHERE product_key IS NULL")
+        # product_id를 UUID v5로 갱신
+        cur = conn.execute("SELECT rowid, product_key FROM products WHERE product_key IS NOT NULL")
+        for rowid, pkey in cur.fetchall():
+            conn.execute(
+                "UPDATE products SET product_id = ? WHERE rowid = ?",
+                (product_key_to_uuid(pkey), rowid),
+            )
+
+    # ALTER TABLE로 추가된 컬럼에는 UNIQUE 제약이 없으므로 별도 인덱스 생성
+    # ON CONFLICT(product_key)가 동작하려면 반드시 필요
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_products_product_key ON products(product_key);"
+    )
+
+    conn.commit()
 
 
 # ── SQLite 헬퍼 ───────────────────────────────────────────────────────────────
@@ -59,11 +110,7 @@ def get_connection(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
-    # 기존 DB 마이그레이션: fob_estimated_usd 컬럼 추가 (헌법 §2 필수)
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(products)")}
-    if "fob_estimated_usd" not in cols:
-        conn.execute(_MIGRATION)
-        conn.commit()
+    _migrate(conn)
     return conn
 
 
@@ -72,19 +119,25 @@ def upsert_product(conn: sqlite3.Connection, row: dict[str, Any]) -> None:
     raw = row.get("raw_payload")
     raw_s = json.dumps(raw, ensure_ascii=False) if isinstance(raw, dict) else (raw or "{}")
 
-    cur = conn.execute("SELECT id FROM products WHERE product_id = ?", (row["product_id"],))
+    # product_key: 사람이 읽는 식별자 (upsert 충돌 기준)
+    pkey = row.get("product_key") or row.get("product_id", "")
+    # product_id: UUID v5 (헌법 §2)
+    pid_uuid = product_key_to_uuid(pkey)
+    # id: 행 고유 UUID (기본키)
+    cur = conn.execute("SELECT id FROM products WHERE product_key = ?", (pkey,))
     existing = cur.fetchone()
-    pid = existing["id"] if existing else str(uuid.uuid4())
+    row_id = existing["id"] if existing else str(uuid.uuid4())
 
     conn.execute(
         """
         INSERT INTO products (
-          id, product_id, country, currency, trade_name, market_segment, confidence,
-          source_url, source_tier, source_name, regulatory_id, scientific_name,
+          id, product_id, product_key, country, currency, trade_name, market_segment,
+          confidence, source_url, source_tier, source_name, regulatory_id, scientific_name,
           strength, dosage_form, price_local, fob_estimated_usd, atc_code, raw_payload,
           inn_name, inn_id, inn_match_type, crawled_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON CONFLICT(product_id) DO UPDATE SET
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(product_key) DO UPDATE SET
+          product_id=excluded.product_id,
           trade_name=excluded.trade_name,
           market_segment=excluded.market_segment,
           confidence=excluded.confidence,
@@ -105,8 +158,9 @@ def upsert_product(conn: sqlite3.Connection, row: dict[str, Any]) -> None:
           crawled_at=excluded.crawled_at
         """,
         (
-            pid,
-            row["product_id"],
+            row_id,
+            pid_uuid,
+            pkey,
             row["country"],
             row["currency"],
             row.get("trade_name"),
@@ -170,8 +224,12 @@ def upsert_product_supabase(row: dict[str, Any]) -> bool:
     raw = row.get("raw_payload")
     raw_payload = raw if isinstance(raw, dict) else {}
 
+    pkey = row.get("product_key") or row.get("product_id", "")
+    pid_uuid = product_key_to_uuid(pkey)
+
     record: dict[str, Any] = {
-        "product_id": row["product_id"],
+        "product_id": pid_uuid,           # UUID v5 (헌법 §2)
+        "product_key": pkey,              # 사람이 읽는 식별자, upsert 충돌 기준
         "country": row["country"],
         "currency": row["currency"],
         "trade_name": row.get("trade_name"),
@@ -195,7 +253,7 @@ def upsert_product_supabase(row: dict[str, Any]) -> bool:
     }
 
     try:
-        sb.table("products").upsert(record, on_conflict="product_id").execute()
+        sb.table("products").upsert(record, on_conflict="product_key").execute()
         return True
     except Exception:
         return False

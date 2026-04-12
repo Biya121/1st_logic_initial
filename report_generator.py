@@ -120,7 +120,8 @@ def build_report(
     analysis: list[dict] | None = None,
     references: dict[str, list[dict[str, str]]] | None = None,
 ) -> dict:
-    by_pid: dict[str, dict] = {p["product_id"]: p for p in products}
+    # product_key(사람이 읽는 식별자)로 인덱싱 — _EXPECTED_PRODUCTS와 동일한 키 체계
+    by_pid: dict[str, dict] = {p.get("product_key") or p["product_id"]: p for p in products}
     analysis_by_pid: dict[str, dict] = (
         {a["product_id"]: a for a in analysis} if analysis else {}
     )

@@ -44,7 +44,8 @@ def map_to_schema(
     return {
         "country": COUNTRY,
         "currency": CURRENCY,
-        "product_id": pid,
+        "product_key": pid,   # 사람이 읽는 식별자 — upsert 기준 / 내부 조회용
+        "product_id": pid,    # db.py upsert_product()가 UUID v5로 변환
         "trade_name": item.get("product_name") or item.get("trade_name"),
         "market_segment": item.get("market_segment", item.get("segment", "retail")),
         "confidence": conf,

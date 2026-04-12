@@ -52,8 +52,9 @@ def _persist(conn: Any, records: list[dict[str, Any]]) -> None:
 
 
 def _product_ids_missing_price(conn: Any) -> list[str]:
+    # product_key(사람이 읽는 식별자) 기준 반환 — sg_ai_discovery 내부 조회용
     cur = conn.execute(
-        "SELECT product_id FROM products WHERE price_local IS NULL ORDER BY product_id"
+        "SELECT product_key FROM products WHERE price_local IS NULL ORDER BY product_key"
     )
     return [str(r[0]) for r in cur.fetchall()]
 
