@@ -153,7 +153,7 @@ async def _run_pipeline_for_product(product_key: str) -> None:
         await _emit({"phase": "pipeline", "message": f"{product_key} — DB 조회 중", "level": "info"})
 
         from utils.db import fetch_kup_products
-        kup_rows = fetch_kup_products("SG")
+        kup_rows = await asyncio.to_thread(fetch_kup_products, "SG")
         db_row = next((r for r in kup_rows if r.get("product_id") == product_key), None)
 
         if db_row is None:
@@ -183,19 +183,20 @@ async def _run_pipeline_for_product(product_key: str) -> None:
 
         from datetime import datetime, timezone as _tz
         from report_generator import build_report, render_pdf
-        from utils.db import fetch_kup_products
 
         _ts = datetime.now(_tz.utc).strftime("%Y%m%d_%H%M%S")
         _reports_dir = ROOT / "reports"
         _reports_dir.mkdir(parents=True, exist_ok=True)
 
-        _products_db = await asyncio.to_thread(fetch_kup_products, "SG")
+        # kup_rows는 Step 0에서 이미 비동기로 가져왔으므로 재사용 (DB 이중 조회 방지)
         _refs_map = {product_key: refs}
-        _report = build_report(
-            _products_db,
-            datetime.now(_tz.utc).isoformat(),
-            [result],
-            references=_refs_map,
+        _report = await asyncio.to_thread(
+            lambda: build_report(
+                kup_rows,
+                datetime.now(_tz.utc).isoformat(),
+                [result],
+                references=_refs_map,
+            )
         )
         _pdf_name = f"sg_report_{product_key}_{_ts}.pdf"
         _pdf_path = _reports_dir / _pdf_name
@@ -249,11 +250,13 @@ async def _run_custom_pipeline(trade_name: str, inn: str, dosage_form: str) -> N
 
         _products_db2 = await asyncio.to_thread(fetch_kup_products, "SG")
         _refs_map2 = {"custom": refs}
-        _report2 = build_report(
-            _products_db2,
-            datetime.now(_tz2.utc).isoformat(),
-            [result],
-            references=_refs_map2,
+        _report2 = await asyncio.to_thread(
+            lambda: build_report(
+                _products_db2,
+                datetime.now(_tz2.utc).isoformat(),
+                [result],
+                references=_refs_map2,
+            )
         )
         _pdf_name2 = f"sg_report_custom_{_ts2}.pdf"
         _pdf_path2 = _reports_dir2 / _pdf_name2

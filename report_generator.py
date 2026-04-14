@@ -340,8 +340,18 @@ def build_report(
 
 # ── PDF 렌더링 ────────────────────────────────────────────────────────────────
 
+_FONT_CACHE: str | None = None
+
+
 def _register_korean_font() -> str:
-    """한글 지원 폰트를 등록하고 폰트명을 반환. 등록 실패 시 Helvetica 반환."""
+    """한글 지원 폰트를 등록하고 폰트명을 반환. 등록 실패 시 Helvetica 반환.
+
+    결과를 모듈 레벨에 캐싱하므로 여러 번 호출해도 파일시스템 탐색은 최초 1회만 수행.
+    """
+    global _FONT_CACHE
+    if _FONT_CACHE is not None:
+        return _FONT_CACHE
+
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
@@ -360,9 +370,11 @@ def _register_korean_font() -> str:
             try:
                 pdfmetrics.registerFont(TTFont(name, path))
                 pdfmetrics.registerFont(TTFont(f"{name}-Bold", path))
+                _FONT_CACHE = name
                 return name
             except Exception:
                 continue
+    _FONT_CACHE = "Helvetica"
     return "Helvetica"
 
 
@@ -462,6 +474,11 @@ def render_pdf(report: dict, out_path: Path) -> None:
             .replace("<", "&lt;")
             .replace(">", "&gt;")
         )
+
+    def _trunc(text: str, limit: int = 800) -> str:
+        """텍스트를 limit자로 잘라 ReportLab 레이아웃 무한루프를 방지."""
+        s = (text or "").strip()
+        return s if len(s) <= limit else s[:limit] + "…"
 
     def _clean_prose(text: str) -> str:
         """AI 생성 텍스트에서 불릿/줄바꿈 아티팩트를 제거해 깔끔한 산문으로 변환."""
@@ -615,7 +632,7 @@ def render_pdf(report: dict, out_path: Path) -> None:
 
         def _prose_row(label: str, field: str, fallback: str = "—") -> list:
             raw = str(product.get(field, "") or "").strip() or fallback
-            return [Paragraph(_rx(label), s_cell_h), _para(raw, s_cell)]
+            return [Paragraph(_rx(label), s_cell_h), _para(_trunc(raw), s_cell)]
 
         basis_tbl_data = [
             _prose_row("시장 / 의료", "basis_market_medical"),
@@ -671,10 +688,10 @@ def render_pdf(report: dict, out_path: Path) -> None:
                 ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
             ]
             for i, p in enumerate(valid_papers, 1):
-                title   = str(p.get("title",      "") or "")
+                title   = _trunc(str(p.get("title",     "") or ""), 200)
                 url     = str(p.get("url",         "") or "")
                 source  = str(p.get("source",      "") or "")
-                summary = str(p.get("summary_ko",  "") or "관련성 설명 없음")
+                summary = _trunc(str(p.get("summary_ko", "") or "관련성 설명 없음"), 400)
 
                 title_lines = _rx(title)
                 if source:
