@@ -116,12 +116,14 @@ async def fetch_references(
     prompt = f"""Find {max_refs} relevant academic papers, regulatory documents, or clinical studies for:
 "{query}"
 
+IMPORTANT: The "reason" field MUST be written in Korean (한국어). Do not use English for the reason field.
+
 Return ONLY valid JSON array, no other text:
 [
   {{
-    "title": "<paper or document title>",
+    "title": "<paper or document title in original language>",
     "url": "<direct URL to paper, PubMed, or regulatory document>",
-    "reason": "<{reason_instruction}>",
+    "reason": "<{reason_instruction} — 반드시 한국어 한 문장>",
     "source": "<PubMed / Lancet / NEJM / HSA / MOH / WHO 등>"
   }}
 ]"""
@@ -186,10 +188,12 @@ async def fetch_references_for_custom(
     prompt = f"""Find {max_refs} relevant academic papers, regulatory documents, or clinical studies for:
 "{query}"
 
+IMPORTANT: The "reason" field MUST be written in Korean (한국어). Do not use English for the reason field.
+
 Return ONLY valid JSON array, no other text:
 [
   {{
-    "title": "<paper or document title>",
+    "title": "<paper or document title in original language>",
     "url": "<direct URL to paper, PubMed, or regulatory document>",
     "reason": "<반드시 한국어로: 이 자료가 싱가포르 HSA 등록 판단에 관련 있는 이유를 한 문장으로 요약>",
     "source": "<PubMed / Lancet / NEJM / HSA / MOH / WHO 등>"

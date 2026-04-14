@@ -177,26 +177,31 @@ async def _run_pipeline_for_product(product_key: str) -> None:
         if refs:
             await _emit({"phase": "pipeline", "message": f"논문 {len(refs)}건 검색 완료", "level": "success"})
 
-        # 3. PDF 보고서
+        # 3. PDF 보고서 (in-process 생성 — subprocess 의존성 제거)
         task.update({"step": "report", "step_label": "PDF 생성 중…"})
         await _emit({"phase": "pipeline", "message": "PDF 보고서 생성 중…", "level": "info"})
-        import subprocess
-        import tempfile
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, encoding="utf-8"
-        ) as f:
-            json.dump([result], f, ensure_ascii=False)
-            ana_path = f.name
-        cmd = [
-            sys.executable, str(ROOT / "report_generator.py"),
-            "--out", str(ROOT / "reports"),
-            "--analysis-json", ana_path,
-        ]
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: subprocess.run(cmd, capture_output=True))
-        reports_dir = ROOT / "reports"
-        pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True)
-        task["pdf"] = pdfs[0].name if pdfs else None
+
+        from datetime import datetime, timezone as _tz
+        from report_generator import build_report, render_pdf
+        from utils.db import fetch_kup_products
+
+        _ts = datetime.now(_tz.utc).strftime("%Y%m%d_%H%M%S")
+        _reports_dir = ROOT / "reports"
+        _reports_dir.mkdir(parents=True, exist_ok=True)
+
+        _products_db = await asyncio.to_thread(fetch_kup_products, "SG")
+        _refs_map = {product_key: refs}
+        _report = build_report(
+            _products_db,
+            datetime.now(_tz.utc).isoformat(),
+            [result],
+            references=_refs_map,
+        )
+        _pdf_name = f"sg_report_{product_key}_{_ts}.pdf"
+        _pdf_path = _reports_dir / _pdf_name
+        await asyncio.to_thread(render_pdf, _report, _pdf_path)
+
+        task["pdf"] = _pdf_name
         task.update({"status": "done", "step": "done", "step_label": "완료"})
         await _emit({"phase": "pipeline", "message": "파이프라인 완료", "level": "success"})
 
@@ -232,24 +237,29 @@ async def _run_custom_pipeline(trade_name: str, inn: str, dosage_form: str) -> N
         refs = await fetch_references_for_custom(trade_name, inn)
         _custom_task["refs"] = refs
 
-        # Step 3: PDF 보고서
+        # Step 3: PDF 보고서 (in-process)
         _custom_task.update({"step": "report", "step_label": "PDF 생성 중…"})
-        import subprocess, tempfile
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, encoding="utf-8"
-        ) as f:
-            json.dump([result], f, ensure_ascii=False)
-            ana_path = f.name
-        cmd = [
-            sys.executable, str(ROOT / "report_generator.py"),
-            "--out", str(ROOT / "reports"),
-            "--analysis-json", ana_path,
-        ]
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: subprocess.run(cmd, capture_output=True))
-        reports_dir = ROOT / "reports"
-        pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True)
-        _custom_task["pdf"] = pdfs[0].name if pdfs else None
+        from datetime import datetime, timezone as _tz2
+        from report_generator import build_report, render_pdf
+        from utils.db import fetch_kup_products
+
+        _ts2 = datetime.now(_tz2.utc).strftime("%Y%m%d_%H%M%S")
+        _reports_dir2 = ROOT / "reports"
+        _reports_dir2.mkdir(parents=True, exist_ok=True)
+
+        _products_db2 = await asyncio.to_thread(fetch_kup_products, "SG")
+        _refs_map2 = {"custom": refs}
+        _report2 = build_report(
+            _products_db2,
+            datetime.now(_tz2.utc).isoformat(),
+            [result],
+            references=_refs_map2,
+        )
+        _pdf_name2 = f"sg_report_custom_{_ts2}.pdf"
+        _pdf_path2 = _reports_dir2 / _pdf_name2
+        await asyncio.to_thread(render_pdf, _report2, _pdf_path2)
+
+        _custom_task["pdf"] = _pdf_name2
         _custom_task.update({"status": "done", "step": "done", "step_label": "완료"})
 
     except Exception as exc:

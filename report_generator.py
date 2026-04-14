@@ -69,6 +69,30 @@ _INN_NAMES = {
     "SG_gastiin_cr_mosapride": "Mosapride Citrate",
 }
 
+# ── HS 코드 및 패키징 정보 ─────────────────────────────────────────────────────
+
+_HS_CODES: dict[str, str] = {
+    "SG_omethyl_omega3_2g":       "3004.90",  # 개량신약
+    "SG_sereterol_activair":      "3004.90",  # 일반제 (흡입제)
+    "SG_hydrine_hydroxyurea_500": "3004.90",  # 항암제
+    "SG_gadvoa_gadobutrol_604":   "3006.30",  # 조영제
+    "SG_rosumeg_combigel":        "3004.90",  # 개량신약
+    "SG_atmeg_combigel":          "3004.90",  # 개량신약
+    "SG_ciloduo_cilosta_rosuva":  "3004.90",  # 개량신약
+    "SG_gastiin_cr_mosapride":    "3004.90",  # 개량신약
+}
+
+_PACKAGING: dict[str, str] = {
+    "SG_omethyl_omega3_2g":       "Omega-3-Acid Ethyl Esters 90 / 2g / Pouch",
+    "SG_sereterol_activair":      "Fluticasone 250μg·500μg + Salmeterol 50μg / Inhaler",
+    "SG_hydrine_hydroxyurea_500": "Hydroxyurea 500mg / Cap.",
+    "SG_gadvoa_gadobutrol_604":   "Gadobutrol 604.72mg / PFS 5mL·7.5mL",
+    "SG_rosumeg_combigel":        "Rosuvastatin 5·10mg + Omega-3-EE90 1g / Cap.",
+    "SG_atmeg_combigel":          "Atorvastatin 10mg + Omega-3-EE90 1g / Cap.",
+    "SG_ciloduo_cilosta_rosuva":  "Cilostazol 200mg + Rosuvastatin 10·20mg / Tab.",
+    "SG_gastiin_cr_mosapride":    "Mosapride Citrate 15mg / Tab.",
+}
+
 # verdict 기반 확률 매핑 — 하드코딩 수치 제거
 _VERDICT_TO_PROB: dict[str | None, float] = {
     "적합":   0.80,
@@ -406,14 +430,6 @@ def render_pdf(report: dict, out_path: Path) -> None:
     )
     s_cell_h = ps("CellH", fontName=bold_font, fontSize=9, textColor=C_NAVY, leading=13, wordWrap="CJK")
     s_cell = ps("Cell", fontName=base_font, fontSize=9, textColor=C_BODY, leading=14, wordWrap="CJK")
-    s_company = ps(
-        "Co",
-        fontName=bold_font,
-        fontSize=11,
-        alignment=TA_CENTER,
-        textColor=C_NAVY,
-        spaceAfter=2,
-    )
     s_bar = ps(
         "Bar",
         fontName=bold_font,
@@ -446,6 +462,42 @@ def render_pdf(report: dict, out_path: Path) -> None:
             .replace("<", "&lt;")
             .replace(">", "&gt;")
         )
+
+    def _clean_prose(text: str) -> str:
+        """AI 생성 텍스트에서 불릿/줄바꿈 아티팩트를 제거해 깔끔한 산문으로 변환."""
+        import re
+        s = (text or "").strip()
+        if not s:
+            return s
+        # 줄 단위로 쪼개서 각 줄의 앞 불릿 마커 제거
+        lines = s.splitlines()
+        cleaned: list[str] = []
+        for line in lines:
+            line = line.strip()
+            # "- ", "• ", "* ", "· " 등 앞부분 불릿 마커 제거
+            line = re.sub(r'^[\-\•\*\·]\s+', '', line)
+            # "1. ", "2. " 등 번호 목록 마커 제거
+            line = re.sub(r'^\d+[\.\)]\s+', '', line)
+            if line:
+                cleaned.append(line)
+        # 문장이 이미 마침표로 끝나면 그냥 공백으로 이어 붙임
+        # 마침표 없이 끊긴 줄은 콤마+공백으로 이어 자연스러운 문장 유지
+        result_parts: list[str] = []
+        for part in cleaned:
+            if result_parts and not result_parts[-1].rstrip().endswith(('.', '!', '?', '다', '음', '임')):
+                result_parts.append(', ' + part)
+            else:
+                result_parts.append((' ' if result_parts else '') + part)
+        joined = ''.join(result_parts).strip()
+        # 이중 공백 정리
+        joined = re.sub(r'  +', ' ', joined)
+        return joined
+
+    def _para(text: str, style) -> "Paragraph":
+        """텍스트를 정리한 뒤 Paragraph 객체로 반환. \n → <br/> 변환 포함."""
+        cleaned = _clean_prose(text)
+        escaped = _rx(cleaned)
+        return Paragraph(escaped, style)
 
     _ACE_NOTE = (
         "ACE는 호주·캐나다·영국 등 HTA 기관 결정을 참고해 싱가포르 적용 가능성을 검토합니다."
@@ -527,19 +579,15 @@ def render_pdf(report: dict, out_path: Path) -> None:
         inn = str(product.get("inn_label", "") or "—")
         verdict = str(product.get("verdict", "") or "미분석")
 
-        # 1페이지 — 파나마 양식 스타일(회사명·제목·제품 바·번호 섹션)
-        story.append(Paragraph(_rx("Korea United Pharm. Inc."), s_company))
+        # 1페이지 — 제목 + 제품 바
         story.append(Paragraph(_rx("싱가포르 시장 분석 보고서"), s_title))
         story.append(Paragraph(_rx(generated_date), s_date))
         story.append(Spacer(1, 6))
 
-        reg_id = str(product.get("regulatory_id", "") or "—")
-        conf_raw = product.get("db_confidence")
-        if isinstance(conf_raw, (int, float)):
-            conf_s = f"{float(conf_raw):.2f}"
-        else:
-            conf_s = "—"
-        bar_txt = f"{trade} — {inn} | regulatory_id: {reg_id} | confidence {conf_s}"
+        pid = str(product.get("product_id", ""))
+        packaging = _PACKAGING.get(pid, inn)
+        hs_code   = _HS_CODES.get(pid, "3004.90")
+        bar_txt = f"{trade}  |  {packaging}  |  HS {hs_code}"
         bar_tbl = Table([[Paragraph(_rx(bar_txt), s_bar)]], colWidths=[CONTENT_W])
         bar_tbl.setStyle(
             TableStyle(
@@ -564,29 +612,40 @@ def render_pdf(report: dict, out_path: Path) -> None:
 
         story.append(Paragraph(_rx("2. 판정 근거"), s_section))
         pbs_line = _pbs_one_line(product)
-        story.append(
-            _simple_table(
-                [
-                    ["시장/의료", str(product.get("basis_market_medical", "") or "—")],
-                    ["규제", str(product.get("basis_regulatory", "") or "—")],
-                    ["무역", str(product.get("basis_trade", "") or "—")],
-                    ["참고 가격", pbs_line],
-                ]
-            )
-        )
+
+        def _prose_row(label: str, field: str, fallback: str = "—") -> list:
+            raw = str(product.get(field, "") or "").strip() or fallback
+            return [Paragraph(_rx(label), s_cell_h), _para(raw, s_cell)]
+
+        basis_tbl_data = [
+            _prose_row("시장 / 의료", "basis_market_medical"),
+            _prose_row("규제",       "basis_regulatory"),
+            _prose_row("무역",       "basis_trade"),
+            [Paragraph(_rx("참고 가격"), s_cell_h), _para(pbs_line, s_cell)],
+        ]
+        extras_b: list[tuple] = []
+        for i in range(len(basis_tbl_data)):
+            if i % 2 == 1:
+                extras_b.append(("BACKGROUND", (0, i), (-1, i), C_ALT))
+        bt = Table(basis_tbl_data, colWidths=[COL1, COL2])
+        bt.setStyle(TableStyle(_base_style(extras_b)))
+        story.append(bt)
         story.append(Spacer(1, 6))
 
         story.append(Paragraph(_rx("3. 시장 진출 전략"), s_section))
         price_txt = str(product.get("price_positioning_pbs", "") or "").strip() or pbs_line
-        story.append(
-            _simple_table(
-                [
-                    ["진입 채널 권고", str(product.get("entry_pathway", "") or "—")],
-                    ["가격 포지셔닝", price_txt],
-                    ["리스크 + 조건", str(product.get("risks_conditions", "") or "—")],
-                ]
-            )
-        )
+        strategy_tbl_data = [
+            _prose_row("진입 채널 권고", "entry_pathway"),
+            [Paragraph(_rx("가격 포지셔닝"), s_cell_h), _para(price_txt, s_cell)],
+            _prose_row("리스크 + 조건",  "risks_conditions"),
+        ]
+        extras_s: list[tuple] = []
+        for i in range(len(strategy_tbl_data)):
+            if i % 2 == 1:
+                extras_s.append(("BACKGROUND", (0, i), (-1, i), C_ALT))
+        st = Table(strategy_tbl_data, colWidths=[COL1, COL2])
+        st.setStyle(TableStyle(_base_style(extras_s)))
+        story.append(st)
 
         story.append(PageBreak())
 

@@ -236,7 +236,6 @@ def _build_analysis_prompt(
         pbs_section = f"\n{pbs_context_block}\n"
 
     product_type = meta.get("product_type", "일반제")
-    manufacturer = meta.get("manufacturer", "Korea United Pharm. Inc.")
     db_facts = _build_db_facts(db_row)
 
     return f"""당신은 싱가포르 의약품 수출 가능성을 분석하는 전문 컨설턴트입니다.
@@ -260,7 +259,6 @@ def _build_analysis_prompt(
 - 치료 영역: {meta['therapeutic_area']}
 - HSA 등재 상태: {meta['hsa_reg']}
 - 주요 리스크: {meta['key_risk']}
-- 제조사: {manufacturer}
 
 ## Supabase 사실 (우선 근거)
 {db_facts}
@@ -276,13 +274,13 @@ def _build_analysis_prompt(
 5. PBS 참고가(있을 때)를 시장·무역 논의에 1문장 이상 반영
 6. 최종 판정: 적합(등재·채널 확보) / 조건부(등록 선결 후 가능) / 부적합
 
-결과는 대시보드 섹션에 직접 표시됩니다.
-- 제품 식별: 제품 정보 (별도 입력됨)
-- 핵심 판정: verdict
-- 두괄식 판정 근거: 시장/의료, 규제, 무역 — 각 2~3문장, PBS 참고가가 있으면 시장/의료 또는 무역 중 최소 한 곳에 수치·라벨 포함
-- 시장 진출 전략: 진입 채널 권고, 가격 포지셔닝(PBS), 리스크/조건
+▶ 출력 형식 규칙 (반드시 준수):
+- basis_market_medical, basis_regulatory, basis_trade, risks_conditions, price_positioning_pbs 필드는
+  반드시 자연스러운 산문(연속 문장)으로 작성하세요.
+- 줄바꿈(\n), 불릿 기호(-, •, *), 번호 목록(1. 2. 등), 소제목을 절대 사용하지 마세요.
+- 각 필드는 2~3개의 연속된 문장으로만 구성하세요.
+- 제조사명을 본문에 언급하지 마세요.
 
-불필요한 번호(예: 1., 2., 4-1, 4-2), 장문 목록, 중복 소제목은 금지합니다.
 문장 톤 규칙:
 - "불가능", "확인 불가", "제공되지 않아" 같은 단정적 결핍 표현은 쓰지 마세요.
 - 대신 "현재 확보된 데이터 기준", "현 시점에서 확인된 범위", "추가 데이터 확보 시 정밀화 가능"처럼

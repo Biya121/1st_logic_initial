@@ -556,12 +556,22 @@ function _deriveBasisFromRationale(rationale) {
 function _formatDetailed(text) {
   const src = String(text || '').trim();
   if (!src) return '';
-  const parts = src
-    .split(/(?<=[\.\!\?])\s+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-  if (parts.length <= 1) return src;
-  return parts.map((x) => `- ${x}`).join('\n');
+  // 불릿 마커(- / • / * / 번호목록)로 시작하는 줄을 정리해 자연스러운 산문으로 변환
+  const lines = src.split('\n').map((x) => x.trim()).filter(Boolean);
+  const cleaned = lines.map((l) =>
+    l.replace(/^[\-\•\*\·]\s+/, '').replace(/^\d+[\.\)]\s+/, '')
+  );
+  // 줄들을 하나의 문단으로 이어 붙임
+  let joined = '';
+  for (const part of cleaned) {
+    if (!joined) { joined = part; continue; }
+    // 앞 줄이 문장 종결이면 공백, 아니면 콤마+공백으로 자연스럽게 이음
+    const prev = joined.trimEnd();
+    const ends = prev.endsWith('.') || prev.endsWith('!') || prev.endsWith('?')
+              || prev.endsWith('다') || prev.endsWith('음') || prev.endsWith('임');
+    joined += ends ? ' ' + part : ', ' + part;
+  }
+  return joined;
 }
 
 /** PBS DPMQ 한 줄 요약 */
