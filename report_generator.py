@@ -197,6 +197,7 @@ def build_report(
                     "title": r.get("title", ""),
                     "url": r.get("url", ""),
                     "summary_ko": r.get("reason", ""),
+                    "source": r.get("source", ""),
                 }
                 for r in paper_refs
                 if r.get("title") and r.get("url")
@@ -321,10 +322,14 @@ def _register_korean_font() -> str:
     from reportlab.pdfbase.ttfonts import TTFont
 
     candidates = [
+        # Render/Linux 배포환경 — download_fonts.py 가 빌드 시 받아놓은 파일
+        ("NanumGothic",  str(ROOT / "fonts" / "NanumGothic.ttf")),
+        # macOS 시스템 폰트
         ("AppleGothic",  "/System/Library/Fonts/Supplemental/AppleGothic.ttf"),
         ("AppleGothic",  "/Library/Fonts/AppleGothic.ttf"),
         ("NanumGothic",  "/Library/Fonts/NanumGothic.ttf"),
-        ("MalgunGothic", "C:/Windows/Fonts/malgun.ttf"),  # Windows 대비
+        # Windows
+        ("MalgunGothic", "C:/Windows/Fonts/malgun.ttf"),
     ]
     for name, path in candidates:
         if Path(path).is_file():
@@ -415,6 +420,22 @@ def render_pdf(report: dict, out_path: Path) -> None:
         fontSize=9,
         textColor=colors.white,
         leading=13,
+        wordWrap="CJK",
+    )
+    s_hdr = ps(
+        "HdrWhite",
+        fontName=bold_font,
+        fontSize=9,
+        textColor=colors.white,
+        leading=13,
+        wordWrap="CJK",
+    )
+    s_cell_sm = ps(
+        "CellSm",
+        fontName=base_font,
+        fontSize=7,
+        textColor=colors.HexColor("#6B7280"),
+        leading=10,
         wordWrap="CJK",
     )
 
@@ -572,32 +593,57 @@ def render_pdf(report: dict, out_path: Path) -> None:
         # 2페이지
         story.append(Paragraph(_rx("4. 근거 및 출처"), s_section))
 
+        # ── 4-1. Perplexity 추천 논문 (표 형식) ────────────────────────────────
+        story.append(Paragraph(_rx("4-1. Perplexity 추천 논문"), s_section))
         papers = product.get("related_sites", {}).get("papers", []) or []
-        paper_rows: list[list[str]] = []
-        for p in papers:
-            if isinstance(p, dict):
-                title = str(p.get("title", "") or "")
-                url = str(p.get("url", "") or "")
-                summary = str(p.get("summary_ko", "") or "관련성 설명 없음")
-            else:
-                continue
-            if not title or not url:
-                continue
-            paper_rows.append(
-                [
-                    "Perplexity 논문",
-                    f"{title}\n- 링크: {url}\n- 요약: {summary}",
-                ]
-            )
-        if paper_rows:
-            story.append(_simple_table(paper_rows))
+        valid_papers = [p for p in papers if isinstance(p, dict) and (p.get("title") or p.get("url"))]
+
+        if valid_papers:
+            w_no    = CONTENT_W * 0.05
+            w_title = CONTENT_W * 0.56
+            w_sum   = CONTENT_W * 0.39
+
+            paper_tbl: list[list] = [[
+                Paragraph("No.", s_hdr),
+                Paragraph("논문 제목 / 출처", s_hdr),
+                Paragraph("한국어 요약", s_hdr),
+            ]]
+            extras_p: list[tuple] = [
+                ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
+            ]
+            for i, p in enumerate(valid_papers, 1):
+                title   = str(p.get("title",      "") or "")
+                url     = str(p.get("url",         "") or "")
+                source  = str(p.get("source",      "") or "")
+                summary = str(p.get("summary_ko",  "") or "관련성 설명 없음")
+
+                title_lines = _rx(title)
+                if source:
+                    title_lines += f"\n[{_rx(source)}]"
+                if url:
+                    short_url = url[:75] + ("…" if len(url) > 75 else "")
+                    title_lines += f"\n{short_url}"
+
+                paper_tbl.append([
+                    Paragraph(str(i), s_cell),
+                    Paragraph(title_lines, s_cell),
+                    Paragraph(_rx(summary), s_cell),
+                ])
+                if i % 2 == 0:
+                    extras_p.append(("BACKGROUND", (0, i), (-1, i), C_ALT))
+
+            pt = Table(paper_tbl, colWidths=[w_no, w_title, w_sum])
+            pt.setStyle(TableStyle(_base_style(extras_p)))
+            story.append(pt)
         else:
             story.append(_simple_table([["Perplexity 논문", "사용된 논문 링크 없음"]], shade_alt=False))
+
         story.append(Spacer(1, 8))
 
-        pbs_n = "1" if product.get("pbs_search_hit") else "0"
-        paper_n = str(len(paper_rows))
-        story.append(Paragraph(_rx("출처 요약 (건수·비고)"), s_section))
+        # ── 4-2. 출처 요약 ─────────────────────────────────────────────────────
+        pbs_n   = "1" if product.get("pbs_search_hit") else "0"
+        paper_n = str(len(valid_papers))
+        story.append(Paragraph(_rx("4-2. 출처 요약 (건수·비고)"), s_section))
         story.append(
             _triple_table(
                 [
@@ -609,21 +655,41 @@ def render_pdf(report: dict, out_path: Path) -> None:
         )
         story.append(Spacer(1, 8))
 
-        db_rows = []
-        for src in product.get("used_data_sources", []) or []:
-            if not isinstance(src, dict):
-                continue
-            name = str(src.get("name", "") or "")
-            desc = str(src.get("description", "") or "")
-            url = str(src.get("url", "") or "")
-            if not name:
-                continue
-            right = desc
-            if url:
-                right += f"\n- 링크: {url}"
-            db_rows.append(["사용된 DB/기관", f"{name}\n- 데이터: {right}"])
-        if db_rows:
-            story.append(_simple_table(db_rows))
+        # ── 4-3. 사용된 DB/기관 (3컬럼 표) ────────────────────────────────────
+        story.append(Paragraph(_rx("4-3. 사용된 DB/기관"), s_section))
+        db_sources = [
+            src for src in (product.get("used_data_sources", []) or [])
+            if isinstance(src, dict) and src.get("name")
+        ]
+        if db_sources:
+            w_name = CONTENT_W * 0.25
+            w_desc = CONTENT_W * 0.45
+            w_link = CONTENT_W * 0.30
+
+            db_tbl: list[list] = [[
+                Paragraph("DB/기관명", s_hdr),
+                Paragraph("설명", s_hdr),
+                Paragraph("링크", s_hdr),
+            ]]
+            extras_d: list[tuple] = [
+                ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
+            ]
+            for i, src in enumerate(db_sources, 1):
+                name = str(src.get("name",        "") or "")
+                desc = str(src.get("description", "") or "")
+                url  = str(src.get("url",         "") or "")
+                short_url = (url[:55] + "…" if len(url) > 55 else url) if url else "—"
+                db_tbl.append([
+                    Paragraph(_rx(name),      s_cell),
+                    Paragraph(_rx(desc),      s_cell),
+                    Paragraph(_rx(short_url), s_cell_sm),
+                ])
+                if i % 2 == 0:
+                    extras_d.append(("BACKGROUND", (0, i), (-1, i), C_ALT))
+
+            dt = Table(db_tbl, colWidths=[w_name, w_desc, w_link])
+            dt.setStyle(TableStyle(_base_style(extras_d)))
+            story.append(dt)
         else:
             story.append(_simple_table([["사용된 DB/기관", "이번 분석에서 확인된 DB 출처 정보 없음"]], shade_alt=False))
 

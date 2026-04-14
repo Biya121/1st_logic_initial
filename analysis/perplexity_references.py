@@ -101,7 +101,7 @@ async def fetch_references(
             "NDA requirements, combination product registration, and market entry precedents."
         )
         reason_instruction = (
-            "왜 이 자료가 싱가포르 HSA 등록 진입 경로 판단에 관련 있는지 한 줄로"
+            "반드시 한국어로: 이 자료가 싱가포르 HSA 등록 진입 경로 판단에 관련 있는 이유를 한 문장으로 요약"
         )
     else:
         system_msg = (
@@ -110,7 +110,7 @@ async def fetch_references(
             "and Singapore MOH/HSA guidelines."
         )
         reason_instruction = (
-            "왜 이 논문/자료가 싱가포르 수출 적합성 판단에 관련 있는지 한 줄로"
+            "반드시 한국어로: 이 논문/자료가 싱가포르 수출 적합성 판단에 관련 있는 이유를 한 문장으로 요약"
         )
 
     prompt = f"""Find {max_refs} relevant academic papers, regulatory documents, or clinical studies for:
@@ -191,7 +191,7 @@ Return ONLY valid JSON array, no other text:
   {{
     "title": "<paper or document title>",
     "url": "<direct URL to paper, PubMed, or regulatory document>",
-    "reason": "<왜 이 자료가 싱가포르 HSA 등록 판단에 관련 있는지 한 줄로>",
+    "reason": "<반드시 한국어로: 이 자료가 싱가포르 HSA 등록 판단에 관련 있는 이유를 한 문장으로 요약>",
     "source": "<PubMed / Lancet / NEJM / HSA / MOH / WHO 등>"
   }}
 ]"""

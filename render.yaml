@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: starter
     autoDeploy: true
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python scripts/download_fonts.py || echo "[fonts] Font download failed — Korean PDF text may use fallback"
     startCommand: uvicorn frontend.server:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
