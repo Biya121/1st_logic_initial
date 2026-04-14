@@ -1,33 +1,53 @@
-"""HSA 공개 등록 CSV 로더 (datas/ListingofRegisteredTherapeuticProducts.csv)."""
+"""HSA 등재 의약품 조회 — Supabase 버전.
 
+products 테이블 (country='SG', source_name='SG:hsa_registry')에서 읽어옴.
+"""
 from __future__ import annotations
 
-import csv
-from pathlib import Path
 from typing import Any
 
+_cache: list[dict[str, Any]] | None = None
 
-def load_registry(csv_path: Path) -> dict[str, dict[str, Any]]:
-    by_licence: dict[str, dict[str, Any]] = {}
-    with csv_path.open(encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            lic = (row.get("licence_no") or "").strip()
-            if lic:
-                by_licence[lic] = row
-    return by_licence
+
+def load_registry() -> dict[str, dict[str, Any]]:
+    """licence_no(registration_number) → row 매핑 반환."""
+    global _cache
+    if _cache is None:
+        from utils.db import get_client
+        sb = get_client()
+        try:
+            rows = (
+                sb.table("products")
+                .select(
+                    "registration_number,trade_name,active_ingredient,"
+                    "strength,dosage_form,country_specific"
+                )
+                .eq("country", "SG")
+                .eq("source_name", "SG:hsa_registry")
+                .execute()
+                .data or []
+            )
+            _cache = rows
+        except Exception:
+            _cache = []
+
+    return {
+        r["registration_number"]: r
+        for r in _cache
+        if r.get("registration_number")
+    }
 
 
 def row_to_item(row: dict[str, Any]) -> dict[str, Any]:
     """map_to_schema 입력용 dict."""
-    ingredients = (row.get("active_ingredients") or "").replace("&&", " + ")
+    cs = row.get("country_specific") or {}
     return {
-        "reg_no": (row.get("licence_no") or "").strip(),
-        "product_name": (row.get("product_name") or "").strip(),
-        "trade_name": (row.get("product_name") or "").strip(),
-        "active_ingredient": ingredients,
+        "reg_no": (row.get("registration_number") or "").strip(),
+        "product_name": (row.get("trade_name") or "").strip(),
+        "trade_name": (row.get("trade_name") or "").strip(),
+        "active_ingredient": (row.get("active_ingredient") or ""),
         "strength": (row.get("strength") or "").strip(),
         "dosage_form": (row.get("dosage_form") or "").strip().lower(),
-        "atc_code": (row.get("atc_code") or "").strip(),
+        "atc_code": cs.get("atc_code", ""),
         "segment": "retail",
     }

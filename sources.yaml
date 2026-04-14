@@ -57,6 +57,30 @@ sources:
     path: "datas/ListingofRegisteredTherapeuticProducts.csv"
     note: "HSA 등재 의약품 전체 목록 — 공식 공개 데이터"
 
+  healthhub_chas:
+    tier: 2
+    url_seed: "https://www.healthhub.sg/medication-devices-and-treatment/medications/"
+    access_method: html_static
+    rate_limit_qps: 0.5
+    cron_slot: "15 23 * * *"
+    note: "CHAS 보조금 맥락 + 의약품 정보 — 가격 미수록, 시장조사 보조용"
+
+  healthiersg_list:
+    tier: 2
+    url_seed: "https://www.healthiersg.gov.sg/enrolment/healthier-sg-chronic-tier/medication-list/"
+    access_method: jina_reader
+    rate_limit_qps: 0.5
+    cron_slot: "17 23 * * *"
+    note: "Healthier SG 만성질환 SDL 목록 — Jina 모드A(부분), PLAYWRIGHT_LIVE=1 시 전체"
+
+  pbs_reference:
+    tier: 3
+    url_seed: "https://www.pbs.gov.au/pbs/search"
+    access_method: html_static
+    rate_limit_qps: 0.33
+    cron_slot: "20 23 * * *"
+    note: "PBS Australia IRP 참조가격 — AUD 기준, SG 직접가격 아님. HSA·MOH IRP 벤치마크 활용"
+
   basic_files:
     tier: 2
     access_method: local_pdf

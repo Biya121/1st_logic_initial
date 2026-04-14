@@ -1,0 +1,159 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T05:33:48.508398+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 1,
+    "verdict_summary": {
+      "적합": 0,
+      "조건부": 1,
+      "부적합": 0,
+      "미분석": 0
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API",
+      "PBS Australia (공개 스케줄, 방법론적 추산)"
+    ],
+    "reference_pricing": {
+      "primary_label": "(PBS, 방법론적 추산)",
+      "aud_field": "pbs_dpmq_aud (DPMQ)",
+      "sgd_note": "pbs_dpmq_sgd_hint 는 참고 환산(환율 변동)"
+    },
+    "note": "싱가포르 공개 병원·소매 약가는 본 파이프라인에서 직접 수집하지 않습니다. 호주 PBS 공개 스케줄의 DPMQ를 (PBS, 방법론적 추산)으로 표기해 참고합니다."
+  },
+  "products": [
+    {
+      "product_id": "SG_omethyl_omega3_2g",
+      "trade_name": "Omethyl",
+      "inn_label": "Omega-3-Acid Ethyl Esters 90 2g",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "db_confidence": 0.7,
+      "status": "loaded",
+      "verdict": "조건부",
+      "verdict_en": "CONDITIONAL",
+      "rationale": "Omethyl은 싱가포르 HSA에 미등재 상태이나, 경쟁품(Omacor) 선례와 omega-3 acid ethyl esters의 치료용 의약품 분류에 따라 신규 NDA를 통한 등록 가능성이 있습니다. 다만 2g 단일캡슐 개량신약으로서 등록 전 임상근거 및 품질기준 충족 확인이 필수입니다.",
+      "basis_market_medical": "싱가포르에서 omega-3 acid ethyl esters는 처방약(Rx) 분류이며, Omacor(1000mg) 단일 경쟁품이 2014년 이후 등재된 사례가 있습니다 → 2g 단일캡슐 규격의 신규 제품도 처방약 채널로의 진입 가능성 시사. 고중성지방혈증 치료제로서 REDUCE-IT 근거 보유는 HSA의 임상근거 요구도 충족할 수 있는 이점입니다.",
+      "basis_regulatory": "Perplexity 실시간 정보에서 Omethyl은 HSA 치료용 의약품 등록부와 VNS(건강보조식품 자발신고) 목록 모두에 미등재 확인됨 → 신규 NDA Full 제출이 필수. Omega-3 acid ethyl esters는 질병치료 주장 시 HSA의 치료용 의약품 규제 대상이므로, 건강보조식품으로의 우회 등록은 불가능합니다.",
+      "basis_trade": "GeBIZ 공공조달 이력 데이터 부재 → 공공 병원·클리닉 수요 확인 불가능하여 초기 유통 채널을 소매약국 및 민간 의료기관으로 제한할 필요. Supabase 신뢰도 0.7 및 static_fallback 태그는 해당 정보가 공식 HSA 소스가 아닌 보조 자료임을 시사합니다.",
+      "key_factors": [
+        "HSA 신규 NDA 등록 필수 (미등재 상태)",
+        "경쟁품 Omacor(1000mg) 선례로 등록 경로 입증 가능",
+        "REDUCE-IT 임상근거 보유로 심사 유리",
+        "2g 단일캡슐 규격의 개량신약 입증 자료 필요",
+        "공공조달 이력 미확인 → 민간 진출 우선"
+      ],
+      "entry_pathway": "신규 NDA Full 제출 (경쟁품 Omacor 선례에 따른 표준 심사 경로 적용, 동등성 심사 가능성은 낮음)",
+      "price_positioning_pbs": "",
+      "pbs_listing_url": null,
+      "pbs_schedule_drug_name": null,
+      "pbs_pack_description": null,
+      "pbs_dpmq_aud": null,
+      "pbs_dpmq_sgd_hint": null,
+      "pbs_methodology_label_ko": "(PBS, 방법론적 추산)",
+      "pbs_search_hit": null,
+      "pbs_fetch_error": null,
+      "risks_conditions": "HSA 신규 NDA 심사 기간(통상 12~24개월)을 고려한 시간 소요 예상 필요. 2g 단일캡슐 규격이 한국 최초 개량신약인 점에서 생체이용률, 안정성, 제조공정 차별성에 대한 추가 임상·기술 문서 요구 가능성. 등록 완료 전 시장 진입 불가능하므로 사전 규제 협의(Pre-submission meeting, PSM)를 통해 요구 자료 명확화 권장.",
+      "hsa_reg": "미등재 가능성 높음 — omega-3 EE 2g 단독제 HSA CSV 0건. 신규 NDA 필요.",
+      "product_type": "개량신약 (IMD)",
+      "analysis_sources": [
+        {
+          "name": "Supabase DB (KUP Pipeline)",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "HSA 시장조사 데이터 (경쟁품: Omacor Soft Capsule 1000mg)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity 실시간 규제·시장 정보 (2024)",
+          "url": "내부 참고"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.5,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          {
+            "title": "Label: OMEGA-3-ACID ETHYL ESTERS capsule - DailyMed",
+            "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=b53f1c14-43da-4e05-8c80-a0a455dd41cf",
+            "summary_ko": "Provides FDA-approved labeling for omega-3 ethyl esters 1g capsules in severe hypertriglyceridemia, serving as reference for HSA new drug equivalence and safety data."
+          },
+          {
+            "title": "Label: OMEGA-3-ACID ETHYL ESTERS capsule - DailyMed",
+            "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=9499c40e-6665-4fbf-914d-1a9931b93562",
+            "summary_ko": "Details indications, pharmacokinetics, and clinical use of omega-3 ethyl esters for TG ≥500 mg/dL, critical for HSA NDA efficacy and dosing pathway assessment."
+          },
+          {
+            "title": "Treating hypertriglyceridemia with prescription omega-3 fatty acid ethyl ester products",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/20048555/",
+            "summary_ko": "Reviews clinical trials of 4g daily prescription omega-3 ethyl esters for very high TG, supporting efficacy evidence required for HSA registration in hypertriglyceridemia."
+          },
+          {
+            "title": "204977Orig1s000 Medical Review - FDA NDA for Trygg's Omega-3 Product",
+            "url": "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2014/204977Orig1s000MedR.pdf",
+            "summary_ko": "FDA NDA review referencing approved omega-3 ethyl esters (Lovaza), providing regulatory precedent for similar product approvals applicable to HSA pathways."
+          },
+          {
+            "title": "Omega-3-Acid Ethyl Esters 90 Soft Capsules for Lowering Very High Triglycerides",
+            "url": "https://www.centerwatch.com/clinical-trials/listings/NCT02625870/omega-3-acid-ethyl-esters-90-soft-capsules-for-lowering-very-high-triglycerides",
+            "summary_ko": "Double-blind RCT demonstrating efficacy/safety of omega-3 ethyl esters soft capsules in severe hypertriglyceridemia, key clinical data for HSA NDA submission."
+          },
+          {
+            "title": "Exploratory Study of the Effects of Omega-3-acid Ethyl Esters on the Lipid Profile",
+            "url": "https://clinicaltrials.gov/study/NCT02839902",
+            "summary_ko": "Clinical study on omega-3 ethyl esters effects on lipids in hypertriglyceridemia, supplying supporting trial data for HSA cardiovascular risk and registration pathway."
+          }
+        ]
+      },
+      "used_data_sources": [
+        {
+          "name": "SG:kup_pipeline",
+          "description": "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "Supabase DB (KUP Pipeline)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "HSA 시장조사 데이터 (경쟁품: Omacor Soft Capsule 1000mg)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity 실시간 규제·시장 정보 (2024)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 참고"
+        }
+      ]
+    }
+  ]
+}

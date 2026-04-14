@@ -1,412 +1,51 @@
 <!DOCTYPE html>
+<!--
+  UPharma Export AI — 싱가포르 1공정 수출 적합성 분석 대시보드
+  ════════════════════════════════════════════════════════════════
+  파일 구조:
+    index.html  ← 이 파일 (HTML 구조만)
+    style.css   ← 모든 스타일 (섹션별 주석 포함)
+    app.js      ← 모든 동작 로직 (버그 수정 + UX 개선 반영)
+
+  서버:
+    frontend/server.py (FastAPI, port 8765)
+    실행: sh run_dashboard.sh
+
+  주요 API:
+    POST /api/pipeline/{product_key}     단일 품목 파이프라인
+    GET  /api/pipeline/{key}/status      파이프라인 진행 상태
+    GET  /api/pipeline/{key}/result      분석·논문·PDF 결과
+    GET  /api/keys/status                API 키 설정 여부
+    GET  /api/datasource/status          Supabase 연결·품목 수
+    GET  /api/macro                      거시지표
+    GET  /api/stream                     SSE 실시간 로그
+    GET  /api/report/download            PDF 다운로드
+
+  수정 이력 (app.js 참조):
+    B1  /api/sites 제거 → /api/datasource/status
+    B2  크롤링 step → DB 조회 step
+    B3  이상치 데이터 소스 수정
+    B4  논문 카드 0건 숨김
+    U1  API 키 상태 배지
+    U2  진입 경로 표시
+    U3  신뢰도 메모 표시
+    U4  PDF 3가지 상태
+    U5  데이터 소스 패널
+    U6  재분석 버튼
+-->
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>싱가포르 1공정 — UPharma Export AI</title>
-  <style>
-    :root {
-      --bg:        #FDF4F8;
-      --panel:     #FFFFFF;
-      --border:    #FBCFE8;
-      --border-2:  #F9A8D4;
-      --text:      #111827;
-      --muted:     #6B7280;
-      --primary:   #DB2777;
-      --primary-h: #BE185D;
-      --primary-l: #FCE7F3;
-      --primary-m: #F9A8D4;
-      --ok:        #059669;
-      --ok-bg:     #ECFDF5;
-      --warn:      #D97706;
-      --warn-bg:   #FFFBEB;
-      --err:       #DC2626;
-      --err-bg:    #FEF2F2;
-      --accent:    #EC4899;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    /* ── Header ── */
-    header {
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 1px 8px rgba(219,39,119,.08);
-    }
-    .header-left { display: flex; align-items: center; gap: 14px; }
-    .header-flag { font-size: 36px; line-height: 1; }
-    .header-title h1 { font-size: 18px; font-weight: 700; color: var(--text); }
-    .header-title p  { font-size: 12px; color: var(--muted); margin-top: 1px; }
-
-    /* ── Main container ── */
-    .container { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
-
-    /* ── Macro boxes ── */
-    .macro-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
-      margin-bottom: 28px;
-    }
-    .macro-card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px 20px;
-      box-shadow: 0 1px 4px rgba(219,39,119,.06);
-    }
-    .macro-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
-    .macro-value { font-size: 26px; font-weight: 800; color: var(--primary); line-height: 1.1; }
-    .macro-sub   { font-size: 11px; color: var(--muted); margin-top: 5px; }
-
-    /* ── Selector card ── */
-    .selector-card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 24px 28px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 4px rgba(219,39,119,.06);
-    }
-    .selector-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
-    .selector-row { display: flex; gap: 12px; align-items: center; }
-    select {
-      flex: 1;
-      padding: 10px 14px;
-      border: 1.5px solid var(--border-2);
-      border-radius: 8px;
-      font-size: 14px;
-      color: var(--text);
-      background: var(--bg);
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23DB2777' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 14px center;
-      cursor: pointer;
-      outline: none;
-      transition: border-color .15s;
-    }
-    select:focus { border-color: var(--primary); }
-    .btn-analyze {
-      padding: 10px 28px;
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background .15s, opacity .15s;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .btn-analyze:hover:not(:disabled) { background: var(--primary-h); }
-    .btn-analyze:disabled { opacity: .45; cursor: not-allowed; }
-
-    /* ── Progress steps ── */
-    .progress-row {
-      display: flex;
-      gap: 0;
-      margin-top: 16px;
-      display: none;
-    }
-    .progress-row.visible { display: flex; }
-    .prog-step {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-      position: relative;
-    }
-    .prog-step::after {
-      content: '';
-      position: absolute;
-      top: 13px;
-      right: -50%;
-      width: 100%;
-      height: 2px;
-      background: var(--border);
-      z-index: 0;
-    }
-    .prog-step:last-child::after { display: none; }
-    .prog-dot {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: var(--bg);
-      border: 2px solid var(--border-2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700; color: var(--muted);
-      z-index: 1; position: relative;
-      transition: all .3s;
-    }
-    .prog-step.active  .prog-dot { border-color: var(--primary); color: var(--primary); background: var(--primary-l); animation: pulse-dot 1.2s infinite; }
-    .prog-step.done    .prog-dot { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
-    .prog-step.done::after { background: var(--ok); }
-    .prog-step.error   .prog-dot { border-color: var(--err); background: var(--err-bg); color: var(--err); }
-    .prog-label { font-size: 11px; color: var(--muted); text-align: center; }
-    .prog-step.active .prog-label { color: var(--primary); font-weight: 600; }
-    .prog-step.done   .prog-label { color: var(--ok); }
-    @keyframes pulse-dot { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
-
-    /* ── Result + Papers cards ── */
-    .result-card, .papers-card, .report-card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 24px 28px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 4px rgba(219,39,119,.06);
-      display: none;
-    }
-    .result-card.visible, .papers-card.visible, .report-card.visible { display: block; }
-    .card-title {
-      font-size: 12px; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .card-title-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
-
-    /* verdict */
-    .verdict-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
-    .verdict-badge {
-      padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 800;
-      white-space: nowrap; flex-shrink: 0;
-    }
-    .v-ok   { background: var(--ok-bg);   color: var(--ok); }
-    .v-warn { background: var(--warn-bg); color: var(--warn); }
-    .v-err  { background: var(--err-bg);  color: var(--err); }
-    .v-none { background: #F3F4F6; color: var(--muted); }
-    .verdict-meta { flex: 1; }
-    .verdict-name { font-size: 17px; font-weight: 700; }
-    .verdict-inn  { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .verdict-model { font-size: 11px; color: var(--muted); margin-top: 4px; }
-
-    .rationale-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 16px;
-      font-size: 13px;
-      line-height: 1.7;
-      color: var(--text);
-      margin-bottom: 12px;
-      white-space: pre-wrap;
-    }
-    .factors-row { display: flex; flex-wrap: wrap; gap: 7px; }
-    .factor-chip {
-      padding: 4px 12px;
-      background: var(--primary-l);
-      color: var(--primary);
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    /* papers */
-    .paper-item {
-      display: flex; gap: 10px; align-items: flex-start;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .paper-item:last-child { border-bottom: none; }
-    .paper-arrow { color: var(--primary); flex-shrink: 0; font-size: 14px; margin-top: 2px; }
-    .paper-link {
-      color: var(--primary); text-decoration: none; font-weight: 600; font-size: 13px;
-    }
-    .paper-link:hover { text-decoration: underline; }
-    .paper-src { font-size: 11px; color: var(--muted); margin-left: 6px; }
-    .paper-reason { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .no-papers-msg { color: var(--muted); font-size: 13px; }
-
-    /* report card */
-    .btn-download {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 24px;
-      background: var(--primary-l);
-      color: var(--primary);
-      border: 1.5px solid var(--primary-m);
-      border-radius: 8px;
-      font-size: 14px; font-weight: 700;
-      cursor: pointer; text-decoration: none;
-      transition: background .15s;
-    }
-    .btn-download:hover { background: var(--primary-m); }
-
-    /* ── Crawling status (compact) ── */
-    .crawl-section {
-      margin-top: 24px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .crawl-header {
-      padding: 10px 18px;
-      display: flex; align-items: center; justify-content: space-between;
-      cursor: pointer; user-select: none;
-      border-bottom: 1px solid var(--border);
-    }
-    .crawl-header-left { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-    .crawl-toggle { font-size: 11px; color: var(--muted); }
-    .crawl-body { padding: 10px 18px 14px; }
-    .site-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
-    .site-row {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 11px; padding: 4px 6px; border-radius: 5px;
-      background: var(--bg); border: 1px solid var(--border);
-    }
-    .site-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .site-dot.pending { background: #D1D5DB; }
-    .site-dot.running { background: var(--primary); animation: pulse-site 1s infinite; }
-    .site-dot.ok      { background: var(--ok); }
-    .site-dot.warn    { background: var(--warn); }
-    .site-dot.error   { background: var(--err); }
-    @keyframes pulse-site { 0%,100%{opacity:1} 50%{opacity:.3} }
-    .site-name { font-weight: 600; flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .site-msg  { color: var(--muted); font-size: 10px; max-width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* ── Log (collapsible) ── */
-    .log-section {
-      margin-top: 12px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .log-summary {
-      list-style: none;
-      padding: 10px 18px;
-      display: flex; align-items: center; justify-content: space-between;
-      cursor: pointer; user-select: none;
-      font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
-    }
-    .log-summary::-webkit-details-marker { display: none; }
-    .log-summary::after { content: '▸'; font-size: 12px; transition: transform .2s; }
-    details[open] .log-summary::after { transform: rotate(90deg); }
-    #logbox {
-      padding: 8px 12px 12px;
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 11px;
-      max-height: 200px;
-      overflow-y: auto;
-      display: flex; flex-direction: column; gap: 1px;
-      border-top: 1px solid var(--border);
-    }
-    .log-line { padding: 2px 6px; border-radius: 3px; line-height: 1.4; word-break: break-all; color: var(--muted); }
-    .log-line.success { color: var(--ok); }
-    .log-line.warn    { color: var(--warn); }
-    .log-line.error   { color: var(--err); }
-    .log-line.info    { color: #8B5CF6; }
-    .log-clear { font-size: 11px; color: var(--muted); cursor: pointer; font-weight: 400; text-transform: none; letter-spacing: 0; }
-    .log-clear:hover { color: var(--primary); }
-
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
-
-    /* ── 이상치 검증 카드 ── */
-    .outlier-section {
-      margin-top: 12px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .outlier-header {
-      padding: 10px 18px;
-      display: flex; align-items: center; justify-content: space-between;
-      cursor: pointer; user-select: none;
-      border-bottom: 1px solid var(--border);
-    }
-    .outlier-header-left { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-    .outlier-toggle { font-size: 11px; color: var(--muted); }
-    .outlier-body { padding: 14px 18px; display: none; }
-
-    .outlier-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-    .outlier-stat {
-      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-      padding: 12px 14px; text-align: center;
-    }
-    .outlier-stat-value { font-size: 22px; font-weight: 800; line-height: 1.1; }
-    .outlier-stat-value.clr-ok  { color: var(--ok); }
-    .outlier-stat-value.clr-err { color: var(--err); }
-    .outlier-stat-value.clr-primary { color: var(--primary); }
-    .outlier-stat-label { font-size: 10px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .4px; }
-
-    .outlier-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
-
-    /* 신뢰도 분포 바 */
-    .conf-chart-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
-    .conf-chart-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 10px; }
-    .conf-bars { display: flex; align-items: flex-end; gap: 4px; height: 56px; }
-    .conf-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-    .conf-bar {
-      width: 100%; border-radius: 3px 3px 0 0;
-      background: var(--primary-m);
-      transition: height .4s;
-      min-height: 2px;
-    }
-    .conf-bar.outlier-bar { background: var(--err); }
-    .conf-bar-label { font-size: 9px; color: var(--muted); }
-
-    /* 이상치 도넛 */
-    .donut-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 16px; }
-    .donut-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
-    .donut-svg-wrap { flex-shrink: 0; }
-    .donut-legend { display: flex; flex-direction: column; gap: 6px; }
-    .donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-    .donut-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
-    /* 품목별 테이블 */
-    .outlier-table-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
-    .outlier-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    .outlier-table th {
-      text-align: left; padding: 5px 8px;
-      color: var(--muted); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
-      border-bottom: 1px solid var(--border);
-    }
-    .outlier-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); color: var(--text); }
-    .outlier-table tr:last-child td { border-bottom: none; }
-    .outlier-table tr:hover td { background: var(--bg); }
-    .conf-mini-bar { height: 5px; border-radius: 3px; background: var(--border); position: relative; width: 60px; display: inline-block; vertical-align: middle; }
-    .conf-mini-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px; }
-    .pill {
-      display: inline-block; padding: 2px 8px; border-radius: 10px;
-      font-size: 10px; font-weight: 700;
-    }
-    .pill.normal  { background: var(--ok-bg);   color: var(--ok); }
-    .pill.outlier { background: var(--err-bg);  color: var(--err); }
-    .pill.missing { background: #F3F4F6; color: var(--muted); }
-
-    @media (max-width: 720px) {
-      .macro-grid { grid-template-columns: repeat(2, 1fr); }
-      .site-grid  { grid-template-columns: repeat(2, 1fr); }
-      .selector-row { flex-direction: column; }
-      .btn-analyze { width: 100%; justify-content: center; }
-      .outlier-charts { grid-template-columns: 1fr; }
-      .outlier-summary { grid-template-columns: repeat(3, 1fr); }
-    }
-  </style>
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 
-<!-- ── Header ── -->
+<!-- ════════════════════════════════════════════════════════════
+  헤더: 타이틀 + API 키 상태 배지 (U1)
+  배지 색상: 녹색 = 키 설정됨, 회색 = 미설정
+════════════════════════════════════════════════════════════ -->
 <header>
   <div class="header-left">
     <div class="header-flag">🇸🇬</div>
@@ -415,11 +54,25 @@
       <p>거시 지표 요약 및 8개 INN 진출 적합 분석 · UPharma Export AI</p>
     </div>
   </div>
+
+  <!-- U1: API 키 상태 — app.js loadKeyStatus()가 /api/keys/status 조회 후 업데이트 -->
+  <div class="key-status">
+    <span class="key-badge inactive" id="key-claude" title="Claude API 키 확인 중…">
+      <span class="key-badge-dot"></span> Claude
+    </span>
+    <span class="key-badge inactive" id="key-perplexity" title="Perplexity API 키 확인 중…">
+      <span class="key-badge-dot"></span> Perplexity
+    </span>
+  </div>
 </header>
 
 <div class="container">
 
-  <!-- ── 거시지표 박스 ── -->
+  <!-- ════════════════════════════════════════════════════════════
+    거시지표 카드
+    데이터: GET /api/macro → Supabase sg_world_population·sg_health_expenditure
+            (Supabase 없으면 정적 폴백값 표시)
+  ════════════════════════════════════════════════════════════ -->
   <div class="macro-grid" id="macro-grid">
     <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
     <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
@@ -427,15 +80,18 @@
     <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
   </div>
 
-  <!-- ── 품목 선택 + 분석 버튼 ── -->
+  <!-- ════════════════════════════════════════════════════════════
+    품목 선택 & 분석 실행
+    동작: POST /api/pipeline/{product_key} → 폴링 → 결과 렌더링
+  ════════════════════════════════════════════════════════════ -->
   <div class="selector-card">
     <div class="selector-label">품목 선택 후 진출 적합 분석 실행</div>
     <div class="selector-row">
       <select id="product-select">
-        <option value="SG_hydrine_hydroxyurea_500">하이드린 캡슐 — Hydroxyurea 500mg</option>
-        <option value="SG_gadvoa_gadobutrol_604">Gadvoa Inj. — Gadobutrol 604mg</option>
         <option value="SG_sereterol_activair">Sereterol Activair — Fluticasone / Salmeterol</option>
         <option value="SG_omethyl_omega3_2g">Omethyl — Omega-3 EE 2g</option>
+        <option value="SG_hydrine_hydroxyurea_500">하이드린 캡슐 — Hydroxyurea 500mg</option>
+        <option value="SG_gadvoa_gadobutrol_604">Gadvoa Inj. — Gadobutrol 604mg</option>
         <option value="SG_rosumeg_combigel">Rosumeg Combigel — Rosuvastatin + Omega-3</option>
         <option value="SG_atmeg_combigel">Atmeg Combigel — Atorvastatin + Omega-3</option>
         <option value="SG_ciloduo_cilosta_rosuva">Ciloduo — Cilostazol + Rosuvastatin</option>
@@ -446,11 +102,15 @@
       </button>
     </div>
 
-    <!-- 진행 단계 -->
+    <!--
+      진행 단계 표시
+      B2 수정: 크롤링(미사용) → DB 조회(db_load)
+      ID 규칙: prog-{STEP_ORDER 값}  (app.js STEP_ORDER 참조)
+    -->
     <div class="progress-row" id="progress-row">
-      <div class="prog-step" id="prog-crawl">
+      <div class="prog-step" id="prog-db_load">
         <div class="prog-dot">1</div>
-        <div class="prog-label">크롤링</div>
+        <div class="prog-label">DB 조회</div>
       </div>
       <div class="prog-step" id="prog-analyze">
         <div class="prog-dot">2</div>
@@ -467,548 +127,159 @@
     </div>
   </div>
 
-  <!-- ── 분석 결과 카드 ── -->
-  <div class="result-card" id="result-card">
-    <div class="card-title"><div class="card-title-dot"></div> 수출 적합성 분석 결과</div>
-    <div class="verdict-row">
-      <span class="verdict-badge v-none" id="verdict-badge">—</span>
-      <div class="verdict-meta">
-        <div class="verdict-name" id="verdict-name">—</div>
-        <div class="verdict-inn"  id="verdict-inn">—</div>
-        <div class="verdict-model" id="verdict-model"></div>
+  <!-- ════════════════════════════════════════════════════════════
+    신약 분석
+  ════════════════════════════════════════════════════════════ -->
+  <div class="selector-card" style="margin-top:16px">
+    <div class="selector-label">신약 분석</div>
+    <div class="custom-form">
+      <input type="text" id="custom-trade-name" class="custom-input" placeholder="약품명 (예: Nexavar)">
+      <input type="text" id="custom-inn"        class="custom-input" placeholder="성분명 (예: sorafenib)">
+      <input type="text" id="custom-dosage"     class="custom-input" placeholder="제형 (예: 200mg tablet)">
+      <button class="btn-analyze" id="btn-custom" onclick="runCustomPipeline()">
+        <span id="custom-icon">▶</span> 신약 분석
+      </button>
+    </div>
+    <div class="progress-row" id="custom-progress-row">
+      <div class="prog-step" id="cprog-analyze">
+        <div class="prog-dot">1</div>
+        <div class="prog-label">Claude 분석</div>
+      </div>
+      <div class="prog-step" id="cprog-refs">
+        <div class="prog-dot">2</div>
+        <div class="prog-label">논문 검색</div>
+      </div>
+      <div class="prog-step" id="cprog-report">
+        <div class="prog-dot">3</div>
+        <div class="prog-label">PDF 생성</div>
       </div>
     </div>
-    <div class="rationale-box" id="rationale-box">분석 결과를 불러오는 중입니다…</div>
-    <div class="factors-row" id="factors-row"></div>
   </div>
 
-  <!-- ── 관련 논문 카드 ── -->
+  <!-- ════════════════════════════════════════════════════════════
+    분석 결과 카드 — 섹션 구조
+    S1: 제품 식별   S2: 핵심 판정(신호등)
+    S3: 두괄식 판정 근거   S4: 시장 진출 전략
+  ════════════════════════════════════════════════════════════ -->
+  <div class="result-card" id="result-card">
+    <div class="card-title"><div class="card-title-dot"></div> 수출 적합성 분석 결과</div>
+
+    <!-- S1: 제품 식별 -->
+    <div class="rs-block">
+      <div class="rs-block-label">제품 식별</div>
+      <div class="rs-product-row">
+        <div class="verdict-name" id="verdict-name">—</div>
+        <div class="verdict-inn"  id="verdict-inn">—</div>
+      </div>
+    </div>
+
+    <!-- S2: 핵심 판정 (신호등) -->
+    <div class="rs-block">
+      <div class="rs-block-label">핵심 판정</div>
+      <div class="rs-verdict-wrap">
+        <div class="traffic-light">
+          <div class="tl-lamp tl-red"    id="tl-red"></div>
+          <div class="tl-lamp tl-yellow" id="tl-yellow"></div>
+          <div class="tl-lamp tl-green"  id="tl-green"></div>
+        </div>
+        <!-- 판정 배지: v-ok(적합) / v-warn(조건부) / v-err(부적합) / v-none(미분석) -->
+        <span class="verdict-badge v-none" id="verdict-badge">—</span>
+      </div>
+    </div>
+
+    <!-- S3: 두괄식 판정 근거 -->
+    <div class="rs-block">
+      <div class="rs-block-label">두괄식 판정 근거</div>
+      <div class="basis-grid">
+        <div class="basis-item">
+          <div class="basis-label">시장 / 의료</div>
+          <div class="basis-value" id="basis-market-medical">—</div>
+        </div>
+        <div class="basis-item">
+          <div class="basis-label">규제</div>
+          <div class="basis-value" id="basis-regulatory">—</div>
+        </div>
+        <div class="basis-item">
+          <div class="basis-label">무역</div>
+          <div class="basis-value" id="basis-trade">—</div>
+        </div>
+        <div class="basis-item basis-item-full">
+          <div class="basis-label">참고 가격</div>
+          <div class="basis-value pbs-price-block" id="basis-pbs-line">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S4: 시장 진출 전략 -->
+    <div class="rs-block">
+      <div class="rs-block-label">시장 진출 전략</div>
+      <div class="rs-strategy-grid">
+        <div class="rs-strategy-item">
+          <div class="rs-strategy-sub">진입 채널 권고</div>
+          <!-- U2: 진입 경로 — CSS display:none 초기값, JS에서 값 있을 때 표시 -->
+          <span class="entry-pathway" id="entry-pathway"></span>
+        </div>
+        <div class="rs-strategy-item">
+          <div class="rs-strategy-sub">가격 포지셔닝</div>
+          <div class="basis-value pbs-price-block" id="price-positioning-pbs">—</div>
+        </div>
+        <div class="rs-strategy-item">
+          <div class="rs-strategy-sub">리스크 / 조건</div>
+          <div class="basis-value" id="risks-conditions">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- U6: 재분석 — CSS display:none 초기값, 분석 완료 후 표시 -->
+    <button class="btn-reanalyze" id="btn-reanalyze" onclick="runPipeline()">
+      ↺ 재분석
+    </button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+    논문 카드 (B4 수정: refs 1건 이상일 때만 표시)
+    데이터: Perplexity sonar-pro 검색 결과
+    PERPLEXITY_API_KEY 미설정 시 자동으로 숨겨짐
+  ════════════════════════════════════════════════════════════ -->
   <div class="papers-card" id="papers-card">
     <div class="card-title"><div class="card-title-dot"></div> Perplexity 추천 논문</div>
     <div id="papers-list"></div>
   </div>
 
-  <!-- ── 보고서 다운로드 카드 ── -->
+  <!-- ════════════════════════════════════════════════════════════
+    PDF 보고서 카드 (U4 수정: 3가지 상태)
+    - report-state-loading: PDF 생성 중 스피너
+    - report-state-ok:      생성 완료 & 다운로드 버튼
+    - report-state-error:   생성 실패 메시지
+  ════════════════════════════════════════════════════════════ -->
   <div class="report-card" id="report-card">
     <div class="card-title"><div class="card-title-dot"></div> PDF 보고서</div>
-    <a class="btn-download" id="btn-download" href="/api/report/download" target="_blank">
-      📄 PDF 보고서 다운로드
-    </a>
-    <p style="margin-top:10px;font-size:12px;color:var(--muted)">
-      싱가포르 1공정 시장조사 보고서 (전 품목 포함)
-    </p>
-  </div>
 
-  <!-- ── 크롤링 상태 (compact) ── -->
-  <div class="crawl-section">
-    <div class="crawl-header" onclick="toggleCrawl()">
-      <div class="crawl-header-left">
-        <span>🔍</span> 크롤링 사이트 상태
-      </div>
-      <span class="crawl-toggle" id="crawl-toggle">펼치기 ▾</span>
+    <!-- 생성 중 -->
+    <div id="report-state-loading" style="display:none; align-items:center; gap:8px;">
+      <span class="report-loading-spinner"></span>
+      <span style="font-size:13px; color:var(--muted)">PDF 생성 중…</span>
     </div>
-    <div class="crawl-body" id="crawl-body" style="display:none">
-      <div class="site-grid" id="site-grid">
-        <div class="site-row"><div class="site-dot pending"></div><div class="site-name" style="color:var(--muted)">크롤 전</div></div>
-      </div>
+
+    <!-- 생성 완료 -->
+    <div id="report-state-ok" style="display:none">
+      <a class="btn-download" href="/api/report/download" target="_blank">
+        📄 PDF 보고서 다운로드
+      </a>
+      <p class="report-state">싱가포르 1공정 시장조사 보고서</p>
     </div>
-  </div>
 
-  <!-- ── 실시간 로그 (collapsible) ── -->
-  <details class="log-section">
-    <summary class="log-summary">
-      실시간 로그
-      <span class="log-clear" onclick="event.stopPropagation();clearLog()">지우기</span>
-    </summary>
-    <div id="logbox"></div>
-  </details>
-
-  <!-- ── 이상치 검증 카드 ── -->
-  <div class="outlier-section">
-    <div class="outlier-header" onclick="toggleOutlier()">
-      <div class="outlier-header-left">
-        <span>📊</span> 이상치 검증 현황
-      </div>
-      <span class="outlier-toggle" id="outlier-toggle">펼치기 ▾</span>
+    <!-- 생성 실패 -->
+    <div id="report-state-error" style="display:none">
+      <p class="report-state" style="color:var(--err)">
+        PDF 생성 실패.
+      </p>
     </div>
-    <div class="outlier-body" id="outlier-body">
-
-      <!-- 요약 stats -->
-      <div class="outlier-summary">
-        <div class="outlier-stat">
-          <div class="outlier-stat-value clr-ok" id="ot-normal">—</div>
-          <div class="outlier-stat-label">정상</div>
-        </div>
-        <div class="outlier-stat">
-          <div class="outlier-stat-value clr-err" id="ot-outlier">—</div>
-          <div class="outlier-stat-label">이상치</div>
-        </div>
-        <div class="outlier-stat">
-          <div class="outlier-stat-value clr-primary" id="ot-conf">—</div>
-          <div class="outlier-stat-label">평균 신뢰도</div>
-        </div>
-      </div>
-
-      <!-- 차트 2열 -->
-      <div class="outlier-charts">
-
-        <!-- 신뢰도 분포 바 차트 -->
-        <div class="conf-chart-wrap">
-          <div class="conf-chart-title">신뢰도 분포</div>
-          <div class="conf-bars" id="conf-bars">
-            <div style="color:var(--muted);font-size:11px">로딩 중…</div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--muted)">
-            <span>0.0</span><span>0.5</span><span>1.0</span>
-          </div>
-        </div>
-
-        <!-- 이상치 도넛 -->
-        <div class="donut-wrap">
-          <div style="flex:1">
-            <div class="donut-title">이상치 비율</div>
-            <div style="display:flex;align-items:center;gap:16px">
-              <div class="donut-svg-wrap">
-                <svg id="donut-svg" width="80" height="80" viewBox="0 0 80 80">
-                  <circle id="donut-bg"  cx="40" cy="40" r="28" fill="none" stroke="var(--border)" stroke-width="12"/>
-                  <circle id="donut-ok"  cx="40" cy="40" r="28" fill="none" stroke="var(--ok)"    stroke-width="12"
-                    stroke-dasharray="0 175.9" stroke-linecap="round"
-                    transform="rotate(-90 40 40)" style="transition:stroke-dasharray .6s"/>
-                  <circle id="donut-err" cx="40" cy="40" r="28" fill="none" stroke="var(--err)"   stroke-width="12"
-                    stroke-dasharray="0 175.9" stroke-linecap="round"
-                    transform="rotate(-90 40 40)" style="transition:stroke-dasharray .6s"/>
-                  <text x="40" y="44" text-anchor="middle" font-size="13" font-weight="800" fill="var(--text)" id="donut-label">—</text>
-                </svg>
-              </div>
-              <div class="donut-legend">
-                <div class="donut-legend-item"><div class="donut-dot" style="background:var(--ok)"></div><span id="legend-normal">정상 —</span></div>
-                <div class="donut-legend-item"><div class="donut-dot" style="background:var(--err)"></div><span id="legend-outlier">이상치 —</span></div>
-                <div class="donut-legend-item"><div class="donut-dot" style="background:#D1D5DB"></div><span id="legend-missing">미분석 —</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- /outlier-charts -->
-
-      <!-- 품목별 테이블 -->
-      <div class="outlier-table-title">품목별 상세</div>
-      <table class="outlier-table">
-        <thead>
-          <tr>
-            <th>품목</th>
-            <th>진입 경로</th>
-            <th>신뢰도</th>
-            <th>판정</th>
-          </tr>
-        </thead>
-        <tbody id="outlier-tbody">
-          <tr><td colspan="4" style="color:var(--muted);text-align:center">크롤 실행 후 데이터가 표시됩니다</td></tr>
-        </tbody>
-      </table>
-
-    </div><!-- /outlier-body -->
   </div>
 
 </div><!-- /container -->
 
-<script>
-  // ── 상수 ──────────────────────────────────────────────────────────────────
-  const INN_MAP = {
-    SG_hydrine_hydroxyurea_500: 'Hydroxyurea 500mg',
-    SG_gadvoa_gadobutrol_604:   'Gadobutrol 604mg',
-    SG_sereterol_activair:      'Fluticasone / Salmeterol',
-    SG_omethyl_omega3_2g:       'Omega-3 EE 2g',
-    SG_rosumeg_combigel:        'Rosuvastatin + Omega-3',
-    SG_atmeg_combigel:          'Atorvastatin + Omega-3',
-    SG_ciloduo_cilosta_rosuva:  'Cilostazol + Rosuvastatin',
-    SG_gastiin_cr_mosapride:    'Mosapride CR',
-  };
-
-  let _sse = null;
-  let _pollTimer = null;
-  let _currentKey = null;
-  let _crawlOpen = false;
-
-  // ── 로그 ─────────────────────────────────────────────────────────────────
-  function log(msg, level='info') {
-    const box = document.getElementById('logbox');
-    const line = document.createElement('div');
-    line.className = `log-line ${level}`;
-    const t = new Date().toLocaleTimeString('ko', {hour12:false});
-    line.textContent = `${t}  ${msg}`;
-    box.appendChild(line);
-    box.scrollTop = box.scrollHeight;
-    if (box.children.length > 300) box.removeChild(box.firstChild);
-  }
-  function clearLog() { document.getElementById('logbox').innerHTML = ''; }
-
-  // ── 거시지표 로드 ─────────────────────────────────────────────────────────
-  async function loadMacro() {
-    try {
-      const res = await fetch('/api/macro');
-      const data = await res.json();
-      const grid = document.getElementById('macro-grid');
-      grid.innerHTML = '';
-      for (const item of data) {
-        const card = document.createElement('div');
-        card.className = 'macro-card';
-        card.innerHTML = `
-          <div class="macro-label">${item.label}</div>
-          <div class="macro-value">${item.value}</div>
-          <div class="macro-sub">${item.sub}</div>`;
-        grid.appendChild(card);
-      }
-    } catch(e) { log('거시지표 로드 실패: ' + e, 'warn'); }
-  }
-
-  // ── 크롤링 사이트 상태 ────────────────────────────────────────────────────
-  function toggleCrawl() {
-    _crawlOpen = !_crawlOpen;
-    document.getElementById('crawl-body').style.display = _crawlOpen ? 'block' : 'none';
-    document.getElementById('crawl-toggle').textContent = _crawlOpen ? '접기 ▴' : '펼치기 ▾';
-  }
-
-  async function refreshSites() {
-    try {
-      const res = await fetch('/api/sites');
-      const sites = await res.json();
-      const grid = document.getElementById('site-grid');
-      grid.innerHTML = '';
-      for (const s of sites) {
-        const row = document.createElement('div');
-        row.className = 'site-row';
-        row.innerHTML = `
-          <div class="site-dot ${s.status}"></div>
-          <div class="site-name" title="${s.name}">${s.name}</div>
-          <div class="site-msg" title="${s.message}">${s.message||'—'}</div>`;
-        grid.appendChild(row);
-      }
-    } catch(e) {}
-  }
-
-  // ── SSE 연결 ─────────────────────────────────────────────────────────────
-  function connectSSE() {
-    if (_sse) _sse.close();
-    _sse = new EventSource('/api/stream');
-    _sse.onmessage = (e) => {
-      const ev = JSON.parse(e.data);
-      const level = ev.level || 'info';
-      const msg = ev.message || '';
-      if (msg) log(`[${ev.phase||'?'}] ${msg}`, level);
-      // 크롤링 중이면 사이트 상태 갱신
-      if ((ev.phase||'').includes('crawl') || ev.phase === 'site_progress') {
-        refreshSites();
-      }
-    };
-    _sse.onerror = () => {};
-  }
-
-  // ── 진행 단계 표시 ────────────────────────────────────────────────────────
-  const STEP_MAP = {
-    init:    null,
-    crawl:   'prog-crawl',
-    analyze: 'prog-analyze',
-    refs:    'prog-refs',
-    report:  'prog-report',
-    done:    null,
-    error:   null,
-  };
-  const STEP_ORDER = ['crawl', 'analyze', 'refs', 'report'];
-
-  function setProgress(currentStep, status) {
-    document.getElementById('progress-row').classList.add('visible');
-    const idx = STEP_ORDER.indexOf(currentStep);
-    for (let i = 0; i < STEP_ORDER.length; i++) {
-      const el = document.getElementById('prog-' + STEP_ORDER[i]);
-      if (!el) continue;
-      if (status === 'error' && i === idx) {
-        el.className = 'prog-step error';
-      } else if (i < idx || (i === idx && status === 'done')) {
-        el.className = 'prog-step done';
-        el.querySelector('.prog-dot').textContent = '✓';
-      } else if (i === idx) {
-        el.className = 'prog-step active';
-      } else {
-        el.className = 'prog-step';
-        el.querySelector('.prog-dot').textContent = i + 1;
-      }
-    }
-  }
-
-  function resetProgress() {
-    document.getElementById('progress-row').classList.remove('visible');
-    for (let i = 0; i < STEP_ORDER.length; i++) {
-      const el = document.getElementById('prog-' + STEP_ORDER[i]);
-      if (el) {
-        el.className = 'prog-step';
-        el.querySelector('.prog-dot').textContent = i + 1;
-      }
-    }
-  }
-
-  // ── 파이프라인 실행 ───────────────────────────────────────────────────────
-  async function runPipeline() {
-    const sel = document.getElementById('product-select');
-    const productKey = sel.value;
-    _currentKey = productKey;
-
-    // UI 초기화
-    resetProgress();
-    document.getElementById('result-card').classList.remove('visible');
-    document.getElementById('papers-card').classList.remove('visible');
-    document.getElementById('report-card').classList.remove('visible');
-    document.getElementById('btn-analyze').disabled = true;
-    document.getElementById('btn-icon').textContent = '⏳';
-
-    // 크롤링 상태 패널 자동 열기
-    if (!_crawlOpen) toggleCrawl();
-
-    log(`파이프라인 시작 — ${productKey}`, 'info');
-
-    try {
-      const res = await fetch(`/api/pipeline/${encodeURIComponent(productKey)}`, {method: 'POST'});
-      if (!res.ok) {
-        const d = await res.json();
-        log('파이프라인 오류: ' + (d.detail || res.status), 'error');
-        document.getElementById('btn-analyze').disabled = false;
-        document.getElementById('btn-icon').textContent = '▶';
-        return;
-      }
-      connectSSE();
-      _pollTimer = setInterval(() => pollPipeline(productKey), 2500);
-    } catch(e) {
-      log('요청 실패: ' + e, 'error');
-      document.getElementById('btn-analyze').disabled = false;
-      document.getElementById('btn-icon').textContent = '▶';
-    }
-  }
-
-  async function pollPipeline(productKey) {
-    try {
-      const res = await fetch(`/api/pipeline/${encodeURIComponent(productKey)}/status`);
-      const d = await res.json();
-
-      if (d.status === 'idle') return;
-      if (d.step && d.step !== 'done' && d.step !== 'error') {
-        setProgress(d.step, 'running');
-        log(`[${d.step}] ${d.step_label}`, 'info');
-      }
-
-      if (d.status === 'done') {
-        clearInterval(_pollTimer);
-        // 모든 스텝 완료 표시
-        for (const s of STEP_ORDER) setProgress(s, 'done');
-        // 결과 로드
-        const r2 = await fetch(`/api/pipeline/${encodeURIComponent(productKey)}/result`);
-        const data = await r2.json();
-        renderResult(data.result, data.refs, data.pdf);
-        document.getElementById('btn-analyze').disabled = false;
-        document.getElementById('btn-icon').textContent = '▶';
-        log('파이프라인 완료 ✓', 'success');
-        refreshSites();
-        if (_outlierOpen) refreshOutlier();
-      }
-
-      if (d.status === 'error') {
-        clearInterval(_pollTimer);
-        setProgress(d.step || 'crawl', 'error');
-        log('파이프라인 오류: ' + d.step_label, 'error');
-        document.getElementById('btn-analyze').disabled = false;
-        document.getElementById('btn-icon').textContent = '▶';
-      }
-    } catch(e) {}
-  }
-
-  // ── 결과 렌더링 ───────────────────────────────────────────────────────────
-  function renderResult(result, refs, pdfName) {
-    // 분석 결과 카드
-    if (result) {
-      const verdict  = result.verdict;
-      const vc = verdict === '적합' ? 'v-ok' : verdict === '부적합' ? 'v-err' : verdict ? 'v-warn' : 'v-none';
-      const vLabel = verdict || 'API 키 미설정';
-
-      document.getElementById('verdict-badge').className = `verdict-badge ${vc}`;
-      document.getElementById('verdict-badge').textContent = vLabel;
-      document.getElementById('verdict-name').textContent  = result.trade_name || result.product_id || '';
-      document.getElementById('verdict-inn').textContent   = INN_MAP[result.product_id] || result.inn || '';
-      document.getElementById('verdict-model').textContent = result.analysis_model ? `분석 모델: ${result.analysis_model}` : '';
-      document.getElementById('rationale-box').textContent = result.rationale || '—';
-
-      const factorsRow = document.getElementById('factors-row');
-      factorsRow.innerHTML = '';
-      for (const f of (result.key_factors || [])) {
-        const chip = document.createElement('span');
-        chip.className = 'factor-chip';
-        chip.textContent = f;
-        factorsRow.appendChild(chip);
-      }
-      document.getElementById('result-card').classList.add('visible');
-    }
-
-    // 논문 카드 (별도)
-    const papersList = document.getElementById('papers-list');
-    papersList.innerHTML = '';
-    if (refs && refs.length > 0) {
-      for (const ref of refs) {
-        const item = document.createElement('div');
-        item.className = 'paper-item';
-        item.innerHTML = `
-          <span class="paper-arrow">▸</span>
-          <div>
-            <div>
-              <a class="paper-link" href="${ref.url}" target="_blank" rel="noopener">${ref.title || ref.url}</a>
-              <span class="paper-src">[${ref.source || ''}]</span>
-            </div>
-            <div class="paper-reason">${ref.reason || ''}</div>
-          </div>`;
-        papersList.appendChild(item);
-      }
-    } else {
-      papersList.innerHTML = `<div class="no-papers-msg">
-        PERPLEXITY_API_KEY 설정 시 관련 논문이 자동 검색됩니다.</div>`;
-    }
-    document.getElementById('papers-card').classList.add('visible');
-
-    // 보고서 카드
-    if (pdfName) {
-      document.getElementById('report-card').classList.add('visible');
-    }
-  }
-
-  // ── 이상치 카드 ──────────────────────────────────────────────────────────
-  let _outlierOpen = false;
-
-  function toggleOutlier() {
-    _outlierOpen = !_outlierOpen;
-    document.getElementById('outlier-body').style.display = _outlierOpen ? 'block' : 'none';
-    document.getElementById('outlier-toggle').textContent = _outlierOpen ? '접기 ▴' : '펼치기 ▾';
-    if (_outlierOpen) refreshOutlier();
-  }
-
-  const TRADE_NAMES = {
-    SG_hydrine_hydroxyurea_500: 'Hydrine',
-    SG_gadvoa_gadobutrol_604:   'Gadvoa Inj.',
-    SG_sereterol_activair:      'Sereterol',
-    SG_omethyl_omega3_2g:       'Omethyl',
-    SG_rosumeg_combigel:        'Rosumeg',
-    SG_atmeg_combigel:          'Atmeg',
-    SG_ciloduo_cilosta_rosuva:  'Ciloduo',
-    SG_gastiin_cr_mosapride:    'Gastiin CR',
-  };
-
-  async function refreshOutlier() {
-    try {
-      const res = await fetch('/api/products');
-      if (!res.ok) return;
-      const rows = await res.json();
-      if (!rows || rows.length === 0) return;
-
-      let normalCount = 0, outlierCount = 0, missingCount = 0;
-      const confs = [];
-      const items = [];
-
-      for (const r of rows) {
-        const raw = r.raw_payload || {};
-        const verdict = r.verdict || raw.verdict || null;
-        const entryPathway = raw.entry_pathway || r.entry_pathway || null;
-        const conf = parseFloat(raw.conf ?? raw.confidence ?? r.confidence ?? 0) || 0;
-        const name = r.trade_name || TRADE_NAMES[r.product_key] || r.product_key || '—';
-
-        if (verdict == null) missingCount++;
-        else if (verdict === '적합') normalCount++;
-        else outlierCount++;
-
-        if (conf > 0) confs.push(conf);
-        items.push({ name, entryPathway, conf, verdict });
-      }
-
-      const total = normalCount + outlierCount + missingCount;
-      const avgConf = confs.length ? (confs.reduce((a,b)=>a+b,0)/confs.length) : 0;
-
-      // 요약 stats
-      document.getElementById('ot-normal').textContent  = normalCount;
-      document.getElementById('ot-outlier').textContent = outlierCount;
-      document.getElementById('ot-conf').textContent    = avgConf.toFixed(2);
-
-      // 도넛 차트 (SVG stroke-dasharray)
-      const circ = 2 * Math.PI * 28; // ≈ 175.9
-      const okPct     = total ? normalCount  / total : 0;
-      const errPct    = total ? outlierCount / total : 0;
-      const okLen     = okPct  * circ;
-      const errLen    = errPct * circ;
-      const okOffset  = 0;
-      const errOffset = okLen;
-
-      const donutOk  = document.getElementById('donut-ok');
-      const donutErr = document.getElementById('donut-err');
-      donutOk.setAttribute('stroke-dasharray',  `${okLen}  ${circ - okLen}`);
-      donutOk.setAttribute('stroke-dashoffset', '0');
-      donutErr.setAttribute('stroke-dasharray', `${errLen} ${circ - errLen}`);
-      donutErr.setAttribute('stroke-dashoffset', `-${errOffset}`);
-      document.getElementById('donut-label').textContent =
-        total ? Math.round(okPct * 100) + '%' : '—';
-
-      document.getElementById('legend-normal').textContent  = `적합 ${normalCount}건`;
-      document.getElementById('legend-outlier').textContent = `조건부·부적합 ${outlierCount}건`;
-      document.getElementById('legend-missing').textContent = `미분석 ${missingCount}건`;
-
-      // 신뢰도 분포 바 차트 (0.3~1.0 구간 10개 버킷)
-      const BUCKETS = 7;
-      const MIN_CONF = 0.3, MAX_CONF = 1.0;
-      const step = (MAX_CONF - MIN_CONF) / BUCKETS;
-      const buckets = Array(BUCKETS).fill(0);
-      for (const c of confs) {
-        const idx = Math.min(BUCKETS - 1, Math.floor((c - MIN_CONF) / step));
-        if (idx >= 0) buckets[idx]++;
-      }
-      const maxBucket = Math.max(...buckets, 1);
-      const barsEl = document.getElementById('conf-bars');
-      barsEl.innerHTML = '';
-      buckets.forEach((cnt, i) => {
-        const pct = (cnt / maxBucket) * 100;
-        const label = (MIN_CONF + step * i).toFixed(1);
-        const col = document.createElement('div');
-        col.className = 'conf-bar-col';
-        // outlier 구간(낮은 신뢰도) 색 구분
-        const barClass = 'conf-bar' + (i < 2 ? ' outlier-bar' : '');
-        col.innerHTML = `
-          <div class="${barClass}" style="height:${Math.max(pct * 0.56, 2)}px"></div>
-          <div class="conf-bar-label">${label}</div>`;
-        barsEl.appendChild(col);
-      });
-
-      // 품목별 테이블
-      const tbody = document.getElementById('outlier-tbody');
-      tbody.innerHTML = '';
-      for (const item of items) {
-        const statusClass = item.verdict == null ? 'missing' : item.verdict === '적합' ? 'normal' : 'outlier';
-        const statusLabel = item.verdict ?? '미분석';
-        const confPct = Math.round(item.conf * 100);
-        const fillColor = item.conf >= 0.75 ? 'var(--ok)' : item.conf >= 0.5 ? 'var(--warn)' : 'var(--err)';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="font-weight:600">${item.name}</td>
-          <td style="color:var(--muted)">${item.entryPathway ?? '—'}</td>
-          <td>
-            <span class="conf-mini-bar">
-              <span class="conf-mini-fill" style="width:${confPct}%;background:${fillColor}"></span>
-            </span>
-            <span style="font-size:10px;color:var(--muted);margin-left:5px">${item.conf ? item.conf.toFixed(2) : '—'}</span>
-          </td>
-          <td><span class="pill ${statusClass}">${statusLabel}</span></td>`;
-        tbody.appendChild(tr);
-      }
-
-    } catch(e) {}
-  }
-
-  // ── 초기화 ────────────────────────────────────────────────────────────────
-  loadMacro();
-  connectSSE();
-  refreshSites();
-  setInterval(refreshSites, 6000);
-  log('대시보드 초기화 완료', 'success');
-</script>
+<!-- app.js: 모든 동작 로직 (버그 수정 + UX 개선) -->
+<script src="/static/app.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-"""로컬 대시보드: SSE 실시간 로그 + products JSON API."""
+"""분석 대시보드 서버: SSE 실시간 로그 + 분석/보고서 API."""
 
 from __future__ import annotations
 
@@ -13,23 +13,24 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
-load_dotenv()
+ROOT = Path(__file__).resolve().parents[1]
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env", override=True)
+except ImportError:
+    pass
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from crawlers.pipeline import run_full_crawl
-from utils import db as dbutil
-from frontend.dashboard_sites import DASHBOARD_SITES, initial_site_states
+from frontend.dashboard_sites import DASHBOARD_SITES
 
-DB_PATH = ROOT / "datas" / "local_products.db"
 STATIC = Path(__file__).resolve().parent / "static"
 
 DEFAULT_HOST = "127.0.0.1"
@@ -38,109 +39,40 @@ DEFAULT_PORT = 8765
 _state: dict[str, Any] = {
     "events": [],
     "lock": None,
-    "running": False,
 }
-
-_site_states: dict[str, dict[str, Any]] = initial_site_states()
-
-
-def _reset_site_states() -> None:
-    global _site_states
-    _site_states = initial_site_states()
-
-
-class RunCrawlBody(BaseModel):
-    use_ai_discovery: bool = False
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    # Lock은 실행 중인 이벤트 루프에 묶여야 함 (모듈 최상단 생성 금지)
     _state["lock"] = asyncio.Lock()
-    _reset_site_states()
     yield
 
 
-app = FastAPI(title="SG Crawl Dashboard", version="0.1.0", lifespan=_lifespan)
+app = FastAPI(title="SG Analysis Dashboard", version="2.0.0", lifespan=_lifespan)
+
+import os as _os
+_cors_origins = _os.environ.get("CORS_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 async def _emit(event: dict[str, Any]) -> None:
     payload = {**event, "ts": time.time()}
     lock = _state["lock"]
-    if lock is None:   # lifespan 미실행 환경(테스트 등) — 무시
+    if lock is None:
         return
     async with lock:
         _state["events"].append(payload)
         if len(_state["events"]) > 500:
             _state["events"] = _state["events"][-400:]
-        if event.get("phase") == "site_progress" and event.get("site_key"):
-            sk = str(event["site_key"])
-            if sk in _site_states:
-                _site_states[sk] = {
-                    "status": event.get("site_status", "ok"),
-                    "message": event.get("message", ""),
-                    "ts": payload["ts"],
-                }
 
 
-async def _run_pipeline_task(use_ai_discovery: bool = False) -> None:
-    _state["running"] = True
-    try:
-        await run_full_crawl(
-            ROOT,
-            _emit,
-            db_path=DB_PATH,
-            include_ai_discovery=use_ai_discovery,
-        )
-    finally:
-        _state["running"] = False
-
-
-@app.post("/api/run")
-async def trigger_run(body: RunCrawlBody | None = None) -> JSONResponse:
-    req = body if body is not None else RunCrawlBody()
-    if _state["running"]:
-        raise HTTPException(status_code=409, detail="이미 크롤이 실행 중입니다.")
-    _reset_site_states()
-    asyncio.create_task(_run_pipeline_task(req.use_ai_discovery))
-    return JSONResponse({"ok": True, "message": "크롤 작업을 백그라운드에서 시작했습니다."})
-
-
-@app.get("/api/sites")
-async def api_sites() -> list[dict[str, Any]]:
-    lock = _state["lock"]
-    assert lock is not None
-    async with lock:
-        snap = {k: dict(v) for k, v in _site_states.items()}
-    out: list[dict[str, Any]] = []
-    for s in DASHBOARD_SITES:
-        st = snap.get(s["id"], {})
-        out.append(
-            {
-                "id": s["id"],
-                "name": s["name"],
-                "hint": s["hint"],
-                "domain": s["domain"],
-                "status": st.get("status", "pending"),
-                "message": st.get("message", "아직 시작 전이에요"),
-            }
-        )
-    return out
-
-
-@app.get("/api/status")
-async def status() -> dict[str, Any]:
-    lock = _state["lock"]
-    assert lock is not None
-    async with lock:
-        n = len(_state["events"])
-    return {"running": _state["running"], "event_count": n}
-
-
-# ── Supabase Edge Function 플레이스홀더 ──────────────────────────────────────
-# TODO: Edge Function 배포 후 아래 경로로 LLM 호출 라우팅
-# POST /api/edge/analyze → Supabase Edge Function (Claude API 프록시)
-# 현재: analysis/sg_export_analyzer.py에서 직접 Claude API 호출
+# ── 분석 ──────────────────────────────────────────────────────────────────────
 
 _analysis_cache: dict[str, Any] = {"result": None, "running": False}
 
@@ -152,39 +84,34 @@ class AnalyzeBody(BaseModel):
 
 @app.post("/api/analyze")
 async def trigger_analyze(body: AnalyzeBody | None = None) -> JSONResponse:
-    """8품목 수출 적합성 분석 실행 (Claude API first, Perplexity 보조).
-    결과는 캐시에 저장되며 /api/analyze/result로 조회 가능."""
+    """8품목 수출 적합성 분석 실행 (Claude API + Perplexity 보조)."""
     req = body if body is not None else AnalyzeBody()
     if _analysis_cache["running"]:
         raise HTTPException(status_code=409, detail="분석이 이미 실행 중입니다.")
     if _analysis_cache["result"] and not req.force_refresh:
-        return JSONResponse({"ok": True, "message": "캐시된 분석 결과 사용. force_refresh=true로 재실행 가능."})
+        return JSONResponse({"ok": True, "message": "캐시된 분석 결과 사용. force_refresh=true로 재실행."})
 
-    async def _run_analysis() -> None:
+    async def _run() -> None:
         _analysis_cache["running"] = True
         try:
             from analysis.sg_export_analyzer import analyze_all
             from analysis.perplexity_references import fetch_all_references
 
-            results = await analyze_all(db_path=DB_PATH, use_perplexity=req.use_perplexity)
-
-            # Perplexity 논문 검색 (API 키 있을 때만 실행)
+            results = await analyze_all(use_perplexity=req.use_perplexity)
             pids = [r["product_id"] for r in results]
             refs = await fetch_all_references(pids)
             for r in results:
                 r["references"] = refs.get(r["product_id"], [])
-
             _analysis_cache["result"] = results
         finally:
             _analysis_cache["running"] = False
 
-    asyncio.create_task(_run_analysis())
+    asyncio.create_task(_run())
     return JSONResponse({"ok": True, "message": "분석을 백그라운드에서 시작했습니다."})
 
 
 @app.get("/api/analyze/result")
 async def analyze_result() -> JSONResponse:
-    """최근 분석 결과 반환. 분석 전이면 404."""
     if _analysis_cache["running"]:
         return JSONResponse({"status": "running"}, status_code=202)
     if not _analysis_cache["result"]:
@@ -198,7 +125,6 @@ async def analyze_result() -> JSONResponse:
 
 @app.get("/api/analyze/status")
 async def analyze_status() -> dict[str, Any]:
-    """분석 실행 상태 확인."""
     return {
         "running": _analysis_cache["running"],
         "has_result": _analysis_cache["result"] is not None,
@@ -206,15 +132,15 @@ async def analyze_status() -> dict[str, Any]:
     }
 
 
-# ── 거시지표 ─────────────────────────────────────────────────────────────────
+# ── 거시지표 ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/macro")
 async def api_macro() -> JSONResponse:
-    from utils.sg_macro import SG_MACRO
-    return JSONResponse(SG_MACRO)
+    from utils.sg_macro import get_sg_macro
+    return JSONResponse(get_sg_macro())
 
 
-# ── 단일 품목 전체 파이프라인 ─────────────────────────────────────────────────
+# ── 단일 품목 파이프라인 (분석 + 논문 + PDF) ──────────────────────────────────
 
 _pipeline_tasks: dict[str, dict[str, Any]] = {}
 
@@ -222,36 +148,28 @@ _pipeline_tasks: dict[str, dict[str, Any]] = {}
 async def _run_pipeline_for_product(product_key: str) -> None:
     task = _pipeline_tasks[product_key]
     try:
-        # 1. 크롤링
-        task.update({"step": "crawl", "step_label": "크롤링 중…"})
-        _state["running"] = True
-        _reset_site_states()
-        await _emit({"phase": "pipeline", "message": "크롤링 시작", "level": "info"})
-        try:
-            await run_full_crawl(ROOT, _emit, db_path=DB_PATH)
-        finally:
-            _state["running"] = False
+        # 0. DB 조회 (Supabase)
+        task.update({"step": "db_load", "step_label": "Supabase 데이터 로드 중…"})
+        await _emit({"phase": "pipeline", "message": f"{product_key} — DB 조회 중", "level": "info"})
 
-        # 2. Claude 분석
+        from utils.db import fetch_kup_products
+        kup_rows = fetch_kup_products("SG")
+        db_row = next((r for r in kup_rows if r.get("product_id") == product_key), None)
+
+        if db_row is None:
+            await _emit({"phase": "pipeline", "message": f"DB에서 품목 미발견: {product_key}", "level": "warn"})
+
+        # 1. Claude 분석
         task.update({"step": "analyze", "step_label": "Claude 분석 중…"})
-        await _emit({"phase": "pipeline", "message": f"{product_key} — Claude 분석 시작", "level": "info"})
-        conn = dbutil.get_connection(DB_PATH)
-        rows = dbutil.fetch_all_products(conn)
-        conn.close()
-        db_row = next(
-            (r for r in rows if (r.get("product_key") or r.get("product_id")) == product_key),
-            None,
-        )
+        await _emit({"phase": "pipeline", "message": f"{product_key} — 분석 시작", "level": "info"})
+
         from analysis.sg_export_analyzer import analyze_product
         result = await analyze_product(product_key, db_row)
         task["result"] = result
-        await _emit({
-            "phase": "pipeline",
-            "message": f"분석 완료 — {result.get('verdict') or 'API 키 미설정'}",
-            "level": "success",
-        })
+        verdict = result.get("verdict") or "미분석"
+        await _emit({"phase": "pipeline", "message": f"분석 완료 — {verdict}", "level": "success"})
 
-        # 3. Perplexity 논문
+        # 2. Perplexity 논문
         task.update({"step": "refs", "step_label": "논문 검색 중…"})
         from analysis.perplexity_references import fetch_references
         refs = await fetch_references(product_key)
@@ -259,10 +177,11 @@ async def _run_pipeline_for_product(product_key: str) -> None:
         if refs:
             await _emit({"phase": "pipeline", "message": f"논문 {len(refs)}건 검색 완료", "level": "success"})
 
-        # 4. PDF 보고서 (단일 분석 JSON 주입)
+        # 3. PDF 보고서
         task.update({"step": "report", "step_label": "PDF 생성 중…"})
         await _emit({"phase": "pipeline", "message": "PDF 보고서 생성 중…", "level": "info"})
-        import subprocess, tempfile
+        import subprocess
+        import tempfile
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False, encoding="utf-8"
         ) as f:
@@ -270,7 +189,6 @@ async def _run_pipeline_for_product(product_key: str) -> None:
             ana_path = f.name
         cmd = [
             sys.executable, str(ROOT / "report_generator.py"),
-            "--db", str(DB_PATH),
             "--out", str(ROOT / "reports"),
             "--analysis-json", ana_path,
         ]
@@ -280,12 +198,103 @@ async def _run_pipeline_for_product(product_key: str) -> None:
         pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True)
         task["pdf"] = pdfs[0].name if pdfs else None
         task.update({"status": "done", "step": "done", "step_label": "완료"})
-        await _emit({"phase": "pipeline", "message": "파이프라인 완료 ✓", "level": "success"})
+        await _emit({"phase": "pipeline", "message": "파이프라인 완료", "level": "success"})
 
     except Exception as exc:
         task.update({"status": "error", "step": "error", "step_label": str(exc)})
         await _emit({"phase": "pipeline", "message": f"오류: {exc}", "level": "error"})
 
+
+# ── 신약(커스텀) 파이프라인 ────────────────────────────────────────────────────
+# 주의: 리터럴 경로("/api/pipeline/custom/...")는 반드시 {product_key} 라우트보다 먼저 선언
+
+_custom_task: dict[str, Any] = {}
+
+
+class CustomDrugBody(BaseModel):
+    trade_name: str
+    inn: str
+    dosage_form: str = ""
+
+
+async def _run_custom_pipeline(trade_name: str, inn: str, dosage_form: str) -> None:
+    global _custom_task
+    try:
+        # Step 1: Claude 분석
+        _custom_task.update({"step": "analyze", "step_label": "Claude 분석 중…"})
+        from analysis.sg_export_analyzer import analyze_custom_product
+        result = await analyze_custom_product(trade_name, inn, dosage_form)
+        _custom_task["result"] = result
+
+        # Step 2: Perplexity 논문
+        _custom_task.update({"step": "refs", "step_label": "논문 검색 중…"})
+        from analysis.perplexity_references import fetch_references_for_custom
+        refs = await fetch_references_for_custom(trade_name, inn)
+        _custom_task["refs"] = refs
+
+        # Step 3: PDF 보고서
+        _custom_task.update({"step": "report", "step_label": "PDF 생성 중…"})
+        import subprocess, tempfile
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as f:
+            json.dump([result], f, ensure_ascii=False)
+            ana_path = f.name
+        cmd = [
+            sys.executable, str(ROOT / "report_generator.py"),
+            "--out", str(ROOT / "reports"),
+            "--analysis-json", ana_path,
+        ]
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, lambda: subprocess.run(cmd, capture_output=True))
+        reports_dir = ROOT / "reports"
+        pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True)
+        _custom_task["pdf"] = pdfs[0].name if pdfs else None
+        _custom_task.update({"status": "done", "step": "done", "step_label": "완료"})
+
+    except Exception as exc:
+        _custom_task.update({"status": "error", "step": "error", "step_label": str(exc)})
+
+
+@app.post("/api/pipeline/custom")
+async def trigger_custom_pipeline(body: CustomDrugBody) -> JSONResponse:
+    global _custom_task
+    if _custom_task.get("status") == "running":
+        raise HTTPException(status_code=409, detail="신약 분석이 이미 실행 중입니다.")
+    _custom_task = {
+        "status": "running", "step": "analyze", "step_label": "시작 중…",
+        "result": None, "refs": [], "pdf": None,
+    }
+    asyncio.create_task(_run_custom_pipeline(body.trade_name, body.inn, body.dosage_form))
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/pipeline/custom/status")
+async def custom_pipeline_status() -> JSONResponse:
+    if not _custom_task:
+        return JSONResponse({"status": "idle"})
+    return JSONResponse({
+        "status":     _custom_task.get("status", "idle"),
+        "step":       _custom_task.get("step", ""),
+        "step_label": _custom_task.get("step_label", ""),
+        "has_result": _custom_task.get("result") is not None,
+        "has_pdf":    bool(_custom_task.get("pdf")),
+    })
+
+
+@app.get("/api/pipeline/custom/result")
+async def custom_pipeline_result() -> JSONResponse:
+    if not _custom_task:
+        raise HTTPException(404, "신약 분석 미실행")
+    return JSONResponse({
+        "status": _custom_task.get("status"),
+        "result": _custom_task.get("result"),
+        "refs":   _custom_task.get("refs", []),
+        "pdf":    _custom_task.get("pdf"),
+    })
+
+
+# ── 기존 품목 파이프라인 ──────────────────────────────────────────────────────
 
 @app.post("/api/pipeline/{product_key}")
 async def trigger_pipeline(product_key: str) -> JSONResponse:
@@ -328,6 +337,8 @@ async def pipeline_result(product_key: str) -> JSONResponse:
     })
 
 
+# ── 보고서 ────────────────────────────────────────────────────────────────────
+
 _report_cache: dict[str, Any] = {"path": None, "running": False}
 
 
@@ -338,8 +349,6 @@ class ReportBody(BaseModel):
 
 @app.post("/api/report")
 async def trigger_report(body: ReportBody | None = None) -> JSONResponse:
-    """보고서 생성 실행 (PDF + JSON).
-    run_analysis=true이면 Claude API로 분석 후 보고서 생성."""
     req = body if body is not None else ReportBody()
     if _report_cache["running"]:
         raise HTTPException(status_code=409, detail="보고서 생성이 이미 실행 중입니다.")
@@ -349,17 +358,14 @@ async def trigger_report(body: ReportBody | None = None) -> JSONResponse:
         try:
             import subprocess
             cmd = [
-                sys.executable,
-                str(ROOT / "report_generator.py"),
-                "--db", str(DB_PATH),
+                sys.executable, str(ROOT / "report_generator.py"),
                 "--out", str(ROOT / "reports"),
             ]
             if req.run_analysis:
                 cmd.append("--run-analysis")
-            result = await asyncio.get_event_loop().run_in_executor(
+            await asyncio.get_event_loop().run_in_executor(
                 None, lambda: subprocess.run(cmd, capture_output=True, text=True)
             )
-            # 가장 최근 PDF 경로 저장
             reports_dir = ROOT / "reports"
             pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True)
             _report_cache["path"] = str(pdfs[0]) if pdfs else None
@@ -372,7 +378,6 @@ async def trigger_report(body: ReportBody | None = None) -> JSONResponse:
 
 @app.get("/api/report/status")
 async def report_status() -> dict[str, Any]:
-    """보고서 생성 상태 확인."""
     reports_dir = ROOT / "reports"
     pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True) if reports_dir.exists() else []
     return {
@@ -384,29 +389,92 @@ async def report_status() -> dict[str, Any]:
 
 @app.get("/api/report/download")
 async def download_report() -> Any:
-    """최신 PDF 보고서 다운로드."""
-    from fastapi.responses import FileResponse as _FileResponse
     reports_dir = ROOT / "reports"
     pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True) if reports_dir.exists() else []
     if not pdfs:
         raise HTTPException(status_code=404, detail="생성된 보고서 없음. POST /api/report 먼저 실행")
-    return _FileResponse(str(pdfs[0]), media_type="application/pdf", filename=pdfs[0].name)
+    return FileResponse(str(pdfs[0]), media_type="application/pdf", filename=pdfs[0].name)
 
+
+# ── products 조회 ─────────────────────────────────────────────────────────────
 
 @app.get("/api/products")
 async def products() -> list[dict[str, Any]]:
-    conn = dbutil.get_connection(DB_PATH)
+    from utils.db import fetch_kup_products
+    return fetch_kup_products("SG")
+
+
+# ── API 키 상태 (U1) ──────────────────────────────────────────────────────────
+
+@app.get("/api/keys/status")
+async def keys_status() -> dict[str, Any]:
+    """Claude·Perplexity API 키 설정 여부 반환 (실제 키 값은 노출하지 않음)."""
+    import os
+    claude_key     = os.environ.get("CLAUDE_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+    perplexity_key = os.environ.get("PERPLEXITY_API_KEY", "")
+    return {
+        "claude":     bool(claude_key.strip()),
+        "perplexity": bool(perplexity_key.strip()),
+    }
+
+
+# ── 데이터 소스 상태 (U5·B1) ──────────────────────────────────────────────────
+
+@app.get("/api/datasource/status")
+async def datasource_status() -> JSONResponse:
+    """Supabase 연결 상태, KUP 품목 수, HSA 컨텍스트 출처 반환."""
     try:
-        rows = dbutil.fetch_all_products(conn)
-    finally:
-        conn.close()
-    for r in rows:
-        if r.get("raw_payload"):
-            try:
-                r["raw_payload"] = json.loads(r["raw_payload"])
-            except (json.JSONDecodeError, TypeError):
-                pass
-    return rows
+        from utils.db import get_client, fetch_kup_products
+        kup_rows = fetch_kup_products("SG")
+        kup_count = len(kup_rows)
+
+        # HSA 컨텍스트 테이블 점검
+        sb = get_client()
+        ctx_count = 0
+        context_source = "없음"
+        try:
+            ctx_rows = (
+                sb.table("sg_product_context")
+                .select("product_id", count="exact")
+                .execute()
+            )
+            ctx_count = ctx_rows.count or 0
+            context_source = f"sg_product_context {ctx_count}건" if ctx_count else "products 테이블 폴백"
+        except Exception:
+            context_source = "조회 실패"
+
+        return JSONResponse({
+            "supabase":       "ok",
+            "kup_count":      kup_count,
+            "context_ok":     ctx_count > 0,
+            "context_source": context_source,
+            "message":        f"KUP {kup_count}건 로드",
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "supabase":       "error",
+            "kup_count":      0,
+            "context_ok":     False,
+            "context_source": "연결 실패",
+            "message":        str(exc)[:120],
+        })
+
+
+# ── 상태 / SSE 스트림 ─────────────────────────────────────────────────────────
+
+@app.get("/api/status")
+async def status() -> dict[str, Any]:
+    lock = _state["lock"]
+    assert lock is not None
+    async with lock:
+        n = len(_state["events"])
+    return {"event_count": n}
+
+
+@app.get("/api/health")
+async def health() -> dict[str, Any]:
+    """Render 헬스체크용 경량 엔드포인트."""
+    return {"ok": True, "service": "sg-analysis-dashboard"}
 
 
 @app.get("/api/stream")
@@ -425,17 +493,12 @@ async def stream() -> StreamingResponse:
                     chunk.append(_state["events"][last])
                     last += 1
             for ev in chunk:
-                line = json.dumps(ev, ensure_ascii=False)
-                yield f"data: {line}\n\n"
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
 
 
@@ -453,47 +516,20 @@ app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 def main() -> None:
     import uvicorn
 
-    parser = argparse.ArgumentParser(description="싱가포르 크롤 로컬 대시보드")
-    parser.add_argument(
-        "--host",
-        default=DEFAULT_HOST,
-        help="바인드 주소 (macOS는 localhost 대신 127.0.0.1 권장)",
-    )
+    parser = argparse.ArgumentParser(description="SG 분석 대시보드")
+    parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument(
-        "--open",
-        action="store_true",
-        help="서버 기동 후 브라우저 자동 열기",
-    )
+    parser.add_argument("--open", action="store_true")
     args = parser.parse_args()
 
-    url = f"http://{args.host}:{args.port}/"
-    if args.host == "0.0.0.0":
-        url = f"http://127.0.0.1:{args.port}/"
-
-    print(
-        "\n  ▶ 대시보드 주소 (주소창에 그대로 복사):\n"
-        f"    http://127.0.0.1:{args.port}/\n"
-        "  ▶ Safari/Chrome에서 'localhost'만 쓰면 IPv6(::1)로 붙어 연결이 안 될 수 있습니다.\n"
-        "    반드시 127.0.0.1 을 사용하세요.\n"
-        f"  ▶ 서버 바인드: {args.host}:{args.port}\n",
-        flush=True,
-    )
-
     if args.open:
-
         def _open_later() -> None:
             time.sleep(1.0)
-            webbrowser.open(url)
-
+            webbrowser.open(f"http://127.0.0.1:{args.port}/")
         threading.Thread(target=_open_later, daemon=True).start()
 
-    uvicorn.run(
-        app,
-        host=args.host,
-        port=args.port,
-        reload=False,
-    )
+    print(f"\n  ▶ 대시보드: http://127.0.0.1:{args.port}/\n")
+    uvicorn.run(app, host=args.host, port=args.port, reload=False)
 
 
 if __name__ == "__main__":

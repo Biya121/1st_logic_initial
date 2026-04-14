@@ -1,0 +1,473 @@
+/*
+ * UPharma Export AI — 대시보드 스타일시트
+ * ─────────────────────────────────────────
+ * 구조:
+ *   1. CSS 변수 & 리셋
+ *   2. 헤더
+ *   3. 레이아웃·거시지표 카드
+ *   4. 셀렉터 카드 & 진행 단계
+ *   5. 분석 결과 카드
+ *   6. 논문·보고서 카드
+ *   7. 데이터 소스 패널
+ *   8. 실시간 로그
+ *   9. 이상치 검증 카드
+ *  10. 신규: API 키 배지 (U1)
+ *  11. 신규: 진입 경로·신뢰도 메모 (U2·U3)
+ *  12. 신규: 보고서 상태 (U4)
+ *  13. 신규: 재분석 버튼 (U6)
+ *  14. 반응형
+ */
+
+/* ── 1. CSS 변수 & 리셋 ──────────────────────────────────────────────────── */
+:root {
+  --bg:        #FDF4F8;
+  --panel:     #FFFFFF;
+  --border:    #FBCFE8;
+  --border-2:  #F9A8D4;
+  --text:      #111827;
+  --muted:     #6B7280;
+  --primary:   #DB2777;
+  --primary-h: #BE185D;
+  --primary-l: #FCE7F3;
+  --primary-m: #F9A8D4;
+  --ok:        #059669;
+  --ok-bg:     #ECFDF5;
+  --warn:      #D97706;
+  --warn-bg:   #FFFBEB;
+  --err:       #DC2626;
+  --err-bg:    #FEF2F2;
+  --accent:    #EC4899;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── 2. 헤더 ─────────────────────────────────────────────────────────────── */
+header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 8px rgba(219,39,119,.08);
+}
+
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-flag { font-size: 36px; line-height: 1; }
+.header-title h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+.header-title p  { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+/* ── 3. 레이아웃·거시지표 카드 ───────────────────────────────────────────── */
+.container { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.macro-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 4px rgba(219,39,119,.06);
+}
+.macro-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.macro-value { font-size: 26px; font-weight: 800; color: var(--primary); line-height: 1.1; }
+.macro-sub   { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+/* ── 4. 셀렉터 카드 & 진행 단계 ─────────────────────────────────────────── */
+.selector-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px rgba(219,39,119,.06);
+}
+.selector-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+.selector-row { display: flex; gap: 12px; align-items: center; }
+
+select {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-2);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23DB2777' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s;
+}
+select:focus { border-color: var(--primary); }
+
+.btn-analyze {
+  padding: 10px 28px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.btn-analyze:hover:not(:disabled) { background: var(--primary-h); }
+.btn-analyze:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 진행 단계 */
+.progress-row {
+  display: none;
+  gap: 0;
+  margin-top: 16px;
+}
+.progress-row.visible { display: flex; }
+
+.prog-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+}
+.prog-step::after {
+  content: '';
+  position: absolute;
+  top: 13px;
+  right: -50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+.prog-step:last-child::after { display: none; }
+
+.prog-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--border-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  z-index: 1; position: relative;
+  transition: all .3s;
+}
+.prog-step.active  .prog-dot { border-color: var(--primary); color: var(--primary); background: var(--primary-l); animation: pulse-dot 1.2s infinite; }
+.prog-step.done    .prog-dot { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+.prog-step.done::after { background: var(--ok); }
+.prog-step.error   .prog-dot { border-color: var(--err); background: var(--err-bg); color: var(--err); }
+.prog-label { font-size: 11px; color: var(--muted); text-align: center; }
+.prog-step.active .prog-label { color: var(--primary); font-weight: 600; }
+.prog-step.done   .prog-label { color: var(--ok); }
+@keyframes pulse-dot { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+
+/* ── 5. 분석 결과 카드 ───────────────────────────────────────────────────── */
+.result-card, .papers-card, .report-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 28px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(219,39,119,.06);
+  display: none;
+}
+.result-card.visible, .papers-card.visible, .report-card.visible { display: block; }
+
+.card-title {
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+
+/* verdict */
+.verdict-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+.verdict-badge {
+  padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 800;
+  white-space: nowrap; flex-shrink: 0;
+}
+.v-ok   { background: var(--ok-bg);   color: var(--ok); }
+.v-warn { background: var(--warn-bg); color: var(--warn); }
+.v-err  { background: var(--err-bg);  color: var(--err); }
+.v-none { background: #F3F4F6;        color: var(--muted); }
+
+.verdict-meta  { flex: 1; }
+.verdict-name  { font-size: 17px; font-weight: 700; }
+.verdict-inn   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.verdict-model { font-size: 11px; color: var(--muted); margin-top: 4px; white-space: pre-line; }
+
+.rationale-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.factors-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.factor-chip {
+  padding: 4px 12px;
+  background: var(--primary-l);
+  color: var(--primary);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── 6. 논문·보고서 카드 ─────────────────────────────────────────────────── */
+.paper-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.paper-item:last-child { border-bottom: none; }
+.paper-arrow { color: var(--primary); flex-shrink: 0; font-size: 14px; margin-top: 2px; }
+.paper-link { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 13px; }
+.paper-link:hover { text-decoration: underline; }
+.paper-src    { font-size: 11px; color: var(--muted); margin-left: 6px; }
+.paper-reason { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.btn-download {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 24px;
+  background: var(--primary-l);
+  color: var(--primary);
+  border: 1.5px solid var(--primary-m);
+  border-radius: 8px;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; text-decoration: none;
+  transition: background .15s;
+}
+.btn-download:hover { background: var(--primary-m); }
+
+/* ── 7. 신약 분석 폼 ─────────────────────────────────────────────────────── */
+.custom-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  align-items: center;
+}
+.custom-input {
+  flex: 1 1 160px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-2);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+  min-width: 0;
+}
+.custom-input:focus { border-color: var(--primary); }
+.custom-input::placeholder { color: var(--muted); }
+
+/* ── 8. 결과 카드 섹션 구조 ──────────────────────────────────────────────── */
+
+/* 섹션 블록 */
+.rs-block {
+  border-top: 1px solid var(--border);
+  padding: 18px 0 6px;
+}
+.rs-block:first-of-type { border-top: none; padding-top: 0; }
+
+.rs-block-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  margin-bottom: 10px;
+}
+
+/* S1: 제품 식별 */
+.rs-product-row { display: flex; flex-direction: column; gap: 3px; }
+
+/* S2: 핵심 판정 — 신호등 */
+.rs-verdict-wrap {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.traffic-light {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #1F2937;
+  border-radius: 12px;
+  padding: 8px 9px;
+  flex-shrink: 0;
+}
+.tl-lamp {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  opacity: .2;
+  transition: opacity .35s, box-shadow .35s;
+}
+.tl-red    { background: #EF4444; }
+.tl-yellow { background: #F59E0B; }
+.tl-green  { background: #10B981; }
+.tl-lamp.on { opacity: 1; }
+.tl-red.on    { box-shadow: 0 0 10px #EF4444; }
+.tl-yellow.on { box-shadow: 0 0 10px #F59E0B; }
+.tl-green.on  { box-shadow: 0 0 10px #10B981; }
+
+/* S3: 두괄식 판정 근거 — 카테고리 레이블 */
+.basis-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.basis-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.basis-item-full {
+  margin-top: 2px;
+}
+.basis-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 4px;
+}
+.basis-value {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+/* S4: 시장 진출 전략 */
+.rs-strategy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 1fr;
+  gap: 12px;
+  margin-top: 2px;
+}
+.pbs-price-block {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.rs-strategy-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-height: 64px;
+}
+.rs-strategy-sub {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+}
+
+/* ── 10. 신규: API 키 배지 (U1) ─────────────────────────────────────────── */
+.key-status { display: flex; align-items: center; gap: 8px; }
+
+.key-badge {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+  border: 1px solid transparent;
+  cursor: default;
+  transition: background .2s, border-color .2s;
+}
+.key-badge.active   { background: var(--ok-bg);  color: var(--ok);  border-color: #6EE7B7; }
+.key-badge.inactive { background: #F3F4F6;        color: var(--muted); border-color: #E5E7EB; }
+
+.key-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+/* ── 11. 신규: 진입 경로 (U2) ───────────────────────────────────────────── */
+.entry-pathway {
+  display: none;
+  padding: 5px 13px;
+  background: var(--primary-l);
+  color: var(--primary);
+  border-radius: 20px;
+  font-size: 12px; font-weight: 700;
+}
+
+/* ── 12. 신규: 보고서 상태 (U4) ─────────────────────────────────────────── */
+.report-state { margin-top: 10px; font-size: 12px; color: var(--muted); }
+
+.report-loading-spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--primary-m);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 13. 신규: 재분석 버튼 (U6) ─────────────────────────────────────────── */
+.btn-reanalyze {
+  display: none;
+  align-items: center; gap: 6px;
+  margin-top: 16px;
+  padding: 7px 18px;
+  background: transparent;
+  color: var(--primary);
+  border: 1.5px solid var(--primary-m);
+  border-radius: 8px;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-reanalyze:hover { background: var(--primary-l); }
+
+/* ── 14. 반응형 ──────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .macro-grid        { grid-template-columns: repeat(2, 1fr); }
+  .ds-grid           { grid-template-columns: repeat(2, 1fr); }
+  .selector-row      { flex-direction: column; }
+  .btn-analyze       { width: 100%; justify-content: center; }
+  .rs-strategy-grid  { grid-template-columns: 1fr; }
+  .key-status        { gap: 5px; }
+  .key-badge         { padding: 3px 8px; font-size: 10px; }
+}
+
+/* ── 스크롤바 ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }

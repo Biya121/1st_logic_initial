@@ -1,0 +1,137 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T03:58:20.700205+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 1,
+    "verdict_summary": {
+      "적합": 0,
+      "조건부": 1,
+      "부적합": 0,
+      "미분석": 0
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API"
+    ],
+    "note": "가격 데이터 미수집 — 싱가포르 병원·조달 채널 특성상 공개 비대상. fob_estimated_usd는 2공정 위임."
+  },
+  "products": [
+    {
+      "product_id": "SG_hydrine_hydroxyurea_500",
+      "trade_name": "Hydrine",
+      "inn_label": "Hydroxyurea 500mg",
+      "market_segment": "tender",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": "조건부",
+      "verdict_en": "CONDITIONAL",
+      "rationale": "Hydrine(hydroxyurea)은 HSA 등재(SIN11083P, 1999년)되어 규제 허가는 확보되었으나, 세포독성 약물로서 병원 전용 조달 채널 진입이 필수이며, 경쟁품 1건 존재 상황에서 공공 조달(GeBIZ) 이력 확인 및 병원 네트워크 사전 구축이 실질적 시장 진입의 선결 조건입니다.",
+      "basis_market_medical": "HSA NDF에 Hydroxyurea Capsule 500mg이 암 치료용으로 명시등재되어 있으며, 겸상적혈구병 및 만성 골수성백혈병 치료 적응증이 인정된 상태입니다. 경쟁품 1건(HYDRINE CAPSULES 500mg, 동일 성분·함량)이 존재하여 시장 포화도는 낮으나 신규 브랜드 진입 시 차별화 전략이 필요합니다.",
+      "basis_regulatory": "제품은 1999년 8월 HSA 승인(SIN11083P, Prescription Only)으로 신규 NDA Full 제출 대신 '등재 완료' 상태에 있으므로, 한국 제조사의 수출 시 HSA 교체 등록(변경사항 신고) 또는 기존 등록권자와의 유통권 협약이 요구될 가능성이 높습니다. 최근 2025-2026년 HSA 공식 기록에 hydroxyurea 신규 승인 또는 업데이트 사항이 없어 규제 여건 변화 없음을 시사합니다.",
+      "basis_trade": "제품이 'tender' 세그먼트로 분류되어 공공병원 조달 경로 지향이 명확하나, GeBIZ CSV 데이터에서 해당 품목의 구체적 발주 이력(기간, 기관, 물량)이 제시되지 않아 공공 수요의 실질성 검증이 불충분합니다. 세포독성 약물로서 특별 운송·보관 인증 및 병원 약사 승인 절차가 필수이므로, 사전 주요 병원(NHG, TTSH, SGH 등) 협의 및 임상 조달팀 승인 확보가 진입 소요시간을 단축합니다.",
+      "key_factors": [
+        "HSA 등재 완료(SIN11083P, 1999)로 신규 NDA 면제 — 교체 등록만 가능",
+        "경쟁품 1건 존재로 시장 포화도 낮음 — 가격/공급망 경쟁력 필수",
+        "세포독성 약물 지정 — 병원 전용 조달, 특별 운송 인증 필요",
+        "공공 조달(tender) 세그먼트 지향 — GeBIZ 이력 부재로 수요 입증 필요",
+        "제조사 변경(싱가포르 미상 → Korea United Pharm.) — HSA 제조 변경 신고 필수"
+      ],
+      "entry_pathway": "교체 등록(Change of Manufacturer Notification) + 병원 조달 채널 사전 협의 → 공공 조달(GeBIZ tender) 등록",
+      "risks_conditions": "기존 등록권자(1999년 승인 기관) 확인 및 유통권/제조권 양도 절차 미완료 시 HSA 등록 진행 불가능하며, 최소 2~4개월의 규제 절차가 소요됩니다. 세포독성 약물로서 병원 약사 및 조달 위원회 승인 취득(3~6개월)이 실질적 판매 개시 선결 조건이고, 경쟁품 대비 공급 안정성 또는 가격 경쟁력 입증이 없으면 시장 점유 어려움이 예상됩니다.",
+      "hsa_reg": "등재 확인: SIN11083P",
+      "product_type": "일반제",
+      "analysis_sources": [
+        {
+          "name": "Supabase DB (KUP Pipeline)",
+          "url": "https://www.kupharma.com/products/SG_hydrine_hydroxyurea_500"
+        },
+        {
+          "name": "HSA Approved Product Register",
+          "url": "내부 데이터 (SIN11083P, 최초 승인 1999-08-25)"
+        },
+        {
+          "name": "National Drug Formulary (NDF) – Hydroxyurea Capsule 500mg",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity (HSA 실시간 규제 정보)",
+          "url": "내부 조회"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.5,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_hydrine_hydroxyurea_500"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          {
+            "title": "Tender Evaluation Method for Procurement of Services in Restructured Hospitals and Institutions",
+            "url": "https://www.moh.gov.sg/newsroom/tender-evaluation-method-for-procurement-of-services-in-restructured-hospitals-and-institutions/",
+            "summary_ko": "Details Singapore MOH procurement policies and tender evaluation methods like Price-Quality Method used in public hospitals, relevant for hydroxyurea hospital tender processes."
+          },
+          {
+            "title": "Cancer care and access to cancer drugs in Asia-Pacific – Main report",
+            "url": "https://ihe.se/app/uploads/2021/11/IHE-Report-2021_3_.pdf",
+            "summary_ko": "Discusses tendering and bulk purchasing practices for cancer drugs in Singapore, directly applicable to hydroxyurea procurement for CML in MOH hospitals."
+          },
+          {
+            "title": "Annual Report 2023-24 - Cipla",
+            "url": "https://www.cipla.com/sites/default/files/Annual-Report-2023-24-(Double%20page).pdf",
+            "summary_ko": "Cipla manufactures hydroxyurea; report covers Asian market strategies and supply chains relevant for Singapore MOH tenders and export suitability."
+          }
+        ]
+      },
+      "used_data_sources": [
+        {
+          "name": "SG:kup_pipeline",
+          "description": "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)",
+          "url": "https://www.kupharma.com/products/SG_hydrine_hydroxyurea_500"
+        },
+        {
+          "name": "Supabase DB (KUP Pipeline)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.kupharma.com/products/SG_hydrine_hydroxyurea_500"
+        },
+        {
+          "name": "HSA Approved Product Register",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터 (SIN11083P, 최초 승인 1999-08-25)"
+        },
+        {
+          "name": "National Drug Formulary (NDF) – Hydroxyurea Capsule 500mg",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity (HSA 실시간 규제 정보)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 조회"
+        }
+      ]
+    }
+  ]
+}

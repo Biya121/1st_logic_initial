@@ -104,6 +104,32 @@ BROWSERLESS_API_KEY=
 
 ## 실행 방법
 
+### Render 배포 (권장: Blueprint)
+
+1. 이 저장소를 GitHub에 push 합니다.
+2. Render 대시보드에서 **New + → Blueprint** 를 선택하고 저장소를 연결합니다.
+3. 루트의 `render.yaml`을 자동 인식하면 서비스가 생성됩니다.
+4. Render 환경변수에 아래 키를 입력합니다 (`sync: false` 항목):
+   - `SUPABASE_URL`
+   - `SUPABASE_KEY`
+   - `ANTHROPIC_API_KEY` (또는 `CLAUDE_API_KEY`)
+   - `PERPLEXITY_API_KEY`
+5. 배포 완료 후 헬스체크 경로 `GET /api/health` 가 `{"ok": true, ...}`를 반환하면 정상입니다.
+6. 배포 전 로컬 점검:
+
+```bash
+python scripts/render_preflight.py
+```
+
+> 메모:
+> - 기본 설정은 `PLAYWRIGHT_LIVE=0`, `GEBIZ_LIVE=0` 입니다 (Render 환경 안정성 우선).
+> - PBS 참고가격 추산은 `PBS_FETCH=1` 기본 활성화입니다.
+
+### Render 기준 리팩토링 정리
+
+- Render 단일 배포 기준으로 **Netlify 관련 파일과 중복 web 서버 코드**를 정리했습니다.
+- 현재 배포 엔트리포인트는 `frontend.server:app` 하나로 통일되었습니다.
+
 ### 가장 쉬운 방법 — 스크립트 한 줄
 
 터미널에서 아래 명령어 하나만 실행합니다.

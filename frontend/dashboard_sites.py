@@ -33,7 +33,7 @@ DASHBOARD_SITES: tuple[SiteDef, ...] = (
     {
         "id": "moh",
         "name": "MOH · 보건부 (약가·안내)",
-        "hint": "사이트 연결 확인 + 약가 안내 페이지",
+        "hint": "사이트 연결 + 약가 안내 페이지 정책 텍스트 (가격 미파싱)",
         "domain": "moh.gov.sg",
     },
     {
@@ -45,7 +45,7 @@ DASHBOARD_SITES: tuple[SiteDef, ...] = (
     {
         "id": "gebiz",
         "name": "GeBIZ · 정부 조달",
-        "hint": "낙찰·조달 이력 (로컬 CSV + 브라우저 자동화 — datas/GovernmentProcurementviaGeBIZ.csv)",
+        "hint": "조달 맥락·키워드 노출 (가격 미수집; 로컬 CSV·Playwright — datas/GovernmentProcurementviaGeBIZ.csv)",
         "domain": "gebiz.gov.sg",
     },
 )

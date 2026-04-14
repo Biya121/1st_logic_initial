@@ -1,0 +1,167 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T06:51:16.015077+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 1,
+    "verdict_summary": {
+      "적합": 0,
+      "조건부": 1,
+      "부적합": 0,
+      "미분석": 0
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API",
+      "PBS Australia (공개 스케줄, 방법론적 추산)"
+    ],
+    "reference_pricing": {
+      "primary_label": "(PBS, 방법론적 추산)",
+      "aud_field": "pbs_dpmq_aud (DPMQ)",
+      "sgd_note": "pbs_dpmq_sgd_hint 는 참고 환산(환율 변동)"
+    },
+    "note": "싱가포르 공개 병원·소매 약가는 본 파이프라인에서 직접 수집하지 않습니다. 호주 PBS 공개 스케줄의 DPMQ를 (PBS, 방법론적 추산)으로 표기해 참고합니다."
+  },
+  "products": [
+    {
+      "product_id": "SG_sereterol_activair",
+      "trade_name": "Sereterol Activair",
+      "inn_label": "Fluticasone / Salmeterol",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "db_confidence": 0.82,
+      "status": "loaded",
+      "verdict": "조건부",
+      "verdict_en": "CONDITIONAL",
+      "rationale": "Sereterol Activair는 싱가포르에서 fluticasone/salmeterol 복합제로 경쟁품 23건(SERETIDE 등)이 HSA 등재된 성숙 시장에 속하며, 현 시점 직접 등재 확인이 부족하나 Perplexity 정보상 등가 브랜드가 NDF 등재되어 있습니다. PBS 참고 가격(DPMQ, 방법론적 추산) AUD $15.18≈SGD $13.21는 국제 가격 벤치마크로 참고 가능하나, HSA 신규 NDA 또는 동등성 심사 진행 여부 확인 후 등재 경로 확정이 필수입니다.",
+      "basis_market_medical": "Fluticasone/salmeterol는 GINA/GOLD 권고 천식·COPD 표준 치료제이며 싱가포르에서 처방 기반(Rx) 23개 경쟁품이 HSA 등재되어 있습니다. Perplexity 정보에 따르면 Seretide Evohaler 등 등가 제품들이 NDF 보조금 범주(SDL)에 포함되어 공공 보건 시스템 내 정보화된 사용 경력이 있으며, 임상적 용도 근거가 충분합니다. 그러나 Sereterol Activair 브랜드 자체의 HSA 등재 여부는 현 시점에서 확보된 데이터 기준 미확인 상태입니다.",
+      "basis_regulatory": "HSA 규제 입장에서 fluticasone/salmeterol 복합제는 기허가 선례(Seretide, APO-Fluticasone 등 2011년 이래)가 풍부하므로 신규 브랜드의 진입 경로는 Full NDA보다는 동등성(Abridged) 심사 또는 브랜드 등록 가능성이 높습니다. 제조사 Korea United Pharm. Inc.의 HSA 적격 평가 이력 및 제형(inhaler) 제조 GMP 인증 현황에 따라 심사 기간 및 조건이 결정될 것으로 예상되며, 추가 데이터 확보 시 정밀화 가능합니다.",
+      "basis_trade": "싱가포르는 Rx 채널 위주의 처방약 시장으로 소매 유통(retail) 접근은 약사·의사 추천 네트워크 강화가 필수입니다. PBS 참고 가격(DPMQ, 방법론적 추산) AUD $15.18(SGD $13.21 환율 0.8700 기준)은 호주 공개 스케줄 추산값으로 싱가포르 ERP·약가 벤치마크가 아니나, 국제 가격 투명성 논의 및 정부 수입·보조금 정책 검토 시 참고 근거로 활용 가능합니다. GeBIZ 조달 이력 현황 데이터 추가 확보 시 공공 의료 발주 가능성을 더욱 정밀화할 수 있습니다.",
+      "key_factors": [
+        "경쟁품 23건 등재로 시장 기반 성숙 및 임상적 필요성 검증됨",
+        "Sereterol 브랜드 직접 등재 상태 미확인 — 동등성 심사 경로 유력",
+        "처방약(Rx) 채널이므로 의약품 전문 수입사·유통망 확보 필수",
+        "Korea United Pharm. Inc. HSA 적격 평가 및 GMP 현황 추가 검증 필요",
+        "GSK Seretide 특허 만료 여부가 진입 타이밍 영향 (현 확보 데이터 기준 미확인)"
+      ],
+      "entry_pathway": "권장 경로: 동등성(Abridged) 심사 또는 브랜드 등록. 선결 조건: (1) 제조사 HSA 적격 평가 완료 (2) fluticasone/salmeterol 원료·제제 규격·안정성 데이터 준비 (3) 기허가 비교품(예: Seretide Evohaler) 대비 생물이용률·임상동등성 자료(필요시)",
+      "price_positioning_pbs": "호주 PBS 공개 스케줄 상 fluticasone propionate 참고 가격(DPMQ, 방법론적 추산) AUD $15.18은 SGD $13.21(환율 0.8700)로 환산되며, 이는 싱가포르 직접 약가·ERP 벤치마크가 아니나 국제 가격 투명성 및 정부 정책 논의용 참고값으로 활용 가능합니다. 싱가포르 시장에서는 Seretide 등 기허가 경쟁품의 실제 약국·병원 공급가를 기준으로 포지셔닝하되, 처방약 특성상 보험사·정부 보조금 협상 및 의약품 위원회(PDC) 심의 결과에 따라 최종 가격이 결정될 것으로 예상됩니다.",
+      "pbs_listing_url": "https://www.pbs.gov.au/browse/medicine?search=14347D",
+      "pbs_schedule_drug_name": "fluticasone propionate",
+      "pbs_pack_description": "1",
+      "pbs_dpmq_aud": 15.18,
+      "pbs_dpmq_sgd_hint": 13.21,
+      "pbs_methodology_label_ko": "(PBS, 방법론적 추산)",
+      "pbs_search_hit": true,
+      "pbs_fetch_error": null,
+      "risks_conditions": "HSA 등재 확인 전까지 진입 일정이 불확실하며, 복합제로서 원료의약품·제제 안정성 자료 부족 시 심사 지연 가능성이 있습니다. GSK Seretide 특허 상황(진행 중 또는 만료 시점)에 따라 시장 기회 창 폭이 결정되므로 현지 법무·규제 법인의 특허 추적 의뢰가 필수입니다. 또한 처방약으로 분류되므로 의약품 전문 수입사와의 체계적 협력 및 의료기관·의약분업위원회 관계자 네트워크 구축이 선행되어야 합니다.",
+      "hsa_reg": "Sereterol 브랜드 미등재 — SERETIDE(GSK) 등재 확인.",
+      "product_type": "일반제",
+      "analysis_sources": [
+        {
+          "name": "Supabase: SG_sereterol_activair Pipeline",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "Singapore HSA 등록 경쟁품 데이터 (GeBIZ CSV)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "호주 PBS 공개 스케줄 (DPMQ 참고)",
+          "url": "https://www.pbs.gov.au/browse/medicine?search=14347D"
+        },
+        {
+          "name": "Perplexity 실시간 정보: Sereterol Activair HSA 등재·NDF 목록",
+          "url": "내부 검색"
+        },
+        {
+          "name": "Korea United Pharm. Inc. 공식 정보",
+          "url": "내부 확인"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.5,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_sereterol_activair"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          {
+            "title": "Salmeterol and Fluticasone Inhaler - Medications - HealthHub",
+            "url": "https://www.healthhub.sg/medication-devices-and-treatment/medications/salmeterol-and-fluticasone-inhaler",
+            "summary_ko": "Singapore MOH HealthHub document confirms registration and use of fluticasone/salmeterol (Seretide) inhaler for asthma and COPD control."
+          },
+          {
+            "title": "NDF Listing by Pharmacological Classification",
+            "url": "https://www.ndf.gov.sg/about-drugs/ndf-listing-by-pharmacological-classification",
+            "summary_ko": "Singapore NDF lists Fluticasone Propionate + Salmeterol as registered and MOH-subsidized drug under R03AL for respiratory use."
+          },
+          {
+            "title": "Fluticasone/Salmeterol (FP/SM) Versus Double the Dose Fluticasone (FP) in Patients With Mild to Moderate Asthma (CLE001)",
+            "url": "https://clinicaltrials.gov/study/NCT00830505",
+            "summary_ko": "Clinical trial on fluticasone/salmeterol efficacy in asthma per GINA guidelines, supporting fixed-dose combination registration evidence."
+          },
+          {
+            "title": "Fluticasone/salmeterol: labeling change",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/19418648",
+            "summary_ko": "PubMed article on fluticasone/salmeterol fixed-dose for asthma/COPD, relevant to regulatory labeling and guideline compliance in Singapore."
+          }
+        ]
+      },
+      "used_data_sources": [
+        {
+          "name": "SG:kup_pipeline",
+          "description": "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "Supabase: SG_sereterol_activair Pipeline",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "Singapore HSA 등록 경쟁품 데이터 (GeBIZ CSV)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "호주 PBS 공개 스케줄 (DPMQ 참고)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.pbs.gov.au/browse/medicine?search=14347D"
+        },
+        {
+          "name": "Perplexity 실시간 정보: Sereterol Activair HSA 등재·NDF 목록",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 검색"
+        },
+        {
+          "name": "Korea United Pharm. Inc. 공식 정보",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 확인"
+        }
+      ]
+    }
+  ]
+}

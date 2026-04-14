@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T06:24:17.854160+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 1,
+    "verdict_summary": {
+      "적합": 0,
+      "조건부": 1,
+      "부적합": 0,
+      "미분석": 0
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API",
+      "PBS Australia (공개 스케줄, 방법론적 추산)"
+    ],
+    "reference_pricing": {
+      "primary_label": "(PBS, 방법론적 추산)",
+      "aud_field": "pbs_dpmq_aud (DPMQ)",
+      "sgd_note": "pbs_dpmq_sgd_hint 는 참고 환산(환율 변동)"
+    },
+    "note": "싱가포르 공개 병원·소매 약가는 본 파이프라인에서 직접 수집하지 않습니다. 호주 PBS 공개 스케줄의 DPMQ를 (PBS, 방법론적 추산)으로 표기해 참고합니다."
+  },
+  "products": [
+    {
+      "product_id": "SG_sereterol_activair",
+      "trade_name": "Sereterol Activair",
+      "inn_label": "Fluticasone / Salmeterol",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "db_confidence": 0.82,
+      "status": "loaded",
+      "verdict": "조건부",
+      "verdict_en": "CONDITIONAL",
+      "rationale": "Sereterol Activair는 HSA 미등재 상태이나, 동일 성분(fluticasone/salmeterol)의 참조제품(SERETIDE, GSK)이 이미 등재되어 있어 동등성 심사 경로 진입이 가능합니다. 천식·COPD 치료의 표준약으로서 임상적 수요가 존재하며, Rx 채널 특성상 처방전 기반 의료기관 판매만 가능합니다. 다만 GSK 특허 상태, 동등성 기준 충족, 공공조달 경합력 등을 사전 확인해야 합니다.",
+      "basis_market_medical": "Fluticasone/salmeterol 복합제는 GINA/GOLD 가이드라인 권고 천식·COPD 일차 치료제로 임상적 입지가 확립되어 있습니다. HSA 등재 경쟁품 23건(상위 SERETIDE Evohaler 등)이 존재하여 시장 수용성이 검증되었고, Rx 분류(22건)가 지배적이므로 의료기관-약사 채널 중심의 처방 기반 판매 전략이 필수입니다.",
+      "basis_regulatory": "Sereterol Activair는 현재 HSA 등재되지 않았으나(Supabase sg_ndf_listed: False), 참조제품 SERETIDE(SIN11529P, SIN11530P)의 HSA 승인 기록(2011년 이상)이 확인되어 동등성(Abridged) 심사 경로 적격성이 있습니다. 신규 NDA 전체 심사보다 동등성 경로가 규제 부담 감소, 심사 기간 단축을 제공하며, 2026년 1월부터 시행된 GDA 경로(기준제 존재 시 부적격) 대신 기존 동등성 심사 프레임워크 적용이 가능합니다.",
+      "basis_trade": "GeBIZ 공공조달 이력에 경쟁품(fluticasone/salmeterol 제형)이 존재하여 공공부문(병원, MOH 산하 클리닉) 수요가 입증되었습니다. Retail 세그먼트 지정에도 불구하고 처방약(Rx) 특성상 민간 의료기관·약국 채널 진입이 주요 경로이며, 공공조달 참여는 HSA 등재 후 별도 경합 절차가 필요합니다.",
+      "key_factors": [
+        "HSA 미등재 상태 → 동등성 심사 사전 등록 필수",
+        "참조제품(SERETIDE) 등재 확인 → Abridged 경로 적격성 있음",
+        "Rx 분류(처방약) → 의료기관·약사 채널만 허용",
+        "경쟁품 23건 → 시장 포화 상대적 높음, 차별성·임상 근거 강화 필요",
+        "GSK 특허 만료 여부 미확인 → 법적 위험 선제 검토 필수"
+      ],
+      "entry_pathway": "동등성 심사(Abridged NDA) 경로 → 참조제품(SERETIDE) 생물학적 동등성·임상동등성 입증 → HSA 등록 후 Rx 처방약으로 의료기관·약사 채널 진입 → 추가 공공조달 참여 검토",
+      "price_positioning_pbs": "",
+      "pbs_listing_url": null,
+      "pbs_schedule_drug_name": null,
+      "pbs_pack_description": null,
+      "pbs_dpmq_aud": null,
+      "pbs_dpmq_sgd_hint": null,
+      "pbs_methodology_label_ko": "(PBS, 방법론적 추산)",
+      "pbs_search_hit": null,
+      "pbs_fetch_error": null,
+      "risks_conditions": "GSK SERETIDE에 대한 한국제약사의 특허 침해 리스크, 생물학적/임상동등성 입증에 필요한 비교임상시험 설계·비용, 처방약 특성상 병원 포뮬러리 수재·의사 신뢰 확보의 시간 소요, 경쟁품 다수 진입에 따른 가격 경쟁 심화가 주요 장애요인입니다. 진입 전 (1) GSK 특허 만료·라이선스 협상 가능성 (2) 동등성 기준 충족 근거(CMC, 비교임상) 확보 (3) 의료기관 처방 개시 전 HSA 등재 완료의 3개 선결 조건을 이행해야 합니다.",
+      "hsa_reg": "Sereterol 브랜드 미등재 — SERETIDE(GSK) 등재 확인.",
+      "product_type": "일반제",
+      "analysis_sources": [
+        {
+          "name": "Supabase KUP Pipeline DB",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "HSA Product Registration Database (내부 수집)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity Real-time Regulatory Search (Early 2026)",
+          "url": "내부 검색 결과"
+        },
+        {
+          "name": "GeBIZ Singapore Public Procurement Portal",
+          "url": "내부 데이터"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.5,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_sereterol_activair"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          {
+            "title": "Role of the fixed combination of fluticasone and salmeterol in adult asthma and COPD",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4403740/",
+            "summary_ko": "Comprehensive review of FP/SAL efficacy and safety in asthma and COPD with clinical trial data from Chinese populations relevant to Southeast Asian market registration"
+          },
+          {
+            "title": "Combination fluticasone and salmeterol versus fixed dose budesonide/formoterol",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11437353/",
+            "summary_ko": "Updated systematic review comparing FP/SAL with alternative LABA/ICS combinations, addressing therapeutic equivalence and market positioning for inhaler devices"
+          },
+          {
+            "title": "Association between adherence with fixed dose fluticasone propionate/salmeterol combination and asthma care utilization",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/19032125/",
+            "summary_ko": "Clinical evidence demonstrating real-world adherence benefits and health outcomes with FP/SAL single-inhaler formulation, supporting regulatory approval arguments"
+          },
+          {
+            "title": "Fluticasone propionate/salmeterol capsule-based inhaler development study (NCT01494610)",
+            "url": "https://clinicaltrials.gov/study/NCT01494610",
+            "summary_ko": "Active GSK clinical trial data on FP/SAL inhaler device formulations and comparative delivery mechanisms relevant to product registration specifications"
+          },
+          {
+            "title": "Fluticasone/Salmeterol versus Double Dose Fluticasone on Airway Hyper-responsiveness (NCT00830505)",
+            "url": "https://clinicaltrials.gov/study/NCT00830505",
+            "summary_ko": "Comparative efficacy study establishing FP/SAL superiority over higher-dose monotherapy, supporting dosing recommendations for HSA guidelines and GINA alignment"
+          },
+          {
+            "title": "Efficacy and safety of low-dose FP/SAL in Chinese adults with moderate-severe asthma (Zhong et al study, referenced in PMC4403740)",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4403740/",
+            "summary_ko": "Asian population clinical trial demonstrating FP/SAL efficacy at lower doses compared to budesonide, with direct relevance to Southeast Asian patient populations and regulatory benchmarking"
+          }
+        ]
+      },
+      "used_data_sources": [
+        {
+          "name": "SG:kup_pipeline",
+          "description": "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "Supabase KUP Pipeline DB",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "HSA Product Registration Database (내부 수집)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity Real-time Regulatory Search (Early 2026)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 검색 결과"
+        },
+        {
+          "name": "GeBIZ Singapore Public Procurement Portal",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        }
+      ]
+    }
+  ]
+}

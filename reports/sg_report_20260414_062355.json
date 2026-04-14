@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T06:23:55.432361+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 1,
+    "verdict_summary": {
+      "적합": 0,
+      "조건부": 1,
+      "부적합": 0,
+      "미분석": 0
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API",
+      "PBS Australia (공개 스케줄, 방법론적 추산)"
+    ],
+    "reference_pricing": {
+      "primary_label": "(PBS, 방법론적 추산)",
+      "aud_field": "pbs_dpmq_aud (DPMQ)",
+      "sgd_note": "pbs_dpmq_sgd_hint 는 참고 환산(환율 변동)"
+    },
+    "note": "싱가포르 공개 병원·소매 약가는 본 파이프라인에서 직접 수집하지 않습니다. 호주 PBS 공개 스케줄의 DPMQ를 (PBS, 방법론적 추산)으로 표기해 참고합니다."
+  },
+  "products": [
+    {
+      "product_id": "SG_omethyl_omega3_2g",
+      "trade_name": "Omethyl",
+      "inn_label": "Omega-3-Acid Ethyl Esters 90 2g",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "db_confidence": 0.7,
+      "status": "loaded",
+      "verdict": "조건부",
+      "verdict_en": "CONDITIONAL",
+      "rationale": "Omethyl(omega-3 acid ethyl esters 2g)은 싱가포르 HSA 등재 경쟁품(Omacor 1000mg, Rx)이 존재하나 2g 단일캡슐 제품의 신규 등록 이력이 없어 Full NDA 신청이 필수이다. REDUCE-IT 근거와 한국 최초 개량신약 지위는 임상적 장점이나, HSA 승인 전까지 시장 진입 불가능하다.",
+      "basis_market_medical": "싱가포르에서 고중성지방혈증 치료용 처방의약품 수요는 존재하나(경쟁품 Omacor 2014년부터 Rx 등재), Omethyl 2g 제품은 공개 포뮬러리 및 GeBIZ 조달 기록에 없어 기존 시장점유도 없다. 경쟁품이 1000mg 단일제인 반면 본 제품은 2g 단일캡슐로 용량 차별화 가능하나, 임상근거(REDUCE-IT) 평가는 HSA 심사 단계에서만 확인된다.",
+      "basis_regulatory": "Supabase 및 Perplexity 자료 모두 Omethyl의 HSA 등재 기록이 없으며, omega-3 acid ethyl esters는 의료용 의약품으로 분류되어 처방전 요구 제품이므로 건강기능식품이 아닌 Full NDA 신청이 필수다. 국제 마스터파일(USDMF, JDMF, KDMF, CEP) 존재 여부는 확인되나 싱가포르 특정 승인으로는 전환되지 않으므로 신규 신청서 제출 필요다.",
+      "basis_trade": "GeBIZ 공공조달 기록에 Omethyl이 없으므로 정부 또는 병원 체계적 발주 이력이 확인되지 않는다. 소매(retail) 세그먼트로 분류되어 민간 약국·병원 채널 진입을 목표하나, HSA 등재 전 의약품 판매·수입 불가능하다.",
+      "key_factors": [
+        "HSA Full NDA 신청 필수 – 등재 선결조건",
+        "경쟁품 존재(Omacor 1000mg, Rx) – 차별화 가능하나 용량만의 차이",
+        "공공조달/포뮬러리 미등재 – 민간 채널 우선, 공공 진입은 등재 후 협상 필요",
+        "REDUCE-IT 근거 보유 – 임상 우위, HSA 심사에서 강점"
+      ],
+      "entry_pathway": "Health Sciences Authority(HSA) Full NDA 신청 → 신약/개량신약 심사 → 조건부 등재 또는 조건부 승인(등재 후 추가 임상데이터 제출 가능성)",
+      "price_positioning_pbs": "",
+      "pbs_listing_url": null,
+      "pbs_schedule_drug_name": null,
+      "pbs_pack_description": null,
+      "pbs_dpmq_aud": null,
+      "pbs_dpmq_sgd_hint": null,
+      "pbs_methodology_label_ko": "(PBS, 방법론적 추산)",
+      "pbs_search_hit": null,
+      "pbs_fetch_error": null,
+      "risks_conditions": "HSA Full NDA 심사는 12~24개월 소요 가능하며, REDUCE-IT 근거의 HSA 인정 수준, 제조 CMC 요구사항 충족, 한국산 제조시설 GMP 인증이 필수 조건이다. 등재 후에도 경쟁품과의 가격·임상적 가치(QALY) 평가에서 우위 입증 필요하며, 공공 조달 진입은 별도 MOH/국립의료기관 협상이 필요하다.",
+      "hsa_reg": "미등재 가능성 높음 — omega-3 EE 2g 단독제 HSA CSV 0건. 신규 NDA 필요.",
+      "product_type": "개량신약 (IMD)",
+      "analysis_sources": [
+        {
+          "name": "Supabase internal DB – Omethyl product record",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "시장 조사 데이터 – HSA 등재 경쟁품 현황(Omacor SIN14504P)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity – Singapore HSA regulatory context (2024)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Singapore Health Sciences Authority – Product Registration Database",
+          "url": "https://www.hsa.gov.sg (PREOCIS portal 확인 권고)"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.5,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          {
+            "title": "PubMed Central",
+            "url": "https://www.ncbi.nlm.nih.gov/pmc",
+            "summary_ko": "기본 참고 출처"
+          },
+          {
+            "title": "싱가포르 보건부 Clinical Practice Guidelines",
+            "url": "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines",
+            "summary_ko": "기본 참고 출처"
+          }
+        ]
+      },
+      "used_data_sources": [
+        {
+          "name": "SG:kup_pipeline",
+          "description": "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "Supabase internal DB – Omethyl product record",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "시장 조사 데이터 – HSA 등재 경쟁품 현황(Omacor SIN14504P)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity – Singapore HSA regulatory context (2024)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Singapore Health Sciences Authority – Product Registration Database",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.hsa.gov.sg (PREOCIS portal 확인 권고)"
+        }
+      ]
+    }
+  ]
+}

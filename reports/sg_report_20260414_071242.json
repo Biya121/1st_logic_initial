@@ -1,0 +1,167 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T07:12:42.433527+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 1,
+    "verdict_summary": {
+      "적합": 0,
+      "조건부": 1,
+      "부적합": 0,
+      "미분석": 0
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API",
+      "PBS Australia (공개 스케줄, 방법론적 추산)"
+    ],
+    "reference_pricing": {
+      "primary_label": "(PBS, 방법론적 추산)",
+      "aud_field": "pbs_dpmq_aud (DPMQ)",
+      "sgd_note": "pbs_dpmq_sgd_hint 는 참고 환산(환율 변동)"
+    },
+    "note": "싱가포르 공개 병원·소매 약가는 본 파이프라인에서 직접 수집하지 않습니다. 호주 PBS 공개 스케줄의 DPMQ를 (PBS, 방법론적 추산)으로 표기해 참고합니다."
+  },
+  "products": [
+    {
+      "product_id": "SG_omethyl_omega3_2g",
+      "trade_name": "Omethyl",
+      "inn_label": "Omega-3-Acid Ethyl Esters 90 2g",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "db_confidence": 0.7,
+      "status": "loaded",
+      "verdict": "조건부",
+      "verdict_en": "CONDITIONAL",
+      "rationale": "Omethyl(omega-3 acid ethyl esters 2g)은 싱가포르에서 경쟁품(Omacor 1000mg, 처방약)이 1건 등재되어 있으나 Omethyl 자체는 HSA 미등재 상태. 신규 NDA(Full dossier) 제출 및 승인이 선결 조건이며, REDUCE-IT 근거와 고중성지방혈증 시장수요가 있어 등록 후 조달 진입 가능성은 중등도 이상이나, 현 시점에서는 규제 선행이 필수.",
+      "basis_market_medical": "싱가포르 고중성지방혈증(Type IV/IIb) 관리 시장에서 omega-3 acid ethyl esters는 스타틴 병용 요법으로 인정되며, 기존 등재 경쟁품(Omacor Soft Capsule 1000mg, 2014년 승인)의 존재는 규제 선례와 임상 수용성을 입증. Omethyl의 2g 단일캡슐 제형은 용약 편의성 강화로 환자 순응도 개선 가능성을 제시하고, REDUCE-IT 임상근거는 심혈관 사건 감소 효능을 뒷받침.",
+      "basis_regulatory": "현 Supabase 및 Perplexity 데이터 기준으로 Omethyl은 HSA 제품 검색 포털 및 공개 CSV 데이터베이스에 등재되지 않은 상태이며, 신규 NDA(Full dossier, 생동성동등성시험 요구 가능성) 제출이 진입의 첫 단계. HSA는 omega-3 ethyl ester 처방약으로 2004년 이후 국제 승인례(FDA, EMA)를 참고하고 있으나, 싱가포르 내 2g 단독제 등재 사례가 제한적이어서 추가 임상자료(고중성지방혈증 단독 또는 병용 적응증) 요구 가능성이 높음.",
+      "basis_trade": "GeBIZ 및 MOH 조달 이력 데이터상 현재 Omethyl에 대한 공공부문 발주 기록 미확보이나, 기존 Omacor 등 경쟁품의 처방약 분류와 의료기관·약국 재정 지원(Medisave, Medifund) 적격성을 감안할 때 HSA 승인 후 공공 조달 진입 가능성은 중등도 수준. PBS 참고 가격(호주 공개 스케줄)이 현재 검색되지 않아 (PBS, 방법론적 추산) 구체 수치는 별도 확보 필요이나, 국제 가격 벤치마크(EU, 호주) 수집 시 SGD 환산을 통해 현지 정가 책정 및 정부 약가 협상 전략 수립 가능.",
+      "key_factors": [
+        "HSA 신규 NDA(Full dossier) 제출 및 승인이 시장 진입의 필수 선행 조건",
+        "경쟁품(Omacor 1000mg, 처방약) 1건 등재로 규제·임상 선례 존재, 2g 단일캡슐의 차별화 가능성",
+        "REDUCE-IT 임상근거 보유로 고중성지방혈증 심혈관 효과 입증, 공공부문 약가 협상 유리 요소",
+        "싱가포르 내 omega-3 ethyl ester 시장 규모·처방 관행에 대한 추가 현지화 시장조사 필요",
+        "PBS 참고 가격 미확보로 국제 가격 벤치마크 추가 수집 필요"
+      ],
+      "entry_pathway": "HSA 신규 NDA(Full dossier) 경로. Omacor 등 선행 경쟁품이 있으나 Omethyl은 2g 단일캡슐의 개량신약이므로 동등성(Abridged) 경로보다 Full 생동성동등성시험 또는 비임상/임상자료 제출을 포함한 Full dossier가 요구될 가능성 높음. 승인 후 MOH 조달(GeBIZ) 및 private healthcare channel(의원, 약국) 병렬 진입.",
+      "price_positioning_pbs": "현 시점에서 확보된 데이터 기준으로 PBS(호주 공개 스케줄)에 omega-3 acid ethyl esters 2g 단독제에 대한 공식 DPMQ 등재가 검색되지 않으므로, (PBS, 방법론적 추산) 직접 수치 적용은 추가 호주 약가 데이터 수집 후 가능. 국제 가격 벤치마크(미국 FDA 승인 제품 Vascepa, EU 공식약가) 수집 및 SGD 환산을 통해 싱가포르 정가(SGD 상한) 및 정부 약가 협상 기준점 설정 권고.",
+      "pbs_listing_url": null,
+      "pbs_schedule_drug_name": null,
+      "pbs_pack_description": null,
+      "pbs_dpmq_aud": null,
+      "pbs_dpmq_sgd_hint": null,
+      "pbs_methodology_label_ko": "(PBS, 방법론적 추산)",
+      "pbs_search_hit": false,
+      "pbs_fetch_error": "PBS 미등재(204)",
+      "risks_conditions": "주요 리스크는 (1) HSA NDA 검토 기간(12~18개월) 및 추가 임상자료 요청 가능성으로 인한 진입 지연, (2) 싱가포르 내 omega-3 ethyl ester 처방 시장 규모 제한(고령인구 비중 상대적 낮음, 스타틴 병용 필수 환자군 한정), (3) 경쟁품 Omacor의 기존 시장 점유와 가격 경쟁 압력. 조건부 진입 가능을 위해 (1) HSA 조기 상담(Pre-submission meeting) 신청으로 문서 요구사항 사전 확인, (2) 싱가포르 심혈관/내분비학 KOL과의 임상 수용성 협의, (3) 현지 약가 및 조달 정책(Medisave 적격성) 사전 검토 필수.",
+      "hsa_reg": "미등재 가능성 높음 — omega-3 EE 2g 단독제 HSA CSV 0건. 신규 NDA 필요.",
+      "product_type": "개량신약 (IMD)",
+      "analysis_sources": [
+        {
+          "name": "Supabase Internal Database (SG Product Pipeline)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "HSA Product Search & Market Investigation Data (SG_omethyl_omega3_2g)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity Real-time Regulatory Context (HSA, MOH, omega-3 regulations)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Korea United Pharm. Inc. Product Brochure & Pipeline (Omethyl, REDUCE-IT)",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "Australian PBS Schedule (Reference DPMQ - Attempted Search)",
+          "url": "https://www.pbs.gov.au"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.5,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          {
+            "title": "HSA | Application types - Health Sciences Authority",
+            "url": "https://www.hsa.gov.sg/therapeutic-products/register/overview/application-types",
+            "summary_ko": "Defines NDA-1/2/3 categories for new chemical entities, combinations, new formulations like 2g single capsule, critical for determining omega-3 ethyl esters hypertriglyceridemia NDA pathway in Singapore."
+          },
+          {
+            "title": "Singapore Drug Registration: A Comprehensive Guide",
+            "url": "https://www.pacificbridgemedical.com/uncategorized/singapore-drug-registration-a-comprehensive-guide/",
+            "summary_ko": "Outlines HSA NDA dossiers (full/abridged/verification) and timelines (270/120-240/60-120 days), relevant for omega-3 ethyl esters 2g capsule registration based on prior approvals."
+          },
+          {
+            "title": "Approval Package for: ANDA 91028 - Omega-3-Acid Ethyl Esters Capsules USP, 1 gram",
+            "url": "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2014/091028Orig1s000-part1.pdf",
+            "summary_ko": "FDA approval of bioequivalent omega-3 ethyl esters 1g capsules for severe hypertriglyceridemia supports HSA abridged/verification dossier if similar to Singapore reference."
+          },
+          {
+            "title": "Approval Package for: ANDA 91018 - Omega-3-Acid Ethyl Esters Capsules USP, 1 gram",
+            "url": "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2017/091018Orig1s000.pdf",
+            "summary_ko": "Additional FDA bioequivalence approval for omega-3 ethyl esters capsules reinforces precedents for HSA NDA pathway leveraging major agency approvals for hypertriglyceridemia."
+          }
+        ]
+      },
+      "used_data_sources": [
+        {
+          "name": "SG:kup_pipeline",
+          "description": "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "Supabase Internal Database (SG Product Pipeline)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "HSA Product Search & Market Investigation Data (SG_omethyl_omega3_2g)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity Real-time Regulatory Context (HSA, MOH, omega-3 regulations)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Korea United Pharm. Inc. Product Brochure & Pipeline (Omethyl, REDUCE-IT)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "Australian PBS Schedule (Reference DPMQ - Attempted Search)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.pbs.gov.au"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T06:56:58.669655+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 1,
+    "verdict_summary": {
+      "적합": 0,
+      "조건부": 1,
+      "부적합": 0,
+      "미분석": 0
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API",
+      "PBS Australia (공개 스케줄, 방법론적 추산)"
+    ],
+    "reference_pricing": {
+      "primary_label": "(PBS, 방법론적 추산)",
+      "aud_field": "pbs_dpmq_aud (DPMQ)",
+      "sgd_note": "pbs_dpmq_sgd_hint 는 참고 환산(환율 변동)"
+    },
+    "note": "싱가포르 공개 병원·소매 약가는 본 파이프라인에서 직접 수집하지 않습니다. 호주 PBS 공개 스케줄의 DPMQ를 (PBS, 방법론적 추산)으로 표기해 참고합니다."
+  },
+  "products": [
+    {
+      "product_id": "SG_omethyl_omega3_2g",
+      "trade_name": "Omethyl",
+      "inn_label": "Omega-3-Acid Ethyl Esters 90 2g",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "db_confidence": 0.7,
+      "status": "loaded",
+      "verdict": "조건부",
+      "verdict_en": "CONDITIONAL",
+      "rationale": "Omethyl(omega-3 acid ethyl esters 2g)은 싱가포르에서 경쟁품(Omacor 1000mg, Rx) 1건이 등재되어 있으나, 2g 단일캡슐 개량신약은 HSA 미등재 상태로 신규 NDA 제출이 필수입니다. REDUCE-IT 근거와 고중성지방혈증 시장수요는 진입 가능성을 뒷받침하나, 규제 승인 이전까지 시장 접근 불가합니다.",
+      "basis_market_medical": "고중성지방혈증(Type IV·IIb) 치료제로서 REDUCE-IT 임상근거를 보유하여 의학적 필요성이 입증되었습니다. 싱가포르에서 Omacor(1000mg, Rx 처방약)라는 선발 경쟁품이 2014년부터 등재되어 있어 시장수요와 규제 선례가 확인됩니다. 현재 데이터 기준 정확한 시장 규모, 환자층, 의사 처방 패턴은 추가 시장조사를 통해 정밀화 가능합니다.",
+      "basis_regulatory": "HSA 등재 상태: omega-3 acid ethyl esters 2g 단독제의 CSV 등재 건수가 0건으로, 신규 NDA(Full dossier) 제출이 필수 선행 조건입니다. 기존 경쟁품(Omacor)이 Rx 분류로 등재된 사례가 있으므로, Omethyl도 동일한 처방약 경로를 거칠 가능성이 높습니다. 현 시점에서 확인된 범위 내 HSA 공식 승인, 제조시설 인증, 생물동등성 데이터 등에 대한 선결 조건이 미충족 상태입니다.",
+      "basis_trade": "GeBIZ 조달 이력 데이터가 현재 확보된 범위에서 특정 발주기관이나 공공 수요를 명시적으로 보여주지 않으므로, 공공 부문 진입 경로의 실현 가능성은 추가 데이터 확보 후 판단 가능합니다. 호주 PBS에는 omega-3 acid ethyl esters 관련 공개 스케줄이 미등재(204) 상태로, (PBS, 방법론적 추산) 참고 가격 도출이 현재 제한적하여 국제 가격 벤치마크 수립에 제약이 있습니다. 싱가포르 소매 시장 내 처방약 채널 확보는 HSA 등재 후 가능하며, 기존 Omacor 유통망 분석을 통해 도입 부산물(수입허가, 약국 등록, 보험 환급) 전략 수립이 권장됩니다.",
+      "key_factors": [
+        "HSA 신규 NDA 제출 필수 — 2g 단일캡슐 개량신약은 현재 등재 기록 없음",
+        "REDUCE-IT 임상근거 및 고중성지방혈증 치료 필요성 확인 — 의료 가치 입증",
+        "경쟁품 Omacor(1000mg, Rx, 2014 등재) 존재 — 규제 선례 및 시장 접근성 확인",
+        "호주 PBS 미등재 상태 — 참고 가격 기반 국제 가격 포지셔닝 현재 불가",
+        "공공 조달(GeBIZ) 수요 명시 데이터 부족 — 추가 시장조사 필요"
+      ],
+      "entry_pathway": "NDA Full dossier 신청 (기존 경쟁품 선례에 따른 Rx 처방약 경로). 제출 전 HSA와 Pre-submission meeting 개최하여 생물동등성, 임상 package, 제조 시설 인증 기준 협의 권장. 등재 후 기존 Omacor 유통망 및 싱가포르 약국 채널 활용하여 retail market 진입.",
+      "price_positioning_pbs": "호주 PBS 공개 스케줄에 omega-3 acid ethyl esters 단독 제형이 미등재(204)되어, (PBS, 방법론적 추산) 참고 가격 도출이 현재 확보된 데이터 기준으로 제한적입니다. 가격 포지셔닝은 싱가포르 HSA 등재 후, 기존 Omacor(1000mg) 소매가, 기타 고지혈증 치료제 시장가, 정부 약가 기준(if any), 그리고 국제 HTA 권고안(영국 NICE, 호주 PBAC 불참 시 유럽 EMA 참고안)을 종합하여 SGD 기준 가격대 설정 권장. 현 단계에서는 REDUCE-IT 근거의 고부가가치 포지셔닝(프리미엄 vs. Omacor)과 용량·편의성(2g 단일캡슐) 차별화 요소를 강조하되, 규제 승인 후 현지 보험/환급 정책을 반영한 정밀 조정 필요.",
+      "pbs_listing_url": null,
+      "pbs_schedule_drug_name": null,
+      "pbs_pack_description": null,
+      "pbs_dpmq_aud": null,
+      "pbs_dpmq_sgd_hint": null,
+      "pbs_methodology_label_ko": "(PBS, 방법론적 추산)",
+      "pbs_search_hit": false,
+      "pbs_fetch_error": "PBS 미등재(204)",
+      "risks_conditions": [
+        "규제 리스크: HSA NDA 제출 준비 과정에서 생물동등성 데이터 부족, 제조시설 GMP 부적합, 또는 임상근거 해석 관련 이견 발생 시 승인 지연/거절 가능성 존재. 현시점에서 HSA와의 사전 협의(Pre-submission meeting)를 통해 요구사항을 조기 확인할 것을 강력히 권장합니다.",
+        "시장 리스크: Omacor 1g 규격이 이미 처방 관행(dosing pattern)을 형성했을 가능성이 높아, 2g 단일캡슐에 대한 의사·환자 수용도 및 가격 허용도를 선제적으로 조사할 필요가 있습니다.",
+        "조건: GeBIZ 공공 조달 진입 여부는 HSA 등재 후 보건부(MOH), 국립 병원 네트워크(NHGP) 등 발주기관 요청 여부에 따라 결정되므로, 등재 완료 후 정부 구매 담당자 접촉을 계획하시기 바랍니다."
+      ],
+      "hsa_reg": "미등재 가능성 높음 — omega-3 EE 2g 단독제 HSA CSV 0건. 신규 NDA 필요.",
+      "product_type": "개량신약 (IMD)",
+      "analysis_sources": [
+        {
+          "name": "Supabase kup_pipeline",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "HSA CSV 시장조사 (경쟁품: Omacor)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "호주 PBS 공개 스케줄 (참고용)",
+          "url": "내부 데이터 — omega-3 acid ethyl esters 미등재 확인"
+        },
+        {
+          "name": "Perplexity 실시간 규제 조회",
+          "url": "내부 데이터 — HSA 미등재 확인, FDA 맥락 참고"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.5,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          {
+            "title": "One-year treatment with ethyl esters of n-3 fatty acids in patients with hypertriglyceridemia and glucose intolerance: reduced triglyceridemia, total cholesterol and increased HDL-C without glycemic alterations",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/9622285/",
+            "summary_ko": "Provides clinical evidence on efficacy and safety of 2g omega-3 ethyl esters for hypertriglyceridemia, supporting HSA NDA clinical data requirements."
+          },
+          {
+            "title": "Prescription omega-3-acid ethyl esters for the treatment of very high triglycerides",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/20048555/",
+            "summary_ko": "Reviews clinical trials of 4g prescription omega-3 ethyl esters reducing triglycerides, relevant for HSA registration of similar 2g formulations."
+          },
+          {
+            "title": "204977Orig1s000 - FDA NDA Review for Icosapent Ethyl",
+            "url": "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2014/204977Orig1s000MedR.pdf",
+            "summary_ko": "Details FDA NDA approval pathway for omega-3 ethyl esters in severe hypertriglyceridemia, informing abridged or comparator pathways for HSA Singapore."
+          },
+          {
+            "title": "Crossover Trial of Pemafibrate and Omega-3-Acid Ethyl Esters for Hypertriglyceridemia in Patients with Cardiovascular Disease",
+            "url": "https://www.jmaj.jp/detail.php?id=10.31662%2Fjmaj.2025-0177",
+            "summary_ko": "Recent trial data on omega-3 ethyl esters up to 4g/day for hypertriglyceridemia in CVD patients, bolstering efficacy evidence for HSA NDA cardiovascular claims."
+          }
+        ]
+      },
+      "used_data_sources": [
+        {
+          "name": "SG:kup_pipeline",
+          "description": "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "Supabase kup_pipeline",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+        },
+        {
+          "name": "HSA CSV 시장조사 (경쟁품: Omacor)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "호주 PBS 공개 스케줄 (참고용)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터 — omega-3 acid ethyl esters 미등재 확인"
+        },
+        {
+          "name": "Perplexity 실시간 규제 조회",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터 — HSA 미등재 확인, FDA 맥락 참고"
+        }
+      ]
+    }
+  ]
+}

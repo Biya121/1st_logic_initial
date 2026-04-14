@@ -17,8 +17,9 @@ class TestExportAnalyzerStatic(unittest.TestCase):
         import os
         self._orig = {
             k: os.environ.pop(k, None)
-            for k in ("CLAUDE_API_KEY", "ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY")
+            for k in ("CLAUDE_API_KEY", "ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY", "PBS_FETCH")
         }
+        os.environ["PBS_FETCH"] = "0"
 
     def tearDown(self) -> None:
         import os
@@ -29,18 +30,30 @@ class TestExportAnalyzerStatic(unittest.TestCase):
     def _run(self, coro):
         return asyncio.get_event_loop().run_until_complete(coro)
 
-    def test_analyze_all_returns_8_results(self) -> None:
-        """analyze_all이 8품목 결과를 반환해야 함."""
+    def test_analyze_all_returns_results(self) -> None:
+        """analyze_all이 결과를 반환해야 함 (Supabase에 품목 있으면 8건)."""
         from analysis.sg_export_analyzer import analyze_all
         results = self._run(analyze_all(use_perplexity=False))
-        self.assertEqual(len(results), 8)
+        self.assertIsInstance(results, list)
 
     def test_result_has_required_fields(self) -> None:
         """모든 결과에 필수 필드 존재."""
         from analysis.sg_export_analyzer import analyze_all
         results = self._run(analyze_all(use_perplexity=False))
-        required = ["product_id", "trade_name", "verdict", "verdict_en",
-                    "rationale", "key_factors", "sources", "analyzed_at"]
+        required = [
+            "product_id",
+            "trade_name",
+            "verdict",
+            "verdict_en",
+            "rationale",
+            "key_factors",
+            "sources",
+            "analyzed_at",
+            "analysis_error",
+            "claude_model_id",
+            "price_positioning_pbs",
+            "pbs_methodology_label_ko",
+        ]
         for r in results:
             for field in required:
                 self.assertIn(field, r, f"{r.get('product_id')}: '{field}' 필드 없음")
@@ -82,6 +95,64 @@ class TestExportAnalyzerStatic(unittest.TestCase):
                 r.get("analysis_model"), "static_fallback",
                 f"{r.get('product_id')}: model={r.get('analysis_model')!r}"
             )
+            self.assertEqual(
+                r.get("analysis_error"), "no_api_key",
+                f"{r.get('product_id')}: analysis_error={r.get('analysis_error')!r}"
+            )
+            self.assertTrue(
+                str(r.get("claude_model_id", "")).startswith("claude-"),
+                f"{r.get('product_id')}: claude_model_id={r.get('claude_model_id')!r}"
+            )
+
+    def test_extract_assistant_text_skips_thinking_blocks(self) -> None:
+        """thinking 블록 뒤의 text 블록만 모아 JSON 본문을 복원해야 함."""
+        from analysis.sg_export_analyzer import _extract_assistant_text
+
+        class _Think:
+            type = "thinking"
+
+        class _Text:
+            type = "text"
+            text = '{"verdict": "적합", "verdict_en": "SUITABLE"}'
+
+        class _Msg:
+            content = [_Think(), _Text()]
+
+        raw = _extract_assistant_text(_Msg())
+        self.assertIn("적합", raw)
+
+    def test_parse_claude_analysis_json_with_preamble(self) -> None:
+        """서두 문장이 붙어도 첫 JSON 객체를 파싱해야 함."""
+        from analysis.sg_export_analyzer import _parse_claude_analysis_json
+
+        raw = (
+            '분석 결과입니다.\n{"verdict": "조건부", "verdict_en": "CONDITIONAL", '
+            '"rationale": "x", "key_factors": [], "sources": [], "confidence_note": "n"}\n'
+        )
+        obj = _parse_claude_analysis_json(raw)
+        self.assertIsNotNone(obj)
+        assert obj is not None
+        self.assertEqual(obj.get("verdict"), "조건부")
+
+    def test_parse_claude_analysis_json_fenced(self) -> None:
+        """마크다운 코드펜스 안의 JSON을 파싱해야 함."""
+        from analysis.sg_export_analyzer import _parse_claude_analysis_json
+
+        raw = "```json\n{\"verdict\": \"부적합\", \"verdict_en\": \"UNSUITABLE\"}\n```"
+        obj = _parse_claude_analysis_json(raw)
+        self.assertIsNotNone(obj)
+        assert obj is not None
+        self.assertEqual(obj.get("verdict"), "부적합")
+
+    def test_parse_claude_analysis_json_verdict_key_case(self) -> None:
+        """키가 Verdict처럼 달라도 수용해야 함."""
+        from analysis.sg_export_analyzer import _parse_claude_analysis_json
+
+        raw = '{"Verdict": "적합", "verdict_en": "SUITABLE"}'
+        obj = _parse_claude_analysis_json(raw)
+        self.assertIsNotNone(obj)
+        assert obj is not None
+        self.assertEqual(obj.get("verdict"), "적합")
 
     def test_unknown_product_id_returns_error(self) -> None:
         """알 수 없는 product_id는 error 필드를 반환해야 함."""
@@ -89,12 +160,12 @@ class TestExportAnalyzerStatic(unittest.TestCase):
         result = self._run(analyze_product("UNKNOWN_PID"))
         self.assertIn("error", result)
 
-    def test_all_8_product_ids_covered(self) -> None:
-        """8품목 product_id 전부 커버."""
-        from analysis.sg_export_analyzer import analyze_all, PRODUCT_META
+    def test_all_product_ids_covered(self) -> None:
+        """analyze_all 결과와 _get_product_meta() 품목이 일치."""
+        from analysis.sg_export_analyzer import analyze_all, _get_product_meta
         results = self._run(analyze_all(use_perplexity=False))
         result_pids = {r["product_id"] for r in results}
-        expected_pids = {m["product_id"] for m in PRODUCT_META}
+        expected_pids = {m["product_id"] for m in _get_product_meta()}
         self.assertEqual(result_pids, expected_pids)
 
     def test_gastiin_returns_result(self) -> None:

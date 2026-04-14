@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T06:36:14.021295+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 1,
+    "verdict_summary": {
+      "적합": 0,
+      "조건부": 1,
+      "부적합": 0,
+      "미분석": 0
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API",
+      "PBS Australia (공개 스케줄, 방법론적 추산)"
+    ],
+    "reference_pricing": {
+      "primary_label": "(PBS, 방법론적 추산)",
+      "aud_field": "pbs_dpmq_aud (DPMQ)",
+      "sgd_note": "pbs_dpmq_sgd_hint 는 참고 환산(환율 변동)"
+    },
+    "note": "싱가포르 공개 병원·소매 약가는 본 파이프라인에서 직접 수집하지 않습니다. 호주 PBS 공개 스케줄의 DPMQ를 (PBS, 방법론적 추산)으로 표기해 참고합니다."
+  },
+  "products": [
+    {
+      "product_id": "SG_sereterol_activair",
+      "trade_name": "Sereterol Activair",
+      "inn_label": "Fluticasone / Salmeterol",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "db_confidence": 0.82,
+      "status": "loaded",
+      "verdict": "조건부",
+      "verdict_en": "CONDITIONAL",
+      "rationale": "Sereterol Activair는 HSA 등재되지 않았으나, 동일 유효성분(fluticasone/salmeterol) 경쟁품 23건이 등재되어 있고 치료 필요성이 명확합니다. 신규 NDA(동등성 심사) 진행 시 규제 진입은 가능하나, 처방전 필수 채널 및 GSK Seretide 우위 점유로 인해 시장 차별화가 선결 조건입니다. 호주 PBS 참고 가격(DPMQ AUD $15.18, 방법론적 추산 기준 약 SGD 13.21)은 국제 가격 벤치마크 수립에 참고 가능합니다.",
+      "basis_market_medical": "싱가포르 천식·COPD 시장은 GINA/GOLD 가이드라인 기반 ICS/LABA 복합제 수요가 확립되어 있으며, 현재 fluticasone/salmeterol 계열 경쟁품 23건(주로 Rx, 일부 NDF 등재)이 활성화되어 있습니다. Seretide Evohaler(25/50, 25/125 mcg)가 1차 참조 표준품으로 작용 중이므로, 가격·투여 편의성·환자 지원 프로그램 측면의 차별화가 필수입니다.",
+      "basis_regulatory": "Sereterol Activair는 현 시점에서 HSA 등재 기록이 확인되지 않으며(Supabase sg_ndf_listed: False), 신규 진입 시 동등성 심사(Abridged NDA) 경로 진행이 표준입니다. 복합제는 별도 등록 요건이 적용되므로, 참조품(Seretide) 생물학적동등성 또는 비임상 약동학 자료 제출이 필요하며, 예상 등록 타임라인은 12~18개월입니다.",
+      "basis_trade": "호주 PBS 공개 스케줄(DPMQ AUD $15.18, 방법론적 추산)을 환율 0.87 기준으로 환산하면 약 SGD 13.21의 참고 가격이 도출되며, 이는 싱가포르 시장의 국제 가격대 설정 논의에 벤치마크로 활용 가능합니다(PBS, 방법론적 추산). 현재 GeBIZ 조달 기록이 확인되지 않은 범위에서, 공공 부문 수요는 보조 채널이며, 소매 Rx 처방 채널을 1차 타깃으로 민간 의료기관 및 약국 직판 전략이 우선적입니다.",
+      "key_factors": [
+        "HSA 미등재 — 신규 동등성 심사(Abridged NDA) 진행 필수",
+        "경쟁품 23건 기등재 — 시장 포화도 중상, 차별화 전략 필수",
+        "Rx 처방 채널 — 의사 처방 기반 진입, 처방 관성(Seretide) 극복 필요",
+        "GSK Seretide 특허 현황 — 추가 확인 필요(만료 여부에 따라 제네릭 경쟁 강도 결정)",
+        "NDF 미등재 — 공공 보조 채널 접근 불가(현 시점), 민간 시장 주도"
+      ],
+      "entry_pathway": "신규 NDA(동등성 심사 / Abridged pathway) — Seretide 참조품 대비 생물학적동등성 시험 및 약동학 자료 제출. 복합제 별도 등록 원칙 적용. 브랜드 등록은 등재 완료 후 2차 단계.",
+      "price_positioning_pbs": "호주 PBS 참고 가격(DPMQ AUD $15.18, 방법론적 추산 기준 SGD 13.21) 및 Determined Price(AUD $12.39)는 싱가포르 시장 가격 상한선 설정의 국제 참고 자료로 활용 가능하나, 싱가포르 ERP 직접 벤치마크가 아님을 명기합니다. 현지 경쟁품(Seretide) 소매가 및 환자 부담 수준 확보 후, PBS 참고가를 보조 근거로 포함하여 10~20% 가격 할인 포지셔닝을 검토할 수 있습니다.",
+      "pbs_listing_url": "https://www.pbs.gov.au/browse/medicine?search=14347D",
+      "pbs_schedule_drug_name": "fluticasone propionate",
+      "pbs_pack_description": "1",
+      "pbs_dpmq_aud": 15.18,
+      "pbs_dpmq_sgd_hint": 13.21,
+      "pbs_methodology_label_ko": "(PBS, 방법론적 추산)",
+      "pbs_search_hit": true,
+      "pbs_fetch_error": null,
+      "risks_conditions": "1) HSA 등재 전까지 시장 진입 불가 — 동등성 심사 신청서 준비(CMC, 약동학, 안정성) 조기 착수 필수. 2) Seretide 점유율 우위 및 처방 관성으로 인한 점진적 시장 침투 — 의사 교육, 약사 재훈련, 환자 지원 프로그램(co-pay assistance) 병행 필수. 3) GSK 특허 만료 여부 재확인 필요 — 특허 존속 시 법적 위험, 만료 시 제네릭 경쟁 격화 예상.",
+      "hsa_reg": "Sereterol 브랜드 미등재 — SERETIDE(GSK) 등재 확인.",
+      "product_type": "일반제",
+      "analysis_sources": [
+        {
+          "name": "Supabase KUP Pipeline Database",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "HSA Singapore Registered Products Database",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "호주 PBS 공개 스케줄 - Fluticasone Products",
+          "url": "https://www.pbs.gov.au/browse/medicine?search=14347D"
+        },
+        {
+          "name": "Perplexity Real-time Regulatory Search (Jan 2026)",
+          "url": "내부 데이터"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.5,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_sereterol_activair"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          {
+            "title": "Fluticasone Propionate + Salmeterol - National Drug Formulary (NDF)",
+            "url": "https://www.ndf.gov.sg/monograph/Detail/M00838",
+            "summary_ko": "Singapore NDF lists specific formulations, dosages, and subsidy status of fluticasone/salmeterol inhalers, confirming HSA registration and market availability."
+          },
+          {
+            "title": "Salmeterol and Fluticasone Inhaler - Medications - HealthHub",
+            "url": "https://www.healthhub.sg/medication-devices-and-treatment/medications/salmeterol-and-fluticasone-inhaler",
+            "summary_ko": "MOH HealthHub document details indications for asthma/COPD, usage guidelines, and precautions for Seretide inhaler in Singapore context."
+          },
+          {
+            "title": "Perspective on the Budgetary Impact of FP/FORM pMDI Fixed-Dose Combination in Singapore for Patients with Asthma and COPD",
+            "url": "https://www.tandfonline.com/doi/full/10.2147/CEOR.S262267",
+            "summary_ko": "Analyzes budgetary impact of ICS/LABA fixed-dose combinations like FP approved by HSA and subsidized in Singapore for asthma/COPD."
+          },
+          {
+            "title": "Salmeterol + Fluticasone: Uses & Dosage | MIMS Singapore",
+            "url": "https://www.mims.com/singapore/drug/info/salmeterol-plus-fluticasone?mtype=generic",
+            "summary_ko": "Provides Singapore-specific dosing and usage for salmeterol/fluticasone FDC inhaler tailored to asthma/COPD severity."
+          },
+          {
+            "title": "Fluticasone/Salmeterol (FP/SM) Versus Double the Dose Fluticasone (FP) in Patients With Mild to Moderate Asthma (CLE001)",
+            "url": "https://clinicaltrials.gov/study/NCT00830505",
+            "summary_ko": "Clinical trial comparing fluticasone/salmeterol FDC efficacy in asthma per GINA guidelines, supporting fixed-dose combination benefits."
+          },
+          {
+            "title": "Fluticasone/salmeterol: labeling change",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/19418648",
+            "summary_ko": "PubMed abstract on fluticasone/salmeterol FDC labeling for asthma/COPD treatment, relevant to regulatory considerations in Singapore."
+          }
+        ]
+      },
+      "used_data_sources": [
+        {
+          "name": "SG:kup_pipeline",
+          "description": "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "Supabase KUP Pipeline Database",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.kupharma.com/products/SG_sereterol_activair"
+        },
+        {
+          "name": "HSA Singapore Registered Products Database",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "호주 PBS 공개 스케줄 - Fluticasone Products",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "https://www.pbs.gov.au/browse/medicine?search=14347D"
+        },
+        {
+          "name": "Perplexity Real-time Regulatory Search (Jan 2026)",
+          "description": "분석 단계에서 실제로 참조된 근거 출처",
+          "url": "내부 데이터"
+        }
+      ]
+    }
+  ]
+}

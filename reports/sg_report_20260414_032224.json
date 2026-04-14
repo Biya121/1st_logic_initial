@@ -1,0 +1,563 @@
+{
+  "meta": {
+    "generated_at": "2026-04-14T03:22:24.443923+00:00",
+    "country": "SG",
+    "currency": "SGD",
+    "total_products": 8,
+    "verdict_summary": {
+      "적합": 1,
+      "조건부": 0,
+      "부적합": 0,
+      "미분석": 7
+    },
+    "data_sources": [
+      "HSA (Supabase)",
+      "WHO EML (Supabase)",
+      "GLOBOCAN (Supabase)",
+      "규제 PDF",
+      "Perplexity API"
+    ],
+    "note": "가격 데이터 미수집 — 싱가포르 병원·조달 채널 특성상 공개 비대상. fob_estimated_usd는 2공정 위임."
+  },
+  "products": [
+    {
+      "product_id": "SG_hydrine_hydroxyurea_500",
+      "trade_name": "Hydrine",
+      "inn_label": "Hydroxyurea 500mg",
+      "market_segment": "tender",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": "적합",
+      "verdict_en": "SUITABLE",
+      "rationale": "Hydrine(hydroxyurea 500mg capsule)은 HSA에 이미 등재되어 있으며(SIN11083P, 최초 승인일: 1999-08-25), 처방전 필수(Rx) 의약품으로 분류되어 있다. 현재 시장에 등재 경쟁품이 1건 확인되었으나, 장기간의 임상 사용 이력과 National Drug Formulary(NDF) 수재로 규제적 지위가 확립되어 있다. 세포독성 약물로서의 특별 취급·운송 요건은 기존 인프라 내에서 관리 가능한 수준이며, 병원 조달 전용 채널(tender) 특성상 GeBIZ 공공 발주 이력이 있을 것으로 예상된다. Korea United Pharm. Inc.의 제조사 지위와 기존 등재 현황을 고려하면, 동등성 심사(Abridged NDA) 또는 브랜드 등록을 통한 진입이 가능하며, 새로운 임상 데이터 제출 요구는 최소화될 것으로 판단된다.",
+      "key_factors": [
+        "HSA 등재 확인(SIN11083P) - 25년 이상 승인 이력으로 규제적 신뢰도 높음",
+        "Rx 처방전 필수 분류 - 병원·조달 채널 기반 수요 구조 안정적",
+        "NDF 수재 상태 - 국가 기본 의약품 목록 등재로 접근성·신뢰도 확보",
+        "경쟁품 1건(저경합) - 시장 포지셔닝 용이, 다양한 공급자 필요성 존재",
+        "세포독성 약물 특별 요건 - 기존 병원 인프라와 HSA 감시 체계 대응 가능"
+      ],
+      "entry_pathway": "동등성 심사(Abridged NDA) 또는 브랜드 등록 / 기존 등재 제품과의 생물학적 동등성(BE) 자료 또는 품질 일치성 입증 자료 기반 심사 경로 권장. 신규 NDA Full 제출은 불필요할 가능성 높음.",
+      "hsa_reg": "등재 확인: SIN11083P",
+      "product_type": "일반제",
+      "analysis_sources": [
+        {
+          "name": "HSA Product Registration Database (SIN11083P)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Singapore National Drug Formulary (NDF)",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "Perplexity - HSA Anti-cancer Drug Regulatory Framework",
+          "url": "내부 데이터"
+        },
+        {
+          "name": "GeBIZ 병원 조달 데이터 (비공개)",
+          "url": "내부 데이터"
+        }
+      ],
+      "analysis_model": "claude-haiku-4-5-20251001+perplexity",
+      "analysis_error": null,
+      "claude_model_id": "claude-haiku-4-5-20251001",
+      "claude_error_detail": null,
+      "success_prob": 0.8,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_hydrine_hydroxyurea_500"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          [
+            "Tender Evaluation Method for Procurement of Services in Restructured Hospitals and Institutions",
+            "https://www.moh.gov.sg/newsroom/tender-evaluation-method-for-procurement-of-services-in-restructured-hospitals-and-institutions/"
+          ],
+          [
+            "Cancer care and access to cancer drugs in Asia-Pacific – Main report",
+            "https://ihe.se/app/uploads/2021/11/IHE-Report-2021_3_.pdf"
+          ],
+          [
+            "Annual Report 2023-24",
+            "https://www.cipla.com/sites/default/files/Annual-Report-2023-24-(Double%20page).pdf"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_gadvoa_gadobutrol_604",
+      "trade_name": "Gadvoa Inj.",
+      "inn_label": "Gadobutrol 604.72mg",
+      "market_segment": "tender",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "entry_pathway": "",
+      "hsa_reg": "",
+      "product_type": "",
+      "analysis_sources": [],
+      "analysis_model": "",
+      "analysis_error": null,
+      "claude_model_id": "",
+      "claude_error_detail": null,
+      "success_prob": 0.0,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_gadvoa_gadobutrol_604"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          [
+            "Gadolinium-based contrast agents and risk of gadolinium brain deposits",
+            "https://www.hsa.gov.sg/announcements/safety-alert/gadolinium-based-contrast-agents-and-risk-of-gadolinium-brain-deposits"
+          ],
+          [
+            "GADOLINIUM-BASED CONTRAST AGENTS AND RISK OF GADOLINIUM BRAIN DEPOSITS",
+            "https://www.hsa.gov.sg/docs/default-source/announcements/adverse-drug-reaction-news-bulletin/adr_news_may2018_vol20_no1.pdf"
+          ],
+          [
+            "Gadobutrol - National Drug Formulary (NDF)",
+            "https://www.ndf.gov.sg/pharmclass/Detail/M00834"
+          ],
+          [
+            "Singapore: Risk of gadolinium brain deposits associated with use of gadolinium-based contrast agents",
+            "https://www.drugoffice.gov.hk/eps/news/showNews/newsTitle/consumer/2018-03-06/en/30495.html"
+          ],
+          [
+            "Other safety alerts - Singapore: Gadolinium-based contrast agents and risk of gadolinium brain deposits",
+            "https://www.drugoffice.gov.hk/eps/news/showNews/Singapore:+Gadolinium-based+contrast+agents+and+risk+of+gadolinium+brain+deposits/consumer/2018-05-18/en/31379.html"
+          ],
+          [
+            "gadobutrol - New Drug Approvals",
+            "https://newdrugapprovals.org/tag/gadobutrol/"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_sereterol_activair",
+      "trade_name": "Sereterol Activair",
+      "inn_label": "Fluticasone / Salmeterol",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "entry_pathway": "",
+      "hsa_reg": "",
+      "product_type": "",
+      "analysis_sources": [],
+      "analysis_model": "",
+      "analysis_error": null,
+      "claude_model_id": "",
+      "claude_error_detail": null,
+      "success_prob": 0.0,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_sereterol_activair"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          [
+            "Role of the fixed combination of fluticasone and salmeterol in adult patients with asthma and COPD in China",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC4403740/"
+          ],
+          [
+            "Association between adherence with fixed dose fluticasone propionate/salmeterol (FSC) combination and asthma care utilization and costs",
+            "https://pubmed.ncbi.nlm.nih.gov/19032125/"
+          ],
+          [
+            "Pharmacokinetic and Pharmacodynamic (PK and PD) Study of Fluticasone Propionate and Salmeterol Combination Product Delivered in a Capsule-based Inhaler and in a Multi-dose Dry Powder Inhaler",
+            "https://clinicaltrials.gov/study/NCT01494610"
+          ],
+          [
+            "Fluticasone/Salmeterol (FP/SM) Versus Double the Dose Fluticasone (FP) in Patients With Mild to Moderate Asthma (CLE001)",
+            "https://clinicaltrials.gov/study/NCT00830505"
+          ],
+          [
+            "Fluticasone/salmeterol: labeling change",
+            "https://pubmed.ncbi.nlm.nih.gov/19418648/"
+          ],
+          [
+            "Combination fluticasone and salmeterol versus fixed dose combination of fluticasone and salmeterol",
+            "https://www.sigmaaldrich.com/SG/zh/tech-docs/paper/450812"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_omethyl_omega3_2g",
+      "trade_name": "Omethyl",
+      "inn_label": "Omega-3-Acid Ethyl Esters 90 2g",
+      "market_segment": "retail",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "entry_pathway": "",
+      "hsa_reg": "",
+      "product_type": "",
+      "analysis_sources": [],
+      "analysis_model": "",
+      "analysis_error": null,
+      "claude_model_id": "",
+      "claude_error_detail": null,
+      "success_prob": 0.0,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_omethyl_omega3_2g"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          [
+            "Prescription omega-3-acid ethyl esters for the treatment of very high triglycerides",
+            "https://pubmed.ncbi.nlm.nih.gov/19641280/"
+          ],
+          [
+            "Treating hypertriglyceridemia with prescription omega-3 fatty acid ...",
+            "https://pubmed.ncbi.nlm.nih.gov/20048555/"
+          ],
+          [
+            "204977Orig1s000MedR.pdf - FDA NDA Review for Trygg's (omega-3-acid ethyl esters)",
+            "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2014/204977Orig1s000MedR.pdf"
+          ],
+          [
+            "OMTRYG™ (omega-3-acid ethyl esters) capsules labeling",
+            "https://www.accessdata.fda.gov/drugsatfda_docs/label/2016/204977s006lbl.pdf"
+          ],
+          [
+            "Omega-3-Acid Ethyl Esters 90 Soft Capsules for Lowering Very High Triglycerides (NCT02625870)",
+            "https://www.centerwatch.com/clinical-trials/listings/NCT02625870/omega-3-acid-ethyl-esters-90-soft-capsules-for-lowering-very-high-triglycerides"
+          ],
+          [
+            "Omega-3 Acid Ethyl Esters - PrescriberPoint",
+            "https://prescriberpoint.com/therapies/omega-3-acid-ethyl-esters-b53f1c1"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_rosumeg_combigel",
+      "trade_name": "Rosumeg Combigel",
+      "inn_label": "Rosuvastatin + Omega-3-EE90",
+      "market_segment": "combo_drug",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "entry_pathway": "",
+      "hsa_reg": "",
+      "product_type": "",
+      "analysis_sources": [],
+      "analysis_model": "",
+      "analysis_error": null,
+      "claude_model_id": "",
+      "claude_error_detail": null,
+      "success_prob": 0.0,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_rosumeg_combigel"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          [
+            "A Pilot Study to Evaluate the Pharmacokinetics of Omega-3 Between Rosuvastatin and Omega-3 Coadministration and HCP1007",
+            "https://ctv.veeva.com/study/a-pilot-study-to-evaluate-the-pharmacokinetics-of-omega-3-between-rosuvastatin-and-omega-3-coadminis"
+          ],
+          [
+            "New drug indication approval - October 2024",
+            "https://www.hsa.gov.sg/announcements/new-drug-indication-approvals/new-drug-indication-approval---october-2024"
+          ],
+          [
+            "New drug approvals - December 2023",
+            "https://www.hsa.gov.sg/announcements/new-drug-approval/new-drug-approvals---december-2023"
+          ],
+          [
+            "New drug approvals - December 2022",
+            "https://www.hsa.gov.sg/announcements/new-drug-approval/new-drug-approvals---december-2022"
+          ],
+          [
+            "Effect of rosuvastatin or its combination with omega-3 fatty acids on circulating CD34(+) progenitor cells and on endothelial colony formation in patients with mixed dyslipidaemia",
+            "https://pubmed.ncbi.nlm.nih.gov/27415612/"
+          ],
+          [
+            "Effects of Rosuvastatin Alone or in Combination with Omega-3 Fatty Acid on Adiponectin Levels and Insulin Resistance in CAD patients",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC5201066/"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_atmeg_combigel",
+      "trade_name": "Atmeg Combigel",
+      "inn_label": "Atorvastatin + Omega-3-EE90",
+      "market_segment": "combo_drug",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "entry_pathway": "",
+      "hsa_reg": "",
+      "product_type": "",
+      "analysis_sources": [],
+      "analysis_model": "",
+      "analysis_error": null,
+      "claude_model_id": "",
+      "claude_error_detail": null,
+      "success_prob": 0.0,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_atmeg_combigel"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          [
+            "Listing of approvals - Health Sciences Authority",
+            "https://www.hsa.gov.sg/therapeutic-products/listing-of-approvals-and-post-registration-actions/listing-of-approvals"
+          ],
+          [
+            "Pharmacokinetic Interaction between Atorvastatin and Omega-3 Fatty Acids: A Phase 1 Clinical Trial",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC9415283/"
+          ],
+          [
+            "Pharmacokinetic Comparison between a Fixed-Dose Combination of Atorvastatin/Omega-3 Acid Ethyl Esters and the Loose Combination in Healthy Subjects",
+            "https://www.dovepress.com/pharmacokinetic-comparison-between-a-fixed-dose-combination-of-atorvas-peer-reviewed-fulltext-article-DDDT"
+          ],
+          [
+            "Can Omega-3 (EPA/DHA) Supplements Be Taken Together with Atorvastatin?",
+            "https://www.droracle.ai/articles/920471/can-omega3-epadha-supplements-be-taken-together-with-atorvastatin"
+          ],
+          [
+            "Clinical Pharmacology Review(s) - Atorvastatin Calcium Oral Suspension NDA 213260Orig1s000",
+            "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2023/213260Orig1s000ClinPharmR.pdf"
+          ],
+          [
+            "Pharmacokinetic Interaction between Atorvastatin and Omega-3 Fatty Acids (from PMC9415283 summary)",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC9415283/"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_ciloduo_cilosta_rosuva",
+      "trade_name": "Ciloduo",
+      "inn_label": "Cilostazol + Rosuvastatin",
+      "market_segment": "wholesale",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "entry_pathway": "",
+      "hsa_reg": "",
+      "product_type": "",
+      "analysis_sources": [],
+      "analysis_model": "",
+      "analysis_error": null,
+      "claude_model_id": "",
+      "claude_error_detail": null,
+      "success_prob": 0.0,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_ciloduo_cilosta_rosuva"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          [
+            "New drug approvals - September 2025 - Health Sciences Authority",
+            "https://www.hsa.gov.sg/announcements/new-drug-approval/new-drug-approvals---september-2025"
+          ],
+          [
+            "New drug approvals - December 2025 - Health Sciences Authority",
+            "https://www.hsa.gov.sg/announcements/new-drug-approval/new-drug-approvals---december-2025"
+          ],
+          [
+            "New drug approvals - August 2025 - Health Sciences Authority",
+            "https://www.hsa.gov.sg/announcements/new-drug-approval/new-drug-approvals---august-2025"
+          ],
+          [
+            "Cilostazol Following Peripheral Endovascular Procedures",
+            "https://www.centerwatch.com/clinical-trials/listings/NCT02770274/cilostazol-following-peripheral-endovascular-procedures"
+          ],
+          [
+            "[Prospects of clinical application of cilostazol for peripheral artery disease]",
+            "https://pubmed.ncbi.nlm.nih.gov/33063749/"
+          ],
+          [
+            "Impact of cilostazol on clinical outcomes in lower extremity arterial disease",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC12370041/"
+          ]
+        ]
+      }
+    },
+    {
+      "product_id": "SG_gastiin_cr_mosapride",
+      "trade_name": "Gastiin CR",
+      "inn_label": "Mosapride Citrate",
+      "market_segment": "wholesale",
+      "regulatory_id": null,
+      "status": "loaded",
+      "verdict": null,
+      "verdict_en": null,
+      "rationale": "",
+      "key_factors": [],
+      "entry_pathway": "",
+      "hsa_reg": "",
+      "product_type": "",
+      "analysis_sources": [],
+      "analysis_model": "",
+      "analysis_error": null,
+      "claude_model_id": "",
+      "claude_error_detail": null,
+      "success_prob": 0.0,
+      "related_sites": {
+        "public": [
+          [
+            "HSA eService Portal",
+            "https://www.hsa.gov.sg/e-services"
+          ],
+          [
+            "MOH Singapore",
+            "https://www.moh.gov.sg"
+          ],
+          [
+            "data.gov.sg",
+            "https://data.gov.sg"
+          ],
+          [
+            "Sg:Kup Pipeline",
+            "https://www.kupharma.com/products/SG_gastiin_cr_mosapride"
+          ]
+        ],
+        "private": [],
+        "papers": [
+          [
+            "PubMed Central",
+            "https://www.ncbi.nlm.nih.gov/pmc"
+          ],
+          [
+            "싱가포르 보건부 Clinical Practice Guidelines",
+            "https://www.moh.gov.sg/resources-statistics/guidelines-and-guidelines"
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -71,7 +71,7 @@ _QUERY_FOCUS: dict[str, str] = {
 
 async def fetch_references(
     product_id: str,
-    max_refs: int = 6,
+    max_refs: int = 4,
 ) -> list[dict[str, str]]:
     """Perplexity sonar-pro로 관련 논문·규제 사례 검색.
 
@@ -160,6 +160,70 @@ Return ONLY valid JSON array, no other text:
             refs = json.loads(content)
             return [r for r in refs if r.get("url")][:max_refs]
 
+    except Exception:
+        return []
+
+
+async def fetch_references_for_custom(
+    trade_name: str,
+    inn: str,
+    max_refs: int = 4,
+) -> list[dict[str, str]]:
+    """신약(커스텀 입력) 논문·규제 사례 검색."""
+    api_key = os.environ.get("PERPLEXITY_API_KEY")
+    if not api_key:
+        return []
+    try:
+        import httpx
+    except ImportError:
+        return []
+
+    query = (
+        f"Singapore HSA regulatory approval status, clinical evidence, and market data "
+        f"for {trade_name} ({inn}). Include registration precedents, formulary listing, "
+        f"and any Singapore MOH or HSA decisions."
+    )
+    prompt = f"""Find {max_refs} relevant academic papers, regulatory documents, or clinical studies for:
+"{query}"
+
+Return ONLY valid JSON array, no other text:
+[
+  {{
+    "title": "<paper or document title>",
+    "url": "<direct URL to paper, PubMed, or regulatory document>",
+    "reason": "<왜 이 자료가 싱가포르 HSA 등록 판단에 관련 있는지 한 줄로>",
+    "source": "<PubMed / Lancet / NEJM / HSA / MOH / WHO 등>"
+  }}
+]"""
+
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            resp = await client.post(
+                "https://api.perplexity.ai/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "sonar-pro",
+                    "messages": [
+                        {"role": "system", "content": "You are a pharmaceutical regulatory expert specializing in Singapore HSA."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "max_tokens": 800,
+                    "return_citations": True,
+                },
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"].strip()
+            if "```" in content:
+                for part in content.split("```"):
+                    part = part.strip()
+                    if part.startswith("json"):
+                        part = part[4:].strip()
+                    if part.startswith("["):
+                        content = part
+                        break
+            import json as _json
+            refs = _json.loads(content)
+            return [r for r in refs if r.get("url")][:max_refs]
     except Exception:
         return []
 

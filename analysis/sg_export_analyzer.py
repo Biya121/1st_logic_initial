@@ -1,7 +1,7 @@
 """싱가포르 1공정 수출 적합성 분석 엔진.
 
 LLM 우선순위 (가이드라인 §1):
-  1. Claude API (claude-sonnet-4-6) — 1차 분석·판단·근거 생성 (Primary)
+  1. Claude API (기본: claude-haiku-4-5-20251001) — 1차 분석·판단·근거 생성 (Primary)
   2. Perplexity API (sonar-pro)    — Claude 불확실 판정 시에만 보조 검색 후 재분석
   3. 정적 폴백                     — API 미설정 시
 
@@ -15,11 +15,13 @@ LLM 우선순위 (가이드라인 §1):
 
 환경변수:
   CLAUDE_API_KEY 또는 ANTHROPIC_API_KEY
+  CLAUDE_ANALYSIS_MODEL (선택, 기본 claude-haiku-4-5-20251001)
   PERPLEXITY_API_KEY  (선택)
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from datetime import datetime, timezone
@@ -28,116 +30,147 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# ── 8품목 메타 (분석 컨텍스트) ────────────────────────────────────────────────
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env", override=True)
+except ImportError:
+    pass
 
-PRODUCT_META: list[dict[str, Any]] = [
-    {
-        "product_id": "SG_hydrine_hydroxyurea_500",
-        "trade_name": "Hydrine",
-        "inn": "hydroxyurea",
-        "atc": "L01XX05",
-        "dosage_form": "캡슐 500mg",
-        "market_segment": "hospital",
-        "therapeutic_area": "항암(겸상적혈구병, 만성 골수성 백혈병)",
-        "hsa_reg": "등재 확인: SIN11083P (HSA CSV 기준)",
-        "key_risk": "세포독성 약물 — 취급·운송 특별 요건. 병원 조달 전용 채널.",
-        "product_type": "일반제",
-        "manufacturer": "Korea United Pharm. Inc.",
-    },
-    {
-        "product_id": "SG_gadvoa_gadobutrol_604",
-        "trade_name": "Gadova Inj.",
-        "inn": "gadobutrol",
-        "atc": "V08CA09",
-        "dosage_form": "주사제 604.72mg (5mL/7.5mL PFS)",
-        "market_segment": "hospital",
-        "therapeutic_area": "MRI 조영제 (두개·척추·CE-MRA·간·신장)",
-        "hsa_reg": "Gadova 브랜드 미등재 — GADOVIST(레퍼런스) 등재 확인. 브랜드 신규 등록 필요.",
-        "key_risk": "브랜드 HSA 신규 등록 필요. macrocyclic GBCA — NSF 위험 최저 등급.",
-        "product_type": "일반제",
-        "manufacturer": "Korea United Pharm. Inc.",
-    },
-    {
-        "product_id": "SG_sereterol_activair",
-        "trade_name": "Sereterol Activair",
-        "inn": "fluticasone/salmeterol",
-        "atc": "R03AK06",
-        "dosage_form": "건식 분말 흡입기 (250μg/500μg + 50μg)",
-        "market_segment": "retail_rx",
-        "therapeutic_area": "천식·COPD (GINA/GOLD 가이드라인 권고)",
-        "hsa_reg": "Sereterol 브랜드 미등재 — SERETIDE(GSK) 등재 확인. 동등성 기반 등록 경로 검토 필요.",
-        "key_risk": "GSK Seretide 특허 만료 여부 확인 필요. 처방전 필요(Rx) 채널.",
-        "product_type": "일반제",
-        "manufacturer": "Korea United Pharm. Inc.",
-    },
-    {
-        "product_id": "SG_omethyl_omega3_2g",
-        "trade_name": "Omethyl Cutielet",
-        "inn": "omega-3 acid ethyl esters",
-        "atc": "C10AX06",
-        "dosage_form": "연질캡슐 2g (Seamless 기술)",
-        "market_segment": "미정 (등재 선결)",
-        "therapeutic_area": "고중성지방혈증 (Type IV·IIb)",
-        "hsa_reg": "미등재 가능성 높음 — 경구 omega-3 EE 2g 단독제 HSA CSV 0건. 신규 NDA 필요.",
-        "key_risk": "한국 최초 2g 단일캡슐 개량신약. REDUCE-IT 근거 보유. HSA 신규 등록이 선결 과제.",
-        "product_type": "개량신약 (IMD)",
-        "manufacturer": "Korea United Pharm. Inc.",
-    },
-    {
-        "product_id": "SG_rosumeg_combigel",
-        "trade_name": "Rosumeg Combigel",
-        "inn": "rosuvastatin/omega-3 acid ethyl esters",
-        "atc": "C10BA06",
-        "dosage_form": "연질캡슐 (rosuvastatin 5mg + omega-3 1g)",
-        "market_segment": "미등재",
-        "therapeutic_area": "이상지질혈증 복합치료 (Type IIb)",
-        "hsa_reg": "미등재 확인 — rosuvastatin+omega-3 복합제 HSA CSV 0건. 복합제 별도 NDA 필요.",
-        "key_risk": "HOPE-3 근거 (MACE 24% 감소). 복합제 HSA 별도 등재 요건. 개량신약 임상 패키지 필요.",
-        "product_type": "개량신약 (IMD)",
-        "manufacturer": "Korea United Pharm. Inc.",
-    },
-    {
-        "product_id": "SG_atmeg_combigel",
-        "trade_name": "Atmeg Combigel",
-        "inn": "atorvastatin/omega-3 acid ethyl esters",
-        "atc": "C10BA05",
-        "dosage_form": "연질캡슐 (atorvastatin 10mg + omega-3 1g)",
-        "market_segment": "미등재",
-        "therapeutic_area": "이상지질혈증 복합치료 (Type IIb)",
-        "hsa_reg": "미등재 확인 — atorvastatin+omega-3 복합제 HSA CSV 0건. 복합제 별도 NDA 필요.",
-        "key_risk": "ATOM 3상 근거 (non-HDL-C 5% 추가 감소). 복합제 HSA 별도 등재 요건.",
-        "product_type": "개량신약 (IMD)",
-        "manufacturer": "Korea United Pharm. Inc.",
-    },
-    {
-        "product_id": "SG_ciloduo_cilosta_rosuva",
-        "trade_name": "Ciloduo",
-        "inn": "cilostazol/rosuvastatin",
-        "atc": "B01AC23",
-        "dosage_form": "정제 (cilostazol 100/200mg + rosuvastatin 10/20mg)",
-        "market_segment": "미등재",
-        "therapeutic_area": "말초동맥질환·이상지질혈증 복합치료",
-        "hsa_reg": "성분 미등재 — cilostazol 단독 HSA CSV 0건. 성분 레벨 신규 NDA Full 요구.",
-        "key_risk": "cilostazol 성분 자체 HSA 미등재. 아시아 외 승인 데이터 부족. 진입 장벽 최고 수준.",
-        "product_type": "개량신약 (IMD)",
-        "manufacturer": "Korea United Pharm. Inc.",
-    },
-    {
-        "product_id": "SG_gastiin_cr_mosapride",
-        "trade_name": "Gastiin CR",
-        "inn": "mosapride",
-        "atc": "A03FA05",
-        "dosage_form": "서방정 15mg (BILDAS 이중층 기술)",
-        "market_segment": "미등재",
-        "therapeutic_area": "위장관 운동 촉진 (기능성 소화불량)",
-        "hsa_reg": "성분+제품 모두 미등재 — mosapride HSA CSV 0건. NDA Full + 임상 근거 필요.",
-        "key_risk": "MARS 3상 비열등성 근거 보유. mosapride 성분 자체 HSA 미등재. 임상 근거 별도 제출 필요.",
-        "product_type": "개량신약 (IMD)",
-        "manufacturer": "Korea United Pharm. Inc.",
-    },
-]
+from utils.pbs_pricing import fetch_pbs_pricing
 
-_META_BY_PID: dict[str, dict[str, Any]] = {m["product_id"]: m for m in PRODUCT_META}
+# ── PRODUCT_META: Supabase products 테이블에서 동적 로드 ──────────────────────
+
+_meta_cache: list[dict[str, Any]] | None = None
+
+
+def _load_product_meta() -> list[dict[str, Any]]:
+    """Supabase products 테이블 (SG:kup_pipeline)에서 8품목 메타 로드.
+
+    Supabase 미연결 또는 데이터 없을 시 빈 리스트 반환.
+    """
+    from utils.db import get_client
+    sb = get_client()
+    try:
+        rows = (
+            sb.table("products")
+            .select("product_id,trade_name,active_ingredient,inn_name,strength,"
+                    "dosage_form,market_segment,registration_number,"
+                    "manufacturer,country_specific")
+            .eq("country", "SG")
+            .eq("source_name", "SG:kup_pipeline")
+            .is_("deleted_at", "null")
+            .execute()
+            .data or []
+        )
+    except Exception:
+        rows = []
+
+    result = []
+    for r in rows:
+        cs = r.get("country_specific") or {}
+        result.append({
+            "product_id":       r.get("product_id", ""),
+            "trade_name":       r.get("trade_name", ""),
+            "inn":              r.get("inn_name") or r.get("active_ingredient", ""),
+            "atc":              cs.get("atc", ""),
+            "dosage_form":      r.get("dosage_form", ""),
+            "market_segment":   r.get("market_segment", ""),
+            "therapeutic_area": cs.get("therapeutic_area", ""),
+            "hsa_reg":          cs.get("hsa_reg", ""),
+            "key_risk":         cs.get("key_risk", ""),
+            "product_type":     cs.get("product_type", "일반제"),
+            "manufacturer":     r.get("manufacturer", "Korea United Pharm. Inc."),
+        })
+    return result
+
+
+def _get_product_meta() -> list[dict[str, Any]]:
+    global _meta_cache
+    if _meta_cache is None:
+        _meta_cache = _load_product_meta()
+    return _meta_cache
+
+
+def _get_meta_by_pid() -> dict[str, dict[str, Any]]:
+    return {m["product_id"]: m for m in _get_product_meta()}
+
+
+# 하위 호환 — tests/test_analysis.py 에서 PRODUCT_META 직접 import 대비
+@property  # type: ignore[misc]
+def PRODUCT_META() -> list[dict[str, Any]]:  # noqa: N802
+    return _get_product_meta()
+
+
+def _extract_assistant_text(message: object) -> str:
+    """응답의 모든 `text` 블록만 이어 붙임 (thinking·tool_use 등은 건너뜀)."""
+    parts: list[str] = []
+    for block in getattr(message, "content", None) or ():
+        if getattr(block, "type", None) == "text":
+            t = getattr(block, "text", "") or ""
+            if t:
+                parts.append(t)
+    return "\n".join(parts).strip()
+
+
+def _read_env_secret(*names: str) -> str | None:
+    for name in names:
+        raw = os.environ.get(name)
+        if raw is not None and (s := str(raw).strip()):
+            return s
+    return None
+
+
+def _claude_analysis_model_id() -> str:
+    """Anthropic Messages API에 넣는 모델 ID (Sonnet이 아니라 Haiku 기본)."""
+    raw = os.environ.get("CLAUDE_ANALYSIS_MODEL", "")
+    s = str(raw).strip()
+    return s if s else "claude-haiku-4-5-20251001"
+
+
+def _parse_claude_analysis_json(raw: str) -> dict[str, Any] | None:
+    """모델 출력에서 분석 JSON만 추출 (서두 문장·코드펜스·토큰 절단 대비)."""
+    text = (raw or "").strip()
+    if not text:
+        return None
+    decoder = json.JSONDecoder()
+    candidates: list[str] = [text]
+    if "```" in text:
+        for seg in text.split("```"):
+            s = seg.strip()
+            if s.lower().startswith("json"):
+                s = s[4:].lstrip()
+            if s.startswith("{"):
+                candidates.append(s)
+
+    for cand in candidates:
+        start = 0
+        while True:
+            j = cand.find("{", start)
+            if j < 0:
+                break
+            try:
+                obj, _end = decoder.raw_decode(cand, j)
+            except json.JSONDecodeError:
+                start = j + 1
+                continue
+            coerced = _coerce_analysis_dict(obj)
+            if coerced is not None:
+                return coerced
+            start = j + 1
+    return None
+
+
+def _coerce_analysis_dict(obj: object) -> dict[str, Any] | None:
+    """모델이 Verdict 등 대소문자만 바꿔 보낸 경우에도 verdict 키를 맞춤."""
+    if not isinstance(obj, dict):
+        return None
+    out: dict[str, Any] = dict(obj)
+    if "verdict" not in out:
+        for k, v in list(out.items()):
+            if isinstance(k, str) and k.lower() == "verdict":
+                out["verdict"] = v
+                break
+    return out if "verdict" in out else None
 
 
 # ── Perplexity 보조 검색 ──────────────────────────────────────────────────────
@@ -187,19 +220,35 @@ def _build_analysis_prompt(
     db_row: dict[str, Any] | None,
     perplexity_context: str | None,
     static_context_text: str | None = None,
+    pbs_context_block: str | None = None,
 ) -> str:
     reg_context = perplexity_context or "미수행"
 
     static_section = ""
     if static_context_text:
-        static_section = f"\n## 시장 조사 데이터 (HSA CSV + GeBIZ CSV + 브로슈어)\n{static_context_text}\n"
+        static_section = (
+            f"\n## 시장 조사 데이터 (HSA CSV + GeBIZ CSV + 브로슈어)\n"
+            f"{static_context_text}\n"
+        )
+
+    pbs_section = ""
+    if pbs_context_block:
+        pbs_section = f"\n{pbs_context_block}\n"
 
     product_type = meta.get("product_type", "일반제")
     manufacturer = meta.get("manufacturer", "Korea United Pharm. Inc.")
+    db_facts = _build_db_facts(db_row)
 
     return f"""당신은 싱가포르 의약품 수출 가능성을 분석하는 전문 컨설턴트입니다.
 아래 품목에 대해 싱가포르 1공정(규제 적합성·시장 진입 가능성) 관점에서 수출 적합성을 판단하세요.
-가격 데이터는 싱가포르 병원·조달 채널 특성상 공개되지 않으므로 분석에서 제외합니다.
+호주 PBS 공개 스케줄에서 추출한 참고 가격(DPMQ)이 있으면 반드시 활용하되,
+반드시 "(PBS, 방법론적 추산)" 라벨을 붙이고 싱가포르 약가·ERP 직접 벤치마크가 아님을 분명히 하세요.
+사실 우선순위:
+1) Supabase DB(아래 'Supabase 사실')와 정적 컨텍스트
+2) PBS 참고 가격 블록(있을 때)
+3) Perplexity 실시간 컨텍스트(있을 때만 보강)
+4) 일반 추론
+근거가 불충분하면 단정하지 말고 조건부/리스크로 명시하세요.
 
 ## 품목 정보
 - 브랜드명: {meta['trade_name']}
@@ -212,7 +261,10 @@ def _build_analysis_prompt(
 - HSA 등재 상태: {meta['hsa_reg']}
 - 주요 리스크: {meta['key_risk']}
 - 제조사: {manufacturer}
-{static_section}
+
+## Supabase 사실 (우선 근거)
+{db_facts}
+{static_section}{pbs_section}
 ## 실시간 규제·시장 정보 (Perplexity)
 {reg_context}
 
@@ -221,20 +273,168 @@ def _build_analysis_prompt(
 2. GeBIZ 조달 이력 기반 공공 수요 존재 여부 및 발주기관 특성
 3. 경쟁품 수 및 처방 분류에 따른 시장 접근 전략
 4. 주요 규제 장벽 및 예상 등록 타임라인
-5. 최종 판정: 적합(등재·채널 확보) / 조건부(등록 선결 후 가능) / 부적합
+5. PBS 참고가(있을 때)를 시장·무역 논의에 1문장 이상 반영
+6. 최종 판정: 적합(등재·채널 확보) / 조건부(등록 선결 후 가능) / 부적합
+
+결과는 대시보드 섹션에 직접 표시됩니다.
+- 제품 식별: 제품 정보 (별도 입력됨)
+- 핵심 판정: verdict
+- 두괄식 판정 근거: 시장/의료, 규제, 무역 — 각 2~3문장, PBS 참고가가 있으면 시장/의료 또는 무역 중 최소 한 곳에 수치·라벨 포함
+- 시장 진출 전략: 진입 채널 권고, 가격 포지셔닝(PBS), 리스크/조건
+
+불필요한 번호(예: 1., 2., 4-1, 4-2), 장문 목록, 중복 소제목은 금지합니다.
+문장 톤 규칙:
+- "불가능", "확인 불가", "제공되지 않아" 같은 단정적 결핍 표현은 쓰지 마세요.
+- 대신 "현재 확보된 데이터 기준", "현 시점에서 확인된 범위", "추가 데이터 확보 시 정밀화 가능"처럼
+  실행 가능한 제안형 표현으로 바꾸세요.
 
 반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
 {{
   "verdict": "적합" | "부적합" | "조건부",
   "verdict_en": "SUITABLE" | "UNSUITABLE" | "CONDITIONAL",
-  "rationale": "<한국어 근거 문단 2~3단락, 최소 200자. HSA 등재 현황·GeBIZ 조달 이력·진입 경로 순서로 기술>",
+  "rationale": "<한 문단 요약. PBS 참고가가 있으면 한 문장 안에 (PBS, 방법론적 추산) 포함. 최대 320자>",
+  "basis_market_medical": "<시장/의료 근거 2~3문장>",
+  "basis_regulatory": "<규제 근거 2~3문장>",
+  "basis_trade": "<무역/유통 근거 2~3문장. PBS DPMQ·환율 참고 시 무역/가격 맥락에 반영>",
   "key_factors": ["<요인1>", "<요인2>", "<요인3>"],
   "entry_pathway": "<권장 진입 경로: NDA Full / 동등성(Abridged) / 복합제 별도 등록 / 브랜드 등록>",
+  "price_positioning_pbs": "<호주 PBS DPMQ·참고 SGD 환산·(PBS, 방법론적 추산) 라벨을 포함한 가격 포지셔닝 2~3문장. PBS 데이터 없으면 현재 확보된 데이터 기준으로 서술>",
+  "risks_conditions": "<진입 시 리스크/조건 2~3문장>",
   "sources": [
     {{"name": "<출처명>", "url": "<URL 또는 '내부 데이터'>"}}
   ],
   "confidence_note": "<판단 근거의 신뢰도 설명>"
 }}"""
+
+
+def _build_db_facts(db_row: dict[str, Any] | None) -> str:
+    if not db_row:
+        return "- DB 행 없음"
+    facts: list[str] = []
+    for key in (
+        "product_key",
+        "trade_name",
+        "market_segment",
+        "regulatory_id",
+        "source_name",
+        "source_url",
+        "confidence",
+    ):
+        val = db_row.get(key)
+        if val not in (None, ""):
+            facts.append(f"- {key}: {val}")
+    raw = db_row.get("raw_payload")
+    if isinstance(raw, dict):
+        for rk in (
+            "sg_source_type",
+            "sg_ndf_listed",
+            "sg_gebiz_award",
+            "moh_news_url",
+            "moh_news_year",
+            "moh_news_title",
+        ):
+            if rk in raw and raw.get(rk) not in (None, "", []):
+                facts.append(f"- raw_payload.{rk}: {raw.get(rk)}")
+    if not facts:
+        return "- DB 주요 필드 없음"
+    return "\n".join(facts[:20])
+
+
+def _soften_limit_phrase(text: str) -> str:
+    """결핍/불가 단정 문구를 제안형 문구로 완화."""
+    s = (text or "").strip()
+    if not s:
+        return s
+    repl = [
+        ("제공되지 않아", "현재 확보된 범위에서"),
+        ("확인이 불가능", "현 시점에서는 추가 확인이 필요"),
+        ("확인 불가", "추가 확인 필요"),
+        ("불가능합니다", "제한적입니다"),
+        ("불가능", "제한적"),
+        ("없어", "제한적이어서"),
+        ("없습니다.", "제한적입니다."),
+    ]
+    out = s
+    for a, b in repl:
+        out = out.replace(a, b)
+    return out
+
+
+def _soften_analysis_language(result: dict[str, Any]) -> dict[str, Any]:
+    """사용자 가이드에 맞춰 부정 단정 표현을 완화."""
+    out = dict(result)
+    for k in (
+        "rationale",
+        "basis_market_medical",
+        "basis_regulatory",
+        "basis_trade",
+        "entry_pathway",
+        "price_positioning_pbs",
+        "risks_conditions",
+        "confidence_note",
+    ):
+        if k in out and isinstance(out.get(k), str):
+            out[k] = _soften_limit_phrase(out[k])
+    if isinstance(out.get("key_factors"), list):
+        out["key_factors"] = [
+            _soften_limit_phrase(str(x)) for x in out["key_factors"]
+        ]
+    return out
+
+
+def _extract_price_from_text(text: str) -> str | None:
+    """모델 응답에서 $숫자 패턴만 추출. 없으면 None."""
+    import re
+    # $10, $10.50, $10-50, $10–50, $10~50, USD 10 등 다양한 형태 커버
+    pattern = r'\$[\d,]+(?:\.\d+)?(?:\s*[-–~]\s*\$?[\d,]+(?:\.\d+)?)?|USD\s*[\d,]+(?:\.\d+)?(?:\s*[-–~]\s*(?:USD\s*)?[\d,]+(?:\.\d+)?)?'
+    m = re.search(pattern, text)
+    if m:
+        return m.group(0).strip()
+    return None
+
+
+async def _haiku_price_estimate(meta: dict[str, Any], api_key: str) -> str | None:
+    """PBS 가격 없는 품목에 대해 Claude Haiku로 참고 가격 조사."""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+
+        def _call() -> str | None:
+            resp = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=64,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (
+                            f"성분: {meta.get('inn')}, 제형: {meta.get('dosage_form')}. "
+                            "국제 참고 가격을 $숫자 또는 $숫자-숫자 형식으로만 답하라. "
+                            "설명, 문장, 면책 문구 없이 금액만."
+                        ),
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "$",
+                    },
+                ],
+            )
+            texts = [b.text for b in resp.content if hasattr(b, "text")]
+            raw = texts[0].strip() if texts else None
+            if not raw:
+                return None
+            # assistant prefill "$" + 모델 응답 합치기
+            full = "$" + raw
+            return full
+
+        raw_text = await asyncio.to_thread(_call)
+        if not raw_text:
+            return None
+        price = _extract_price_from_text(raw_text)
+        if not price:
+            return None
+        return f"{price}, 추정값이니 참고용으로만 사용하세요."
+    except Exception:
+        return None
 
 
 async def _claude_analyze(
@@ -244,38 +444,40 @@ async def _claude_analyze(
     *,
     perplexity_context: str | None = None,
     static_context_text: str | None = None,
-    model: str = "claude-haiku-4-5-20251001",
-) -> dict[str, Any] | None:
-    """Claude API로 수출 적합성 분석. 실패 시 None."""
+    pbs_context_block: str | None = None,
+    model: str | None = None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Claude API로 수출 적합성 분석. (파싱된 dict 또는 None, 사람이 읽을 오류 요약 또는 None)."""
     try:
         import anthropic
     except ImportError:
-        return None
+        return None, "anthropic 패키지 미설치"
 
-    prompt = _build_analysis_prompt(meta, db_row, perplexity_context, static_context_text)
+    resolved_model = (model or "").strip() or _claude_analysis_model_id()
+    prompt = _build_analysis_prompt(
+        meta, db_row, perplexity_context, static_context_text, pbs_context_block
+    )
 
-    try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model=model,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = response.content[0].text.strip()
-        # ```json 블록 제거
-        if "```" in raw:
-            parts = raw.split("```")
-            for part in parts:
-                part = part.strip()
-                if part.startswith("json"):
-                    part = part[4:].strip()
-                try:
-                    return json.loads(part)
-                except json.JSONDecodeError:
-                    continue
-        return json.loads(raw)
-    except Exception:
-        return None
+    def _sync_call() -> tuple[dict[str, Any] | None, str | None]:
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model=resolved_model,
+                max_tokens=4096,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw = _extract_assistant_text(response)
+            if not raw:
+                return None, "empty_model_text"
+            parsed = _parse_claude_analysis_json(raw)
+            if parsed is None:
+                head = raw[:160].replace("\n", " ")
+                return None, f"json_parse_failed(len={len(raw)} head={head!r})"
+            return parsed, None
+        except Exception as e:
+            return None, f"{type(e).__name__}: {e}"[:400]
+
+    return await asyncio.to_thread(_sync_call)
 
 
 # ── 단일 품목 분석 ─────────────────────────────────────────────────────────────
@@ -291,7 +493,7 @@ async def analyze_product(
     Returns:
         분석 결과 dict (verdict, rationale, key_factors, sources, analyzed_at 포함)
     """
-    meta = _META_BY_PID.get(product_id)
+    meta = _get_meta_by_pid().get(product_id)
     if meta is None:
         return {
             "product_id": product_id,
@@ -299,8 +501,10 @@ async def analyze_product(
             "analyzed_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    claude_key = os.environ.get("CLAUDE_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
-    perplexity_key = os.environ.get("PERPLEXITY_API_KEY") if use_perplexity else None
+    claude_key = _read_env_secret("CLAUDE_API_KEY", "ANTHROPIC_API_KEY")
+    perplexity_key = _read_env_secret("PERPLEXITY_API_KEY") if use_perplexity else None
+    claude_model_id = _claude_analysis_model_id()
+    claude_error_detail: str | None = None
 
     # 정적 데이터 컨텍스트 로드 (HSA CSV + PDF 스니펫)
     static_context_text: str | None = None
@@ -312,18 +516,31 @@ async def analyze_product(
     except Exception:
         pass
 
+    meta_for_pbs: dict[str, str] = {
+        "product_id": product_id,
+        "trade_name": str(meta.get("trade_name", "") or ""),
+        "inn": str(meta.get("inn", "") or ""),
+        "dosage_form": str(meta.get("dosage_form", "") or ""),
+    }
+    pbs_res = await fetch_pbs_pricing(meta_for_pbs)
+    pbs_block = pbs_res.to_prompt_block()
+    pbs_flat = pbs_res.to_flat_dict()
+
     result: dict[str, Any] | None = None
     analysis_model = "static_fallback"
+    analysis_error: str | None = None
 
-    # Step 1: Claude 1차 분석 (HSA DB + PDF 컨텍스트 포함)
+    # Step 1: Claude 1차 분석 (HSA DB + PDF + PBS 컨텍스트 포함)
     if claude_key:
-        result = await _claude_analyze(
+        result, claude_error_detail = await _claude_analyze(
             meta, db_row, claude_key,
             perplexity_context=None,
             static_context_text=static_context_text,
+            pbs_context_block=pbs_block,
+            model=claude_model_id,
         )
         if result:
-            analysis_model = "claude-sonnet-4-6"
+            analysis_model = claude_model_id
 
     # Step 2: 조건부 판정 시 Perplexity 보조 검색 후 재분석
     if (
@@ -333,23 +550,54 @@ async def analyze_product(
         and claude_key
     ):
         query = (
-            f"Singapore HSA regulatory status and market price for {meta['trade_name']} "
-            f"({meta['inn']}) in Singapore. Include any recent regulatory updates."
+            f"Singapore HSA regulatory status and formulary context for "
+            f"{meta['trade_name']} ({meta['inn']}). "
+            f"Recent regulatory or clinical guideline updates only — no retail prices."
         )
         perplexity_context = await _perplexity_search(query, perplexity_key)
         if perplexity_context:
-            result2 = await _claude_analyze(
+            result2, err2 = await _claude_analyze(
                 meta, db_row, claude_key,
                 perplexity_context=perplexity_context,
                 static_context_text=static_context_text,
+                pbs_context_block=pbs_block,
+                model=claude_model_id,
             )
             if result2:
                 result = result2
-                analysis_model = "claude-sonnet-4-6+perplexity"
+                analysis_model = f"{claude_model_id}+perplexity"
+            elif err2:
+                claude_error_detail = err2
+
+    if result is not None and pbs_flat.get("pbs_listing_url"):
+        src_list: list[Any] = list(result.get("sources") or [])
+        pbs_u = str(pbs_flat["pbs_listing_url"])
+        if pbs_u and not any(
+            isinstance(x, dict) and str(x.get("url", "")) == pbs_u for x in src_list
+        ):
+            src_list.insert(0, {"name": "PBS Australia", "url": pbs_u})
+        result["sources"] = src_list
 
     # API 미설정 또는 분석 실패 시 — 보고서에 명확히 표시
     if result is None:
         no_api = not bool(claude_key)
+        analysis_error = "no_api_key" if no_api else "claude_failed"
+        pbs_fallback_price = ""
+        if pbs_res.dpmq_aud is not None:
+            sgd_part = (
+                f"(참고 SGD 약 {pbs_res.dpmq_sgd_hint:.2f} 가정) "
+                if pbs_res.dpmq_sgd_hint is not None
+                else ""
+            )
+            pbs_fallback_price = (
+                f"PBS DPMQ 약 AUD {pbs_res.dpmq_aud:.2f} {sgd_part}"
+                f"{pbs_res.methodology_label_ko}."
+            )
+        elif pbs_res.listing_url:
+            pbs_fallback_price = (
+                f"PBS 스케줄 페이지는 확보되었으나 DPMQ 파싱에 한계가 있어 "
+                f"추가 확인이 필요합니다. {pbs_res.methodology_label_ko}"
+            )
         result = {
             "verdict": None,
             "verdict_en": None,
@@ -359,10 +607,42 @@ async def analyze_product(
                 if no_api else
                 "Claude API 분석 실패 — API 키를 확인하거나 잠시 후 다시 시도하세요."
             ),
+            "basis_market_medical": pbs_fallback_price,
+            "basis_regulatory": "",
+            "basis_trade": pbs_fallback_price,
             "key_factors": [],
-            "sources": [],
+            "entry_pathway": "",
+            "price_positioning_pbs": pbs_fallback_price or (
+                "현재 확보된 PBS 페이지 기준으로 참고 가격 문구를 구성하려면 "
+                "네트워크·파싱 결과가 필요합니다."
+            ),
+            "risks_conditions": "",
+            "sources": (
+                [{"name": "PBS Australia", "url": pbs_res.listing_url}]
+                if pbs_res.listing_url else []
+            ),
             "confidence_note": "API 미설정" if no_api else "분석 실패",
         }
+
+    result = _soften_analysis_language(result)
+
+    # PBS 가격 없으면 Haiku로 참고 가격 보완
+    haiku_estimate: str | None = None
+    if pbs_res.dpmq_aud is None and claude_key:
+        haiku_estimate = await _haiku_price_estimate(meta_for_pbs, claude_key)
+    result["pbs_haiku_estimate"] = haiku_estimate or ""
+
+    if not (result.get("price_positioning_pbs") or "").strip():
+        if pbs_res.dpmq_aud is not None:
+            result["price_positioning_pbs"] = (
+                f"호주 PBS DPMQ 약 AUD {pbs_res.dpmq_aud:.2f}, "
+                f"참고 SGD 약 {pbs_res.dpmq_sgd_hint} 수준(환율 변동). "
+                "싱가포르 소매가와 동일시하지 않습니다."
+            )
+        elif haiku_estimate:
+            result["price_positioning_pbs"] = haiku_estimate
+        elif pbs_res.fetch_error:
+            result["price_positioning_pbs"] = "현재 확보된 범위에서 가격 데이터를 확인할 수 없습니다."
 
     return {
         "product_id": product_id,
@@ -374,42 +654,189 @@ async def analyze_product(
         "verdict": result.get("verdict"),          # None = API 미설정
         "verdict_en": result.get("verdict_en"),
         "rationale": result.get("rationale", ""),
+        "basis_market_medical": result.get("basis_market_medical", ""),
+        "basis_regulatory": result.get("basis_regulatory", ""),
+        "basis_trade": result.get("basis_trade", ""),
         "key_factors": result.get("key_factors", []),
         "entry_pathway": result.get("entry_pathway", ""),
+        "price_positioning_pbs": result.get("price_positioning_pbs", ""),
+        "risks_conditions": result.get("risks_conditions", ""),
+        "section_source_map": {
+            "제품 식별": "supabase.products (SG:kup_pipeline)",
+            "핵심 판정": (
+                f"Claude Haiku ({claude_model_id})"
+                if analysis_error is None else "fallback (API 미설정/실패)"
+            ),
+            "두괄식 근거 - 시장/의료": (
+                "Claude Haiku + Supabase/정적 컨텍스트"
+                if analysis_error is None else "fallback"
+            ),
+            "두괄식 근거 - 규제": (
+                "Claude Haiku + Supabase/정적 컨텍스트"
+                if analysis_error is None else "fallback"
+            ),
+            "두괄식 근거 - 무역": (
+                "Claude Haiku + Supabase/정적 컨텍스트"
+                if analysis_error is None else "fallback"
+            ),
+            "시장 진출 전략 - 진입 채널 권고": (
+                "Claude Haiku"
+                if analysis_error is None else "fallback"
+            ),
+            "시장 진출 전략 - 리스크/조건": (
+                "Claude Haiku + Supabase/정적 컨텍스트"
+                if analysis_error is None else "fallback"
+            ),
+        },
         "sources": result.get("sources", []),
         "confidence_note": result.get("confidence_note", ""),
         "analysis_model": analysis_model,
+        "analysis_error": analysis_error,
+        "claude_model_id": claude_model_id,
+        "claude_error_detail": claude_error_detail if analysis_error == "claude_failed" else None,
         "analyzed_at": datetime.now(timezone.utc).isoformat(),
+        **pbs_flat,
+        "pbs_haiku_estimate": result.get("pbs_haiku_estimate", ""),
+    }
+
+
+# ── 신약(커스텀) 분석 ────────────────────────────────────────────────────────
+
+async def analyze_custom_product(
+    trade_name: str,
+    inn: str,
+    dosage_form: str = "",
+) -> dict[str, Any]:
+    """사용자 입력 신약에 대한 싱가포르 수출 적합성 분석.
+
+    Supabase DB 행 없이 입력 정보 + PBS 참고가 + Claude로만 실행.
+    """
+    meta: dict[str, Any] = {
+        "product_id":       "custom",
+        "trade_name":       trade_name,
+        "inn":              inn,
+        "atc":              "",
+        "dosage_form":      dosage_form,
+        "market_segment":   "처방전 의약품",
+        "therapeutic_area": "",
+        "hsa_reg":          "미등재(신약)",
+        "key_risk":         "",
+        "manufacturer":     "",
+        "product_type":     "신약",
+        "regulatory_id":    "",
+        "db_confidence":    None,
+    }
+
+    claude_key = _read_env_secret("CLAUDE_API_KEY", "ANTHROPIC_API_KEY")
+    claude_model_id = _claude_analysis_model_id()
+
+    meta_for_pbs: dict[str, str] = {
+        "product_id": "custom",
+        "trade_name": trade_name,
+        "inn": inn,
+        "dosage_form": dosage_form,
+    }
+    pbs_res = await fetch_pbs_pricing(meta_for_pbs)
+    pbs_block = pbs_res.to_prompt_block()
+    pbs_flat  = pbs_res.to_flat_dict()
+
+    result: dict[str, Any] | None = None
+    analysis_error: str | None = None
+
+    if claude_key:
+        result, analysis_error = await _claude_analyze(
+            meta, None, claude_key,
+            pbs_context_block=pbs_block,
+            model=claude_model_id,
+        )
+
+    if result is not None:
+        result = _soften_analysis_language(result)
+
+    haiku_estimate: str | None = None
+    if pbs_res.dpmq_aud is None and claude_key:
+        haiku_estimate = await _haiku_price_estimate(meta_for_pbs, claude_key)
+
+    if result is None:
+        result = {
+            "verdict": None,
+            "verdict_en": None,
+            "rationale": "Claude API 키 미설정 또는 분석 실패." if not claude_key else f"분석 오류: {analysis_error}",
+            "basis_market_medical": "",
+            "basis_regulatory": "",
+            "basis_trade": "",
+            "key_factors": [],
+            "entry_pathway": "",
+            "price_positioning_pbs": haiku_estimate or "",
+            "risks_conditions": "",
+            "sources": [],
+            "confidence_note": "미분석",
+        }
+
+    result["pbs_haiku_estimate"] = haiku_estimate or ""
+    if not (result.get("price_positioning_pbs") or "").strip():
+        if pbs_res.dpmq_aud is not None:
+            result["price_positioning_pbs"] = (
+                f"호주 PBS DPMQ 약 AUD {pbs_res.dpmq_aud:.2f}, "
+                f"참고 SGD 약 {pbs_res.dpmq_sgd_hint} 수준(환율 변동)."
+            )
+        elif haiku_estimate:
+            result["price_positioning_pbs"] = haiku_estimate
+
+    return {
+        "product_id":            "custom",
+        "trade_name":            trade_name,
+        "inn":                   inn,
+        "inn_label":             f"{inn} {dosage_form}".strip(),
+        "market_segment":        "처방전 의약품",
+        "product_type":          "신약",
+        "hsa_reg":               "미등재(신약)",
+        "verdict":               result.get("verdict"),
+        "verdict_en":            result.get("verdict_en"),
+        "rationale":             result.get("rationale", ""),
+        "basis_market_medical":  result.get("basis_market_medical", ""),
+        "basis_regulatory":      result.get("basis_regulatory", ""),
+        "basis_trade":           result.get("basis_trade", ""),
+        "key_factors":           result.get("key_factors", []),
+        "entry_pathway":         result.get("entry_pathway", ""),
+        "price_positioning_pbs": result.get("price_positioning_pbs", ""),
+        "risks_conditions":      result.get("risks_conditions", ""),
+        "pbs_haiku_estimate":    result.get("pbs_haiku_estimate", ""),
+        "pbs_dpmq_aud":          pbs_flat.get("pbs_dpmq_aud"),
+        "pbs_dpmq_sgd_hint":     pbs_flat.get("pbs_dpmq_sgd_hint"),
+        "pbs_methodology_label_ko": pbs_flat.get("pbs_methodology_label_ko"),
+        "pbs_fetch_error":       pbs_flat.get("pbs_fetch_error"),
+        "pbs_listing_url":       pbs_flat.get("pbs_listing_url"),
+        "pbs_schedule_drug_name": pbs_flat.get("pbs_schedule_drug_name"),
+        "pbs_pack_description":  pbs_flat.get("pbs_pack_description"),
+        "pbs_search_hit":        pbs_flat.get("pbs_search_hit"),
+        "sources":               result.get("sources", []),
+        "confidence_note":       result.get("confidence_note", ""),
+        "regulatory_id":         "",
+        "db_confidence":         None,
+        "analysis_model":        claude_model_id if claude_key else "미설정",
+        "analysis_error":        analysis_error,
+        "analyzed_at":           datetime.now(timezone.utc).isoformat(),
     }
 
 
 # ── 전체 8품목 배치 분석 ──────────────────────────────────────────────────────
 
 async def analyze_all(
-    db_path: Path | None = None,
     *,
     use_perplexity: bool = True,
 ) -> list[dict[str, Any]]:
-    """8품목 전체 수출 적합성 분석 실행.
+    """8품목 전체 수출 적합성 분석 실행 (Supabase 기반).
 
     Args:
-        db_path: SQLite DB 경로 (None이면 datas/local_products.db)
         use_perplexity: Perplexity 보조 검색 활성화 여부
 
     Returns:
         품목별 분석 결과 리스트
     """
-    import asyncio
-    from utils import db as dbutil
-
-    path = db_path or (ROOT / "datas" / "local_products.db")
-    db_rows: dict[str, dict[str, Any]] = {}
-
-    if path.exists():
-        conn = dbutil.get_connection(path)
-        rows = dbutil.fetch_all_products(conn)
-        conn.close()
-        db_rows = {r["product_id"]: r for r in rows}
+    from utils.db import fetch_kup_products
+    kup_rows = fetch_kup_products("SG")
+    db_rows = {r["product_id"]: r for r in kup_rows}
 
     tasks = [
         analyze_product(
@@ -417,6 +844,6 @@ async def analyze_all(
             db_rows.get(meta["product_id"]),
             use_perplexity=use_perplexity,
         )
-        for meta in PRODUCT_META
+        for meta in _get_product_meta()
     ]
     return list(await asyncio.gather(*tasks))

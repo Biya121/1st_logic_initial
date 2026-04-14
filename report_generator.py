@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-"""싱가포르 1공정 크롤링 결과 보고서 생성기.
+"""싱가포르 시장 분석 보고서 생성기 (Supabase 기반).
 
 출력 형식:
   reports/sg_report_YYYYMMDD_HHMMSS.json  — 전체 데이터 (기계 판독용)
   reports/sg_report_YYYYMMDD_HHMMSS.pdf   — 양식 기준 보고서 (사람 판독용)
 
-PDF 구조 (품목별 반복):
-  1. 품목 헤더
-  2. 관련 사이트 표 (공공조달 / 민간 가격정보 / 핵심 논문)
-  3. 수출 판정 표 (가능 / 조건부 / 불가)
-  4. 수출 가능 시 / 불가 시 근거 문단 + 출처
+PDF 구조 (품목별 2페이지):
+  페이지1: 회사명·제목·제품 바·1 판정·2 근거(시장/규제/무역+PBS 참고가)·3 전략(채널·가격·리스크)
+  페이지2: 4 근거·출처(논문·출처 요약 표·DB/기관)
 
 실행:
   python report_generator.py
-  python report_generator.py --db datas/local_products.db --out reports/
+  python report_generator.py --out reports/
   python report_generator.py --analysis-json path/to/analysis.json  (분석 결과 주입)
 """
 
@@ -30,13 +28,19 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env", override=False)
+except ImportError:
+    pass
+
 # ── 8개 품목 기대 product_id ──────────────────────────────────────────────────
 
 _EXPECTED_PRODUCTS = [
+    "SG_omethyl_omega3_2g",
+    "SG_sereterol_activair",
     "SG_hydrine_hydroxyurea_500",
     "SG_gadvoa_gadobutrol_604",
-    "SG_sereterol_activair",
-    "SG_omethyl_omega3_2g",
     "SG_rosumeg_combigel",
     "SG_atmeg_combigel",
     "SG_ciloduo_cilosta_rosuva",
@@ -76,18 +80,15 @@ _VERDICT_TO_PROB: dict[str | None, float] = {
 def _get_success_prob(verdict: str | None) -> float:
     return _VERDICT_TO_PROB.get(verdict, 0.00)
 
-# 품목별 관련 사이트 (양식 §1)
+# 품목별 관련 사이트 (양식 §1) — 가격/GeBIZ 제거
 _RELATED_SITES: dict[str, dict[str, list[tuple[str, str]]]] = {
     pid: {
         "public": [
             ("HSA eService Portal", "https://www.hsa.gov.sg/e-services"),
-            ("GeBIZ (공공조달)", "https://www.gebiz.gov.sg"),
-            ("data.gov.sg 약가 데이터셋", "https://data.gov.sg"),
+            ("MOH Singapore", "https://www.moh.gov.sg"),
+            ("data.gov.sg", "https://data.gov.sg"),
         ],
-        "private": [
-            ("MIMS Singapore", "https://www.mims.com/singapore"),
-            ("SingHealth Drug Information", "https://www.singhealth.com.sg/patient-care/patient-education/medications"),
-        ],
+        "private": [],
         "papers": [
             ("PubMed Central", "https://www.ncbi.nlm.nih.gov/pmc"),
             ("싱가포르 보건부 Clinical Practice Guidelines",
@@ -100,15 +101,10 @@ _RELATED_SITES: dict[str, dict[str, list[tuple[str, str]]]] = {
 
 # ── 데이터 로드 ───────────────────────────────────────────────────────────────
 
-def load_products(db_path: Path) -> list[dict]:
-    from utils import db as dbutil
-    conn = dbutil.get_connection(db_path)
-    cur = conn.execute(
-        "SELECT * FROM products WHERE country='SG' ORDER BY confidence DESC, product_id"
-    )
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return rows
+def load_products() -> list[dict]:
+    """Supabase products 테이블에서 KUP 싱가포르 품목을 조회."""
+    from utils.db import fetch_kup_products
+    return fetch_kup_products("SG")
 
 
 # ── 보고서 데이터 조합 ────────────────────────────────────────────────────────
@@ -127,9 +123,14 @@ def build_report(
     refs_by_pid: dict[str, list] = references or {}
 
     items = []
-    total = len(_EXPECTED_PRODUCTS)
+    if analysis:
+        ordered = [a.get("product_id", "") for a in analysis if a.get("product_id")]
+        target_pids = [pid for pid in _EXPECTED_PRODUCTS if pid in ordered]
+    else:
+        target_pids = list(_EXPECTED_PRODUCTS)
+    total = len(target_pids)
 
-    for pid in _EXPECTED_PRODUCTS:
+    for pid in target_pids:
         row = by_pid.get(pid)
         trade = _TRADE_NAMES.get(pid, pid)
         inn = _INN_NAMES.get(pid, "")
@@ -142,8 +143,8 @@ def build_report(
                 "inn_label": inn,
                 "market_segment": row.get("market_segment"),
                 "regulatory_id": row.get("regulatory_id"),
-                "crawled_at": row.get("crawled_at"),
-                "status": "collected",
+                "db_confidence": row.get("confidence"),
+                "status": "loaded",
             }
         else:
             item = {
@@ -152,7 +153,8 @@ def build_report(
                 "inn_label": inn,
                 "market_segment": None,
                 "regulatory_id": None,
-                "status": "not_crawled",
+                "db_confidence": None,
+                "status": "not_loaded",
             }
 
         # 분석 결과 병합
@@ -160,23 +162,50 @@ def build_report(
         item["verdict"] = verdict                      # None = API 미설정
         item["verdict_en"] = ana.get("verdict_en")
         item["rationale"] = ana.get("rationale", "")
+        item["basis_market_medical"] = ana.get("basis_market_medical", "")
+        item["basis_regulatory"] = ana.get("basis_regulatory", "")
+        item["basis_trade"] = ana.get("basis_trade", "")
         item["key_factors"] = ana.get("key_factors", [])
         item["entry_pathway"] = ana.get("entry_pathway", "")
+        item["price_positioning_pbs"] = ana.get("price_positioning_pbs", "")
+        item["pbs_listing_url"] = ana.get("pbs_listing_url")
+        item["pbs_schedule_drug_name"] = ana.get("pbs_schedule_drug_name")
+        item["pbs_pack_description"] = ana.get("pbs_pack_description")
+        item["pbs_dpmq_aud"] = ana.get("pbs_dpmq_aud")
+        item["pbs_dpmq_sgd_hint"] = ana.get("pbs_dpmq_sgd_hint")
+        item["pbs_methodology_label_ko"] = ana.get("pbs_methodology_label_ko") or "(PBS, 방법론적 추산)"
+        item["pbs_search_hit"] = ana.get("pbs_search_hit")
+        item["pbs_fetch_error"] = ana.get("pbs_fetch_error")
+        item["risks_conditions"] = ana.get("risks_conditions", "")
         item["hsa_reg"] = ana.get("hsa_reg", "")
         item["product_type"] = ana.get("product_type", "")
         item["analysis_sources"] = ana.get("sources", [])
         item["analysis_model"] = ana.get("analysis_model", "")
+        item["analysis_error"] = ana.get("analysis_error")
+        item["claude_model_id"] = ana.get("claude_model_id", "")
+        item["claude_error_detail"] = ana.get("claude_error_detail")
         item["success_prob"] = _get_success_prob(verdict)
 
         # ── 관련 사이트 — DB 소스 + Perplexity 논문 ────────────────────────────
         base_sites = _RELATED_SITES.get(pid, {"public": [], "private": [], "papers": []})
 
-        # Perplexity 논문 결과가 있으면 교체, 없으면 기본값 유지
+        # Perplexity 논문 결과가 있으면 우선 사용, 없으면 기본값 유지
         paper_refs = refs_by_pid.get(pid, [])
         if paper_refs:
-            papers_list = [(r["title"], r["url"]) for r in paper_refs if r.get("title") and r.get("url")]
+            papers_list = [
+                {
+                    "title": r.get("title", ""),
+                    "url": r.get("url", ""),
+                    "summary_ko": r.get("reason", ""),
+                }
+                for r in paper_refs
+                if r.get("title") and r.get("url")
+            ]
         else:
-            papers_list = base_sites.get("papers", [])
+            papers_list = [
+                {"title": name, "url": url, "summary_ko": "기본 참고 출처"}
+                for name, url in base_sites.get("papers", [])
+            ]
 
         # DB에서 수집된 소스 URL로 공공/민간 사이트 보강
         public_extra: list[tuple[str, str]] = []
@@ -198,6 +227,54 @@ def build_report(
             "papers":  papers_list,
         }
 
+        used_data_sources: list[dict[str, str]] = []
+        if row:
+            src_name = str(row.get("source_name", "") or "")
+            src_url = str(row.get("source_url", "") or "")
+            if src_name:
+                desc = "Supabase products 테이블의 수집 원천 레코드"
+                if src_name == "SG:kup_pipeline":
+                    desc = "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)"
+                used_data_sources.append(
+                    {
+                        "name": src_name,
+                        "description": desc,
+                        "url": src_url,
+                    }
+                )
+        for s in item.get("analysis_sources", []) or []:
+            if not isinstance(s, dict):
+                continue
+            name = str(s.get("name", "") or "").strip()
+            url = str(s.get("url", "") or "").strip()
+            if not name:
+                continue
+            if any(d["name"] == name and d.get("url", "") == url for d in used_data_sources):
+                continue
+            used_data_sources.append(
+                {
+                    "name": name,
+                    "description": "분석 단계에서 실제로 참조된 근거 출처",
+                    "url": url,
+                }
+            )
+        pbs_url = item.get("pbs_listing_url")
+        if isinstance(pbs_url, str) and pbs_url.strip():
+            if not any(
+                d.get("url", "") == pbs_url.strip() for d in used_data_sources
+            ):
+                used_data_sources.append(
+                    {
+                        "name": "PBS Australia",
+                        "description": (
+                            "호주 PBS 공개 스케줄에서 추출한 DPMQ 등 "
+                            "(PBS, 방법론적 추산 — 싱가포르 약가 아님)"
+                        ),
+                        "url": pbs_url.strip(),
+                    }
+                )
+        item["used_data_sources"] = used_data_sources
+
         items.append(item)
 
     verdict_counts = {
@@ -214,8 +291,23 @@ def build_report(
             "currency": "SGD",
             "total_products": total,
             "verdict_summary": verdict_counts,
-            "data_sources": ["HSA CSV", "GeBIZ CSV", "브로슈어 PDF", "Perplexity API"],
-            "note": "가격 데이터 미수집 — 싱가포르 병원·조달 채널 특성상 공개 비대상. fob_estimated_usd는 2공정 위임.",
+            "data_sources": [
+                "HSA (Supabase)",
+                "WHO EML (Supabase)",
+                "GLOBOCAN (Supabase)",
+                "규제 PDF",
+                "Perplexity API",
+                "PBS Australia (공개 스케줄, 방법론적 추산)",
+            ],
+            "reference_pricing": {
+                "primary_label": "(PBS, 방법론적 추산)",
+                "aud_field": "pbs_dpmq_aud (DPMQ)",
+                "sgd_note": "pbs_dpmq_sgd_hint 는 참고 환산(환율 변동)",
+            },
+            "note": (
+                "싱가포르 공개 병원·소매 약가는 본 파이프라인에서 직접 수집하지 않습니다. "
+                "호주 PBS 공개 스케줄의 DPMQ를 (PBS, 방법론적 추산)으로 표기해 참고합니다."
+            ),
         },
         "products": items,
     }
@@ -246,17 +338,10 @@ def _register_korean_font() -> str:
 
 
 def render_pdf(report: dict, out_path: Path) -> None:
-    """보고서 데이터를 양식 기준 PDF로 저장.
-
-    양식: 1공정_시장조사_보고서_양식.docx 기준
-    품목별 구조:
-      ① 품목 헤더 (네이비 배경 · 흰 글씨)
-      ② 관련 사이트 표 (공공조달 / 민간 / 핵심 논문)
-      ③ 수출 적합 시  (초록 레이블 + 2행 표)
-      ④ 수출 부적합 시 (빨간 레이블 + 2행 표)
-    """
+    """보고서 데이터를 2페이지 템플릿(회사 헤더·제품 바·번호 섹션·PBS 가격)으로 PDF 저장."""
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
+    from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import (
@@ -278,38 +363,99 @@ def render_pdf(report: dict, out_path: Path) -> None:
     # ── 템플릿 색상 ────────────────────────────────────────────────────────────
     C_NAVY   = colors.HexColor("#1B2A4A")
     C_GREEN  = colors.HexColor("#27AE60")
-    C_RED    = colors.HexColor("#E74C3C")
-    C_ALT    = colors.HexColor("#F4F6F9")   # 홀수 행 배경
-    C_LINK   = colors.HexColor("#E8EDF5")   # 근거 사이트 링크 행
     C_BODY   = colors.HexColor("#1A1A1A")
     C_BORDER = colors.HexColor("#D0D7E3")
+    C_ALT    = colors.HexColor("#F4F6F9")
 
-    # ── 컬럼 너비 (양식 2800:6226 비율) ───────────────────────────────────────
-    COL1 = CONTENT_W * 2800 / 9026
-    COL2 = CONTENT_W * 6226 / 9026
+    COL1 = CONTENT_W * 0.26
+    COL2 = CONTENT_W * 0.74
 
-    # ── 스타일 ─────────────────────────────────────────────────────────────────
     def ps(name: str, **kw) -> ParagraphStyle:
         return ParagraphStyle(name, **kw)
 
-    s_hdr_cell = ps("HdrCell",  fontName=bold_font, fontSize=11, textColor=colors.white,
-                    leading=17, wordWrap="CJK")
-    s_lbl_navy = ps("LblNavy",  fontName=bold_font, fontSize=10, textColor=C_NAVY,
-                    leading=15, spaceBefore=7, spaceAfter=3)
-    s_lbl_green = ps("LblGreen", fontName=bold_font, fontSize=10, textColor=C_GREEN,
-                     leading=15, spaceBefore=9, spaceAfter=3)
-    s_lbl_red   = ps("LblRed",   fontName=bold_font, fontSize=10, textColor=C_RED,
-                     leading=15, spaceBefore=9, spaceAfter=3)
-    s_tbl_hdr   = ps("TblHdr",   fontName=bold_font, fontSize=9,  textColor=colors.white,
-                     leading=13, wordWrap="CJK")
-    s_cell_bold = ps("CellBold", fontName=bold_font, fontSize=9,  textColor=C_NAVY,
-                     leading=13, wordWrap="CJK")
-    s_cell      = ps("Cell",     fontName=base_font, fontSize=9,  textColor=C_BODY,
-                     leading=14, wordWrap="CJK")
-
-    _PAD = dict(
-        TOPPADDING=5, BOTTOMPADDING=5, LEFTPADDING=8, RIGHTPADDING=8,
+    s_title = ps(
+        "Title",
+        fontName=bold_font,
+        fontSize=18,
+        leading=24,
+        alignment=TA_CENTER,
+        textColor=C_NAVY,
+        spaceAfter=4,
     )
+    s_date = ps(
+        "Date",
+        fontName=base_font,
+        fontSize=10,
+        leading=13,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#6B7280"),
+    )
+    s_section = ps(
+        "Section",
+        fontName=bold_font,
+        fontSize=11,
+        textColor=C_NAVY,
+        leading=15,
+        spaceBefore=8,
+        spaceAfter=4,
+    )
+    s_cell_h = ps("CellH", fontName=bold_font, fontSize=9, textColor=C_NAVY, leading=13, wordWrap="CJK")
+    s_cell = ps("Cell", fontName=base_font, fontSize=9, textColor=C_BODY, leading=14, wordWrap="CJK")
+    s_company = ps(
+        "Co",
+        fontName=bold_font,
+        fontSize=11,
+        alignment=TA_CENTER,
+        textColor=C_NAVY,
+        spaceAfter=2,
+    )
+    s_bar = ps(
+        "Bar",
+        fontName=bold_font,
+        fontSize=9,
+        textColor=colors.white,
+        leading=13,
+        wordWrap="CJK",
+    )
+
+    def _rx(text: str) -> str:
+        return (
+            (text or "")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+    _ACE_NOTE = (
+        "ACE는 호주·캐나다·영국 등 HTA 기관 결정을 참고해 싱가포르 적용 가능성을 검토합니다."
+    )
+
+    def _pbs_one_line(p: dict[str, Any]) -> str:
+        aud = p.get("pbs_dpmq_aud")
+        sgd = p.get("pbs_dpmq_sgd_hint")
+        if isinstance(aud, (int, float)):
+            line = f"DPMQ AUD {aud:.2f}"
+            if isinstance(sgd, (int, float)):
+                line += f", 참고 SGD {sgd:.2f}"
+            return f"{line} / {_ACE_NOTE}"
+        haiku = str(p.get("pbs_haiku_estimate") or "").strip()
+        if haiku:
+            return haiku
+        return _ACE_NOTE
+
+    def _triple_table(rows: list[tuple[str, str, str]]) -> Table:
+        w1, w2, w3 = CONTENT_W * 0.28, CONTENT_W * 0.14, CONTENT_W * 0.58
+        pdata = [
+            [
+                Paragraph(_rx(a), s_cell_h),
+                Paragraph(_rx(b), s_cell),
+                Paragraph(_rx(c), s_cell),
+            ]
+            for a, b, c in rows
+        ]
+        t = Table(pdata, colWidths=[w1, w2, w3])
+        t.setStyle(TableStyle(_base_style()))
+        return t
 
     def _base_style(extra: list | None = None) -> list:
         cmds = [
@@ -324,55 +470,26 @@ def render_pdf(report: dict, out_path: Path) -> None:
             cmds.extend(extra)
         return cmds
 
-    # ── HS CODE 매핑 ───────────────────────────────────────────────────────────
-    _HS = {
-        "SG_hydrine_hydroxyurea_500":  "3004.90",
-        "SG_gadvoa_gadobutrol_604":    "3006.30",
-        "SG_sereterol_activair":       "3004.90",
-        "SG_omethyl_omega3_2g":        "3004.90",
-        "SG_rosumeg_combigel":         "3004.90",
-        "SG_atmeg_combigel":           "3004.90",
-        "SG_ciloduo_cilosta_rosuva":   "3004.90",
-        "SG_gastiin_cr_mosapride":     "3004.90",
-    }
-
-    # ── 관련 사이트 표 ─────────────────────────────────────────────────────────
-    def _sites_table(sites: dict) -> Table:
-        rows = [
-            [Paragraph("유형", s_tbl_hdr), Paragraph("사이트명 + URL", s_tbl_hdr)],
+    def _simple_table(rows: list[list[str]], *, shade_alt: bool = True) -> Table:
+        pdata = [
+            [Paragraph(_rx(r[0]), s_cell_h), Paragraph(_rx(r[1]), s_cell)]
+            for r in rows
         ]
-        for key, label in [
-            ("public",  "공공조달 데이터 사이트"),
-            ("private", "민간 사이트 (가격정보 등)"),
-            ("papers",  "핵심 논문 사이트"),
-        ]:
-            entries = sites.get(key, [])
-            right = "\n".join(f"{name}  {url}" for name, url in entries) if entries else ""
-            rows.append([Paragraph(label, s_cell_bold), Paragraph(right, s_cell)])
-
-        t = Table(rows, colWidths=[COL1, COL2])
-        t.setStyle(TableStyle(_base_style([
-            ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
-            ("BACKGROUND", (0, 1), (-1, 1), C_ALT),   # 공공조달
-            # 행2 민간: 흰 배경 (기본)
-            ("BACKGROUND", (0, 3), (-1, 3), C_ALT),   # 핵심 논문
-        ])))
+        t = Table(pdata, colWidths=[COL1, COL2])
+        extras: list[tuple[Any, ...]] = []
+        if shade_alt:
+            for i in range(len(rows)):
+                if i % 2 == 1:
+                    extras.append(("BACKGROUND", (0, i), (-1, i), C_ALT))
+        t.setStyle(TableStyle(_base_style(extras)))
         return t
 
-    # ── 근거 표 (적합/부적합 공용) ────────────────────────────────────────────
-    def _rationale_table(src_text: str, rationale_text: str) -> Table:
-        rows = [
-            [Paragraph("근거 사이트 링크",  s_cell_bold), Paragraph(src_text or "—",       s_cell)],
-            [Paragraph("근거 한 문단 정리", s_cell_bold), Paragraph(rationale_text or "—", s_cell)],
-        ]
-        t = Table(rows, colWidths=[COL1, COL2])
-        t.setStyle(TableStyle(_base_style([
-            ("BACKGROUND", (0, 0), (-1, 0), C_LINK),
-            ("BACKGROUND", (0, 1), (-1, 1), C_ALT),
-        ])))
-        return t
+    def _fmt_date(raw: str) -> str:
+        try:
+            return datetime.fromisoformat(raw).strftime("%Y-%m-%d")
+        except Exception:
+            return raw[:10]
 
-    # ── 문서 조립 ──────────────────────────────────────────────────────────────
     doc = SimpleDocTemplate(
         str(out_path),
         pagesize=A4,
@@ -383,79 +500,134 @@ def render_pdf(report: dict, out_path: Path) -> None:
 
     story: list = []
 
-    for i, product in enumerate(report["products"]):
-        pid        = product.get("product_id", "")
-        trade      = product.get("trade_name", "")
-        inn_label  = product.get("inn_label", "")
-        hs         = _HS.get(pid, "3004.90")
-        sites      = product.get("related_sites", {})
-        rationale  = product.get("rationale", "") or "—"
-        key_factors = product.get("key_factors", [])
-        sources    = product.get("analysis_sources", [])
+    for idx, product in enumerate(report["products"]):
+        generated_date = _fmt_date(report.get("meta", {}).get("generated_at", ""))
+        trade = str(product.get("trade_name", "") or "—")
+        inn = str(product.get("inn_label", "") or "—")
+        verdict = str(product.get("verdict", "") or "미분석")
 
-        # 출처 텍스트 — related_sites의 실제 사이트명+URL 사용
-        # (analysis_sources는 내부 플레이스홀더이므로 사용하지 않음)
-        src_parts: list[str] = []
-        for key, prefix in [("public", "공공조달"), ("private", "민간"), ("papers", "논문")]:
-            for name, url in sites.get(key, []):
-                src_parts.append(f"[{prefix}] {name}  {url}")
-        src_text = "\n".join(src_parts) if src_parts else "—"
+        # 1페이지 — 파나마 양식 스타일(회사명·제목·제품 바·번호 섹션)
+        story.append(Paragraph(_rx("Korea United Pharm. Inc."), s_company))
+        story.append(Paragraph(_rx("싱가포르 시장 분석 보고서"), s_title))
+        story.append(Paragraph(_rx(generated_date), s_date))
+        story.append(Spacer(1, 6))
 
-        # 적합/부적합 근거 텍스트 분기
-        verdict = product.get("verdict")   # None = API 미설정
-        if verdict is None:
-            # API 키 미설정 — 분석 미실행 상태를 명확히 표시
-            pro_text = rationale   # rationale에 "API 키 미설정" 메시지 담겨 있음
-            con_text = rationale
-        elif verdict == "적합":
-            pro_text  = rationale
-            con_text  = "해당 없음"
-        elif verdict == "부적합":
-            pro_text  = "해당 없음"
-            con_text  = rationale
-        else:  # 조건부
-            factors_str = "  /  ".join(key_factors) if key_factors else ""
-            pro_text  = rationale
-            con_text  = factors_str or rationale
-
-        # ① 품목 헤더 (네이비 배경 전폭 테이블)
-        verdict_tag = ""
-        if verdict == "적합":
-            verdict_tag = "  ▶ 수출 적합"
-        elif verdict == "부적합":
-            verdict_tag = "  ▶ 수출 부적합"
-        elif verdict == "조건부":
-            verdict_tag = "  ▶ 조건부 적합"
-        hdr_text = f"{trade}  —  {inn_label} (HS CODE : {hs}){verdict_tag}"
-        hdr_tbl = Table(
-            [[Paragraph(hdr_text, s_hdr_cell)]],
-            colWidths=[CONTENT_W],
+        reg_id = str(product.get("regulatory_id", "") or "—")
+        conf_raw = product.get("db_confidence")
+        if isinstance(conf_raw, (int, float)):
+            conf_s = f"{float(conf_raw):.2f}"
+        else:
+            conf_s = "—"
+        bar_txt = f"{trade} — {inn} | regulatory_id: {reg_id} | confidence {conf_s}"
+        bar_tbl = Table([[Paragraph(_rx(bar_txt), s_bar)]], colWidths=[CONTENT_W])
+        bar_tbl.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#4B5563")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ]
+            )
         )
-        hdr_tbl.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, -1), C_NAVY),
-            ("TOPPADDING",    (0, 0), (-1, -1), 10),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 12),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 12),
-        ]))
-        story.append(hdr_tbl)
-        story.append(Spacer(1, 5))
+        story.append(bar_tbl)
+        story.append(Spacer(1, 10))
 
-        # ② 관련 사이트
-        story.append(Paragraph("관련 사이트", s_lbl_navy))
-        story.append(_sites_table(sites))
-        story.append(Spacer(1, 3))
+        story.append(Paragraph(_rx("1. 진출 적합 판정"), s_section))
+        story.append(
+            _simple_table([["판정", verdict]], shade_alt=False),
+        )
+        story.append(Spacer(1, 6))
 
-        # ③ 수출 적합 시
-        story.append(Paragraph("수출 적합 시", s_lbl_green))
-        story.append(_rationale_table(src_text, pro_text))
-        story.append(Spacer(1, 3))
+        story.append(Paragraph(_rx("2. 판정 근거"), s_section))
+        pbs_line = _pbs_one_line(product)
+        story.append(
+            _simple_table(
+                [
+                    ["시장/의료", str(product.get("basis_market_medical", "") or "—")],
+                    ["규제", str(product.get("basis_regulatory", "") or "—")],
+                    ["무역", str(product.get("basis_trade", "") or "—")],
+                    ["참고 가격", pbs_line],
+                ]
+            )
+        )
+        story.append(Spacer(1, 6))
 
-        # ④ 수출 부적합 시
-        story.append(Paragraph("수출 부적합 시", s_lbl_red))
-        story.append(_rationale_table(src_text, con_text))
+        story.append(Paragraph(_rx("3. 시장 진출 전략"), s_section))
+        price_txt = str(product.get("price_positioning_pbs", "") or "").strip() or pbs_line
+        story.append(
+            _simple_table(
+                [
+                    ["진입 채널 권고", str(product.get("entry_pathway", "") or "—")],
+                    ["가격 포지셔닝", price_txt],
+                    ["리스크 + 조건", str(product.get("risks_conditions", "") or "—")],
+                ]
+            )
+        )
 
-        if i < len(report["products"]) - 1:
+        story.append(PageBreak())
+
+        # 2페이지
+        story.append(Paragraph(_rx("4. 근거 및 출처"), s_section))
+
+        papers = product.get("related_sites", {}).get("papers", []) or []
+        paper_rows: list[list[str]] = []
+        for p in papers:
+            if isinstance(p, dict):
+                title = str(p.get("title", "") or "")
+                url = str(p.get("url", "") or "")
+                summary = str(p.get("summary_ko", "") or "관련성 설명 없음")
+            else:
+                continue
+            if not title or not url:
+                continue
+            paper_rows.append(
+                [
+                    "Perplexity 논문",
+                    f"{title}\n- 링크: {url}\n- 요약: {summary}",
+                ]
+            )
+        if paper_rows:
+            story.append(_simple_table(paper_rows))
+        else:
+            story.append(_simple_table([["Perplexity 논문", "사용된 논문 링크 없음"]], shade_alt=False))
+        story.append(Spacer(1, 8))
+
+        pbs_n = "1" if product.get("pbs_search_hit") else "0"
+        paper_n = str(len(paper_rows))
+        story.append(Paragraph(_rx("출처 요약 (건수·비고)"), s_section))
+        story.append(
+            _triple_table(
+                [
+                    ("출처", "건수", "신뢰도 / 비고"),
+                    ("Perplexity 논문", paper_n, "문헌 링크·요약 참고"),
+                    ("PBS Australia", pbs_n, "(PBS, 방법론적 추산) — 싱가포르 약가 아님"),
+                ]
+            )
+        )
+        story.append(Spacer(1, 8))
+
+        db_rows = []
+        for src in product.get("used_data_sources", []) or []:
+            if not isinstance(src, dict):
+                continue
+            name = str(src.get("name", "") or "")
+            desc = str(src.get("description", "") or "")
+            url = str(src.get("url", "") or "")
+            if not name:
+                continue
+            right = desc
+            if url:
+                right += f"\n- 링크: {url}"
+            db_rows.append(["사용된 DB/기관", f"{name}\n- 데이터: {right}"])
+        if db_rows:
+            story.append(_simple_table(db_rows))
+        else:
+            story.append(_simple_table([["사용된 DB/기관", "이번 분석에서 확인된 DB 출처 정보 없음"]], shade_alt=False))
+
+        if idx < len(report["products"]) - 1:
             story.append(PageBreak())
 
     doc.build(story)
@@ -464,22 +636,20 @@ def render_pdf(report: dict, out_path: Path) -> None:
 # ── 메인 ─────────────────────────────────────────────────────────────────────
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="싱가포르 1공정 보고서 생성")
-    parser.add_argument("--db", default=str(ROOT / "datas" / "local_products.db"))
+    parser = argparse.ArgumentParser(description="싱가포르 시장 분석 보고서 생성 (Supabase 기반)")
     parser.add_argument("--out", default=str(ROOT / "reports"))
     parser.add_argument(
         "--analysis-json",
         default=None,
-        help="기존 분석 결과 JSON 파일 경로 (없으면 정적 폴백으로 실행)",
+        help="기존 분석 결과 JSON 파일 경로 (없으면 Claude API로 실행)",
     )
     parser.add_argument(
-        "--run-analysis",
+        "--no-perplexity",
         action="store_true",
-        help="Claude API로 분석 실행 후 보고서 생성",
+        help="Perplexity 논문 검색 건너뜀",
     )
     args = parser.parse_args(argv)
 
-    db_path = Path(args.db)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -496,41 +666,30 @@ def main(argv: list[str] | None = None) -> int:
             analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
             print(f"[report] 분석 결과 로드: {analysis_path} ({len(analysis)}건)")
         else:
-            print(f"[report] 경고: {analysis_path} 없음 — 정적 폴백 사용")
+            print(f"[report] 경고: {analysis_path} 없음 — Claude API로 실행")
 
-    if analysis is None and args.run_analysis:
-        print("[report] Claude API로 분석 실행 중...")
+    if analysis is None:
+        print("[report] Claude API로 분석 실행 중... (API 키 없으면 미실행 메시지 표시)")
         from analysis.sg_export_analyzer import analyze_all
-        analysis = asyncio.run(analyze_all(db_path=db_path, use_perplexity=True))
+        analysis = asyncio.run(analyze_all(use_perplexity=not args.no_perplexity))
         # 분석 결과 JSON 저장
         ana_path = out_dir / f"sg_analysis_{ts}.json"
         ana_path.write_text(json.dumps(analysis, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[report] 분석 JSON → {ana_path}")
 
-    if analysis is None:
-        print("[report] Claude API 분석 실행 중... (API 키 없으면 미실행 메시지 표시)")
-        from analysis.sg_export_analyzer import analyze_all
-        analysis = asyncio.run(analyze_all(db_path=db_path, use_perplexity=True))
-
     # Perplexity 논문 검색
-    print("[report] Perplexity 논문 검색 중... (API 키 없으면 기본 사이트 사용)")
-    from analysis.perplexity_references import fetch_all_references
-    references = asyncio.run(fetch_all_references())
-    ref_count = sum(len(v) for v in references.values())
-    print(f"[report] 논문 검색 완료: {ref_count}건")
+    references: dict[str, list] = {}
+    if not args.no_perplexity:
+        print("[report] Perplexity 논문 검색 중... (API 키 없으면 기본 사이트 사용)")
+        from analysis.perplexity_references import fetch_all_references
+        references = asyncio.run(fetch_all_references())
+        ref_count = sum(len(v) for v in references.values())
+        print(f"[report] 논문 검색 완료: {ref_count}건")
 
-    # DB에서 제품 로드 + IQR confidence 필터
-    products = load_products(db_path)
-    from utils.iqr import filter_products_by_confidence
-    normal, caution, insufficient = filter_products_by_confidence(products)
-    outlier_count = len(insufficient)
-    outlier_rate = outlier_count / max(len(products), 1)
-    if outlier_rate > 0.03:
-        print(f"[report] 경고: 데이터 부족 품목 {outlier_count}개 ({outlier_rate:.1%}) — 이상치 3% 초과")
-    else:
-        print(f"[report] 이상치 {outlier_count}개 ({outlier_rate:.1%}) — 기준 충족")
-    for p in insufficient:
-        print(f"[report]   데이터부족: {p['product_id']} (confidence={p.get('confidence')})")
+    # Supabase에서 KUP 제품 로드
+    print("[report] Supabase에서 품목 데이터 로드 중...")
+    products = load_products()
+    print(f"[report] 품목 로드 완료: {len(products)}건")
 
     report = build_report(products, generated_at, analysis, references=references)
 
