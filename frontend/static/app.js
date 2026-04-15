@@ -1,36 +1,42 @@
 /**
- * UPharma Export AI — 대시보드 스크립트
+ * UPharma Export AI — 싱가포르 대시보드 스크립트
  * ═══════════════════════════════════════════════════════════════
  *
- * 수정 이력 (원본 index.html 인라인 스크립트 대비):
- *   B1  /api/sites (미존재) 제거 → /api/datasource/status 로 교체
- *   B2  크롤링 step → DB 조회 step (prog-db_load)
- *   B3  refreshOutlier(): /api/products → /api/analyze/result 로 변경
- *   B4  논문 카드: refs 0건이면 숨김 처리
- *   U1  API 키 상태 배지 (Claude·Perplexity) — /api/keys/status
- *   U2  진입 경로(entry_pathway) 결과 카드에 표시
- *   U3  신뢰도 설명(confidence_note) 결과 카드에 표시
- *   U4  PDF 카드: 생성 중 스피너 / 성공 / 실패 3가지 상태
- *   U5  데이터 소스 패널 (Supabase 연결 + 품목 수 + HSA 컨텍스트)
- *   U6  재분석 버튼 (결과 카드 하단)
+ * 기능 목록:
+ *   §1  상수 & 전역 상태
+ *   §2  탭 전환          goTab(id, el)
+ *   §3  환율 로드        loadExchange()  → GET /api/exchange
+ *   §4  To-Do 리스트     initTodo / toggleTodo / markTodoDone / addTodoItem
+ *   §5  보고서 탭        renderReportTab / _addReportEntry
+ *   §6  API 키 배지      loadKeyStatus() → GET /api/keys/status
+ *   §7  진행 단계        setProgress / resetProgress
+ *   §8  파이프라인       runPipeline / pollPipeline
+ *   §9  신약 분석        runCustomPipeline / _pollCustomPipeline
+ *   §10 결과 렌더링      renderResult
+ *   §11 초기화
  *
- * 파일 구조:
- *   1. 상수 & 전역 상태
- *   2. 거시지표
- *   3. API 키 상태 (U1)
- *   4. 진행 단계 (B2)
- *   5. 파이프라인 실행 & 폴링
- *   6. 결과 렌더링 (U2·U3·U4·U6·B4)
- *   7. 이상치 검증 (B3)
- *   8. 초기화
+ * 수정 이력 (원본 대비):
+ *   B1  /api/sites 제거 → /api/datasource/status
+ *   B2  크롤링 step → DB 조회 step (prog-db_load)
+ *   B3  refreshOutlier → /api/analyze/result
+ *   B4  논문 카드: refs 0건이면 숨김
+ *   U1  API 키 상태 배지
+ *   U2  진입 경로(entry_pathway) 표시
+ *   U3  신뢰도(confidence_note) 표시
+ *   U4  PDF 카드 3가지 상태
+ *   U6  재분석 버튼
+ *   N1  탭 전환 (AU 프론트 기반)
+ *   N2  환율 카드 (yfinance SGD/KRW)
+ *   N3  To-Do 리스트 (localStorage)
+ *   N4  보고서 탭 자동 등록
  * ═══════════════════════════════════════════════════════════════
  */
 
 'use strict';
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   1. 상수 & 전역 상태
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §1. 상수 & 전역 상태
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 /** product_id → INN 표시명 */
 const INN_MAP = {
@@ -44,65 +50,288 @@ const INN_MAP = {
   SG_gastiin_cr_mosapride:     'Mosapride CR',
 };
 
-/** product_id → 브랜드명 (이상치 카드에 사용) */
-const TRADE_NAMES = {
-  SG_hydrine_hydroxyurea_500:  'Hydrine',
-  SG_gadvoa_gadobutrol_604:    'Gadvoa Inj.',
-  SG_sereterol_activair:       'Sereterol',
-  SG_omethyl_omega3_2g:        'Omethyl',
-  SG_rosumeg_combigel:         'Rosumeg',
-  SG_atmeg_combigel:           'Atmeg',
-  SG_ciloduo_cilosta_rosuva:   'Ciloduo',
-  SG_gastiin_cr_mosapride:     'Gastiin CR',
-};
-
 /**
- * B2: 서버 step 이름과 프론트 progress 단계 ID 매핑
+ * B2: 서버 step 이름 → 프론트 progress 단계 ID 매핑
  * 서버 step: init → db_load → analyze → refs → report → done
  */
 const STEP_ORDER = ['db_load', 'analyze', 'refs', 'report'];
 
-let _pollTimer   = null;     // 파이프라인 폴링 타이머
-let _currentKey  = null;     // 현재 선택된 product_key
+let _pollTimer  = null;   // 파이프라인 폴링 타이머
+let _currentKey = null;   // 현재 선택된 product_key
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   3. 거시지표 (GET /api/macro)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §2. 탭 전환 (N1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-async function loadMacro() {
+/**
+ * 탭 전환: 모든 .page / .tab 비활성 후 대상만 활성화.
+ * @param {string} id  — 대상 페이지 element ID
+ * @param {Element} el — 클릭된 탭 element
+ */
+function goTab(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  const page = document.getElementById(id);
+  if (page) page.classList.add('on');
+  if (el)   el.classList.add('on');
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §3. 환율 로드 (N2) — GET /api/exchange
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+async function loadExchange() {
+  const btn = document.getElementById('btn-exchange-refresh');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 조회 중…'; }
+
   try {
-    const res  = await fetch('/api/macro');
+    const res  = await fetch('/api/exchange');
     const data = await res.json();
-    const grid = document.getElementById('macro-grid');
-    grid.innerHTML = '';
-    for (const item of data) {
-      const card = document.createElement('div');
-      card.className = 'macro-card';
-      card.innerHTML = `
-        <div class="macro-label">${item.label}</div>
-        <div class="macro-value">${item.value}</div>
-        <div class="macro-sub">${item.sub}</div>`;
-      grid.appendChild(card);
+
+    // 메인 숫자 (KRW/SGD)
+    const rateEl = document.getElementById('exchange-main-rate');
+    if (rateEl) {
+      const fmt = data.sgd_krw.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      rateEl.innerHTML = `${fmt}<span style="font-size:14px;margin-left:4px;color:var(--muted);font-weight:700;">원</span>`;
+    }
+
+    // 서브 그리드 (USD/KRW, SGD/USD)
+    const subEl = document.getElementById('exchange-sub');
+    if (subEl) {
+      const fmtUsd = data.usd_krw.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      subEl.innerHTML = `
+        <div class="irow" style="margin:0">
+          <div style="font-size:10.5px;color:var(--muted);margin-bottom:3px;">USD / KRW</div>
+          <div style="font-size:15px;font-weight:900;color:var(--navy);">${fmtUsd}원</div>
+        </div>
+        <div class="irow" style="margin:0">
+          <div style="font-size:10.5px;color:var(--muted);margin-bottom:3px;">SGD / USD</div>
+          <div style="font-size:15px;font-weight:900;color:var(--navy);">${data.sgd_usd.toFixed(4)}</div>
+        </div>
+      `;
+    }
+
+    // 출처 + 조회 시각
+    const srcEl = document.getElementById('exchange-source');
+    if (srcEl) {
+      const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      const fallbackNote = data.ok ? '' : ' · 폴백값';
+      srcEl.textContent = `출처: ${data.source} · 조회: ${now}${fallbackNote}`;
     }
   } catch (e) {
-    console.warn('거시지표 로드 실패:', e);
+    const srcEl = document.getElementById('exchange-source');
+    if (srcEl) srcEl.textContent = '환율 조회 실패 — 잠시 후 다시 시도해 주세요';
+    console.warn('환율 로드 실패:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↺ 환율 새로고침'; }
   }
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   4. API 키 상태 (U1) — GET /api/keys/status
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §4. To-Do 리스트 (N3)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+const TODO_FIXED_IDS = ['p1', 'rep', 'p2', 'p3'];
+const TODO_LS_KEY    = 'sg_upharma_todos_v1';
+
+/** localStorage에서 todo 상태 읽기 */
+function _loadTodoState() {
+  try   { return JSON.parse(localStorage.getItem(TODO_LS_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+/** localStorage에 todo 상태 쓰기 */
+function _saveTodoState(state) {
+  localStorage.setItem(TODO_LS_KEY, JSON.stringify(state));
+}
+
+/** 페이지 로드 시 localStorage 상태 복원 */
+function initTodo() {
+  const state = _loadTodoState();
+
+  // 고정 항목 상태 복원
+  for (const id of TODO_FIXED_IDS) {
+    const item = document.getElementById('todo-' + id);
+    if (!item) continue;
+    item.classList.toggle('done', !!state['fixed_' + id]);
+  }
+
+  // 커스텀 항목 렌더
+  _renderCustomTodos(state);
+}
 
 /**
- * Claude·Perplexity 키 설정 여부를 헤더 배지로 표시.
- * 실제 키 값은 서버에서 노출하지 않음.
+ * 고정 항목 수동 토글 (클릭 시 호출).
+ * @param {string} id  'p1' | 'rep' | 'p2' | 'p3'
  */
+function toggleTodo(id) {
+  const state       = _loadTodoState();
+  const key         = 'fixed_' + id;
+  state[key]        = !state[key];
+  _saveTodoState(state);
+
+  const item = document.getElementById('todo-' + id);
+  if (item) item.classList.toggle('done', state[key]);
+}
+
+/**
+ * 자동 체크: 파이프라인·보고서 완료 시 호출 (N3).
+ * @param {'p1'|'rep'} id
+ */
+function markTodoDone(id) {
+  const state       = _loadTodoState();
+  state['fixed_' + id] = true;
+  _saveTodoState(state);
+
+  const item = document.getElementById('todo-' + id);
+  if (item) item.classList.add('done');
+}
+
+/** 사용자가 직접 항목 추가 */
+function addTodoItem() {
+  const input = document.getElementById('todo-input');
+  const text  = input ? input.value.trim() : '';
+  if (!text) return;
+
+  const state   = _loadTodoState();
+  const customs = state.customs || [];
+  customs.push({ id: Date.now(), text, done: false });
+  state.customs = customs;
+  _saveTodoState(state);
+  _renderCustomTodos(state);
+  if (input) input.value = '';
+}
+
+/** 커스텀 항목 토글 */
+function toggleCustomTodo(id) {
+  const state   = _loadTodoState();
+  const customs = state.customs || [];
+  const item    = customs.find(c => c.id === id);
+  if (item) item.done = !item.done;
+  state.customs = customs;
+  _saveTodoState(state);
+  _renderCustomTodos(state);
+}
+
+/** 커스텀 항목 삭제 */
+function deleteCustomTodo(id) {
+  const state   = _loadTodoState();
+  state.customs = (state.customs || []).filter(c => c.id !== id);
+  _saveTodoState(state);
+  _renderCustomTodos(state);
+}
+
+/** 커스텀 항목 목록 DOM 갱신 */
+function _renderCustomTodos(state) {
+  const container = document.getElementById('todo-custom-list');
+  if (!container) return;
+
+  const customs = state.customs || [];
+  if (!customs.length) { container.innerHTML = ''; return; }
+
+  container.innerHTML = customs.map(c => `
+    <div class="todo-item${c.done ? ' done' : ''}" onclick="toggleCustomTodo(${c.id})">
+      <div class="todo-check"></div>
+      <span class="todo-label">${_escHtml(c.text)}</span>
+      <button
+        onclick="event.stopPropagation();deleteCustomTodo(${c.id})"
+        style="background:none;color:var(--muted);font-size:16px;cursor:pointer;
+               padding:0 4px;line-height:1;flex-shrink:0;"
+        title="삭제"
+      >×</button>
+    </div>
+  `).join('');
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §5. 보고서 탭 관리 (N4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+const REPORTS_LS_KEY = 'sg_upharma_reports_v1';
+
+function _loadReports() {
+  try   { return JSON.parse(localStorage.getItem(REPORTS_LS_KEY) || '[]'); }
+  catch { return []; }
+}
+
+/**
+ * 1공정 완료 후 renderResult()가 호출 → 보고서 탭에 항목 추가.
+ * @param {object|null} result  분석 결과
+ * @param {string|null} pdfName PDF 파일명
+ */
+function _addReportEntry(result, pdfName) {
+  const reports = _loadReports();
+  const entry   = {
+    id:        Date.now(),
+    product:   result ? (result.trade_name || result.product_id || '알 수 없음') : '알 수 없음',
+    inn:       result ? (INN_MAP[result.product_id] || result.inn || '') : '',
+    verdict:   result ? (result.verdict || '—') : '—',
+    timestamp: new Date().toLocaleString('ko-KR', {
+      month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    }),
+    hasPdf: !!pdfName,
+  };
+
+  reports.unshift(entry);
+  localStorage.setItem(REPORTS_LS_KEY, JSON.stringify(reports.slice(0, 30)));
+  renderReportTab();
+}
+
+/** 보고서 탭 DOM 갱신 */
+function renderReportTab() {
+  const container = document.getElementById('report-tab-list');
+  if (!container) return;
+
+  const reports = _loadReports();
+  if (!reports.length) {
+    container.innerHTML = `
+      <div class="rep-empty">
+        아직 생성된 보고서가 없습니다.<br>
+        1공정 분석을 실행하면 여기에 자동으로 등록됩니다.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = reports.map(r => {
+    const vc = r.verdict === '적합'   ? 'green'
+             : r.verdict === '부적합' ? 'red'
+             : r.verdict !== '—'      ? 'orange'
+             :                          'gray';
+    const innSpan = r.inn
+      ? ` <span style="font-weight:400;color:var(--muted);font-size:12px;">· ${_escHtml(r.inn)}</span>`
+      : '';
+    const dlBtn = r.hasPdf
+      ? `<a class="btn-download"
+            href="/api/report/download"
+            target="_blank"
+            style="padding:7px 14px;font-size:12px;flex-shrink:0;">📄 PDF</a>`
+      : '';
+
+    return `
+      <div class="rep-item">
+        <div class="rep-item-info">
+          <div class="rep-item-product">${_escHtml(r.product)}${innSpan}</div>
+          <div class="rep-item-meta">${_escHtml(r.timestamp)}</div>
+        </div>
+        <div class="rep-item-verdict">
+          <span class="bdg ${vc}">${_escHtml(r.verdict)}</span>
+        </div>
+        ${dlBtn}
+      </div>`;
+  }).join('');
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §6. API 키 상태 (U1) — GET /api/keys/status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
 async function loadKeyStatus() {
   try {
     const res  = await fetch('/api/keys/status');
     const data = await res.json();
-    _applyKeyBadge('key-claude',     data.claude,     'Claude',     'API 키 설정됨', 'API 키 미설정 — 분석 불가');
-    _applyKeyBadge('key-perplexity', data.perplexity, 'Perplexity', 'API 키 설정됨', '미설정 — 논문 검색 생략');
+    _applyKeyBadge('key-claude',     data.claude,     'Claude',     'API 키 설정됨',  'API 키 미설정 — 분석 불가');
+    _applyKeyBadge('key-perplexity', data.perplexity, 'Perplexity', 'API 키 설정됨',  '미설정 — 논문 검색 생략');
   } catch (_) { /* 조용히 실패 */ }
 }
 
@@ -112,19 +341,20 @@ function _applyKeyBadge(id, active, label, okTitle, ngTitle) {
   el.className = 'key-badge ' + (active ? 'active' : 'inactive');
   el.title     = active ? `${label} ${okTitle}` : `${label} ${ngTitle}`;
   const dot    = el.querySelector('.key-badge-dot');
-  if (dot) dot.style.background = active ? 'var(--ok)' : 'var(--muted)';
+  if (dot) dot.style.background = active ? 'var(--green)' : 'var(--muted)';
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   7. 진행 단계 표시 (B2: 크롤링 → DB 조회)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §7. 진행 단계 표시 (B2)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 /**
  * @param {string} currentStep  STEP_ORDER 내 현재 단계
  * @param {'running'|'done'|'error'} status
  */
 function setProgress(currentStep, status) {
-  document.getElementById('progress-row').classList.add('visible');
+  const row = document.getElementById('progress-row');
+  if (row) row.classList.add('visible');
   const idx = STEP_ORDER.indexOf(currentStep);
 
   for (let i = 0; i < STEP_ORDER.length; i++) {
@@ -133,23 +363,24 @@ function setProgress(currentStep, status) {
     const dot = el.querySelector('.prog-dot');
 
     if (status === 'error' && i === idx) {
-      el.className     = 'prog-step error';
-      dot.textContent  = '✕';
+      el.className    = 'prog-step error';
+      dot.textContent = '✕';
     } else if (i < idx || (i === idx && status === 'done')) {
-      el.className     = 'prog-step done';
-      dot.textContent  = '✓';
+      el.className    = 'prog-step done';
+      dot.textContent = '✓';
     } else if (i === idx) {
-      el.className     = 'prog-step active';
-      dot.textContent  = i + 1;
+      el.className    = 'prog-step active';
+      dot.textContent = i + 1;
     } else {
-      el.className     = 'prog-step';
-      dot.textContent  = i + 1;
+      el.className    = 'prog-step';
+      dot.textContent = i + 1;
     }
   }
 }
 
 function resetProgress() {
-  document.getElementById('progress-row').classList.remove('visible');
+  const row = document.getElementById('progress-row');
+  if (row) row.classList.remove('visible');
   for (let i = 0; i < STEP_ORDER.length; i++) {
     const el = document.getElementById('prog-' + STEP_ORDER[i]);
     if (!el) continue;
@@ -158,13 +389,13 @@ function resetProgress() {
   }
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   8. 파이프라인 실행 & 폴링
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §8. 파이프라인 실행 & 폴링
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 /**
  * 선택 품목 파이프라인 실행.
- * U6: 재분석 버튼도 이 함수를 호출 (파이프라인이 항상 새 태스크 생성).
+ * U6: 재분석 버튼도 이 함수를 호출.
  */
 async function runPipeline() {
   const productKey = document.getElementById('product-select').value;
@@ -178,7 +409,6 @@ async function runPipeline() {
   document.getElementById('btn-analyze').disabled = true;
   document.getElementById('btn-icon').textContent  = '⏳';
 
-  // 재분석 버튼 숨김
   const reBtn = document.getElementById('btn-reanalyze');
   if (reBtn) reBtn.style.display = 'none';
 
@@ -202,7 +432,6 @@ async function runPipeline() {
   }
 }
 
-/** 분석 버튼 원래 상태 복원 */
 function _resetBtn() {
   document.getElementById('btn-analyze').disabled = false;
   document.getElementById('btn-icon').textContent  = '▶';
@@ -219,26 +448,18 @@ async function pollPipeline(productKey) {
 
     if (d.status === 'idle') return;
 
-    // B2: 서버 step 이름을 프론트 STEP_ORDER에 맞게 매핑
-    if (d.step === 'db_load') {
-      setProgress('db_load', 'running');
-    } else if (d.step === 'analyze') {
-      setProgress('db_load', 'done');
-      setProgress('analyze', 'running');
-    } else if (d.step === 'refs') {
-      setProgress('analyze', 'done');
-      setProgress('refs', 'running');
-    } else if (d.step === 'report') {
-      setProgress('refs', 'done');
-      setProgress('report', 'running');
-      // U4: PDF 생성 중 카드 표시
+    // B2: 서버 step → 프론트 STEP_ORDER 매핑
+    if      (d.step === 'db_load')  { setProgress('db_load',  'running'); }
+    else if (d.step === 'analyze')  { setProgress('db_load',  'done'); setProgress('analyze', 'running'); }
+    else if (d.step === 'refs')     { setProgress('analyze',  'done'); setProgress('refs',    'running'); }
+    else if (d.step === 'report')   {
+      setProgress('refs', 'done'); setProgress('report', 'running');
       _showReportLoading();
     }
 
     if (d.status === 'done') {
       clearInterval(_pollTimer);
       for (const s of STEP_ORDER) setProgress(s, 'done');
-
       const r2   = await fetch(`/api/pipeline/${encodeURIComponent(productKey)}/result`);
       const data = await r2.json();
       renderResult(data.result, data.refs, data.pdf);
@@ -247,33 +468,33 @@ async function pollPipeline(productKey) {
 
     if (d.status === 'error') {
       clearInterval(_pollTimer);
-      const errStep = STEP_ORDER.includes(d.step) ? d.step : 'analyze';
-      setProgress(errStep, 'error');
+      setProgress(STEP_ORDER.includes(d.step) ? d.step : 'analyze', 'error');
       _resetBtn();
     }
   } catch (_) { /* 조용히 재시도 */ }
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   9. 신약 분석 파이프라인
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §9. 신약 분석 파이프라인
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 let _customPollTimer = null;
-
 const CUSTOM_STEP_ORDER = ['analyze', 'refs', 'report'];
 
 function _setCustomProgress(step, status) {
-  document.getElementById('custom-progress-row').classList.add('visible');
+  const row = document.getElementById('custom-progress-row');
+  if (row) row.classList.add('visible');
   const idMap = { analyze: 'cprog-analyze', refs: 'cprog-refs', report: 'cprog-report' };
-  const idx = CUSTOM_STEP_ORDER.indexOf(step);
+  const idx   = CUSTOM_STEP_ORDER.indexOf(step);
+
   CUSTOM_STEP_ORDER.forEach((s, i) => {
-    const el = document.getElementById(idMap[s]);
+    const el  = document.getElementById(idMap[s]);
     if (!el) return;
     const dot = el.querySelector('.prog-dot');
     if (status === 'error' && i === idx) {
       el.className = 'prog-step error'; dot.textContent = '✕';
     } else if (i < idx || (i === idx && status === 'done')) {
-      el.className = 'prog-step done'; dot.textContent = '✓';
+      el.className = 'prog-step done';  dot.textContent = '✓';
     } else if (i === idx) {
       el.className = 'prog-step active'; dot.textContent = i + 1;
     } else {
@@ -283,7 +504,8 @@ function _setCustomProgress(step, status) {
 }
 
 function _resetCustomProgress() {
-  document.getElementById('custom-progress-row').classList.remove('visible');
+  const row = document.getElementById('custom-progress-row');
+  if (row) row.classList.remove('visible');
   CUSTOM_STEP_ORDER.forEach((s, i) => {
     const el = document.getElementById('cprog-' + s);
     if (!el) return;
@@ -301,10 +523,7 @@ async function runCustomPipeline() {
   const tradeName = document.getElementById('custom-trade-name').value.trim();
   const inn       = document.getElementById('custom-inn').value.trim();
   const dosage    = document.getElementById('custom-dosage').value.trim();
-  if (!tradeName || !inn) {
-    alert('약품명과 성분명을 입력하세요.');
-    return;
-  }
+  if (!tradeName || !inn) { alert('약품명과 성분명을 입력하세요.'); return; }
 
   _resetCustomProgress();
   document.getElementById('result-card').classList.remove('visible');
@@ -314,14 +533,13 @@ async function runCustomPipeline() {
   document.getElementById('custom-icon').textContent = '⏳';
 
   if (_customPollTimer) clearInterval(_customPollTimer);
-
   _setCustomProgress('analyze', 'running');
 
   try {
     const res = await fetch('/api/pipeline/custom', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trade_name: tradeName, inn, dosage_form: dosage }),
+      body:    JSON.stringify({ trade_name: tradeName, inn, dosage_form: dosage }),
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
@@ -344,16 +562,9 @@ async function _pollCustomPipeline() {
     const d   = await res.json();
     if (d.status === 'idle') return;
 
-    if (d.step === 'analyze') {
-      _setCustomProgress('analyze', 'running');
-    } else if (d.step === 'refs') {
-      _setCustomProgress('analyze', 'done');
-      _setCustomProgress('refs', 'running');
-    } else if (d.step === 'report') {
-      _setCustomProgress('refs', 'done');
-      _setCustomProgress('report', 'running');
-      _showReportLoading();
-    }
+    if      (d.step === 'analyze') { _setCustomProgress('analyze', 'running'); }
+    else if (d.step === 'refs')    { _setCustomProgress('analyze', 'done'); _setCustomProgress('refs', 'running'); }
+    else if (d.step === 'report')  { _setCustomProgress('refs', 'done'); _setCustomProgress('report', 'running'); _showReportLoading(); }
 
     if (d.status === 'done') {
       clearInterval(_customPollTimer);
@@ -363,7 +574,6 @@ async function _pollCustomPipeline() {
       renderResult(data.result, data.refs, data.pdf);
       _resetCustomBtn();
     }
-
     if (d.status === 'error') {
       clearInterval(_customPollTimer);
       _setCustomProgress(d.step || 'analyze', 'error');
@@ -372,13 +582,13 @@ async function _pollCustomPipeline() {
   } catch (_) { /* 조용히 재시도 */ }
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   10. 결과 렌더링 (U2·U3·U4·U6·B4)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §10. 결과 렌더링 (U2·U3·U4·U6·B4·N3·N4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 /**
  * 분석 완료 후 결과·논문·PDF 카드를 화면에 렌더링.
- * @param {object|null} result  분석 결과 (analyze_product 반환값)
+ * @param {object|null} result  분석 결과
  * @param {Array}       refs    Perplexity 논문 목록
  * @param {string|null} pdfName PDF 파일명
  */
@@ -395,38 +605,29 @@ function renderResult(result, refs, pdfName) {
     const vLabel = verdict
       || (err === 'no_api_key'    ? 'API 키 미설정'
         : err === 'claude_failed' ? 'Claude 분석 실패'
-        :                          '미분석');
+        :                           '미분석');
 
     document.getElementById('verdict-badge').className   = `verdict-badge ${vc}`;
     document.getElementById('verdict-badge').textContent = vLabel;
     document.getElementById('verdict-name').textContent  = result.trade_name || result.product_id || '';
     document.getElementById('verdict-inn').textContent   = INN_MAP[result.product_id] || result.inn || '';
 
-    // S2: 신호등 — 판정에 따라 해당 램프만 켜기
+    // S2: 신호등
     ['tl-red', 'tl-yellow', 'tl-green'].forEach(id => {
       document.getElementById(id).classList.remove('on');
     });
-    if (verdict === '적합')   document.getElementById('tl-green').classList.add('on');
+    if (verdict === '적합')        document.getElementById('tl-green').classList.add('on');
     else if (verdict === '부적합') document.getElementById('tl-red').classList.add('on');
     else if (verdict)              document.getElementById('tl-yellow').classList.add('on');
 
-    // S3: 판정 근거 (시장/의료 · 규제 · 무역)
+    // S3: 판정 근거
     const basisFallback = _deriveBasisFromRationale(result.rationale);
-    _setText(
-      'basis-market-medical',
-      _formatDetailed(result.basis_market_medical || basisFallback.marketMedical),
-    );
-    _setText(
-      'basis-regulatory',
-      _formatDetailed(result.basis_regulatory || basisFallback.regulatory),
-    );
-    _setText(
-      'basis-trade',
-      _formatDetailed(result.basis_trade || basisFallback.trade),
-    );
-    _setText('basis-pbs-line', _pbsLineFromApi(result));
+    _setText('basis-market-medical', _formatDetailed(result.basis_market_medical || basisFallback.marketMedical));
+    _setText('basis-regulatory',     _formatDetailed(result.basis_regulatory     || basisFallback.regulatory));
+    _setText('basis-trade',          _formatDetailed(result.basis_trade          || basisFallback.trade));
+    _setText('basis-pbs-line',       _pbsLineFromApi(result));
 
-    // S4: 진입 채널 권고
+    // S4: 진입 채널
     const pathEl = document.getElementById('entry-pathway');
     if (pathEl) {
       if (result.entry_pathway) {
@@ -438,12 +639,8 @@ function renderResult(result, refs, pdfName) {
     }
 
     const pbsPos = String(result.price_positioning_pbs || '').trim();
-    _setText(
-      'price-positioning-pbs',
-      _formatDetailed(pbsPos || _pbsLineFromApi(result)),
-    );
+    _setText('price-positioning-pbs', _formatDetailed(pbsPos || _pbsLineFromApi(result)));
 
-    // S4: 리스크/조건 (단일 텍스트)
     const riskText = String(result.risks_conditions || '').trim()
       || (Array.isArray(result.key_factors) ? result.key_factors.join(' / ') : '');
     _setText('risks-conditions', _formatDetailed(riskText));
@@ -453,20 +650,21 @@ function renderResult(result, refs, pdfName) {
     if (reBtn) reBtn.style.display = 'inline-flex';
 
     document.getElementById('result-card').classList.add('visible');
+
+    // N3: 1공정 완료 → Todo 자동 체크
+    markTodoDone('p1');
   }
 
-  /* ─ B4: 논문 카드 — refs 0건이면 숨김 ─ */
+  /* ─ B4: 논문 카드 ─ */
   const papersCard = document.getElementById('papers-card');
   const papersList = document.getElementById('papers-list');
   papersList.innerHTML = '';
 
   if (refs && refs.length > 0) {
     for (const ref of refs) {
-      const item       = document.createElement('div');
-      item.className   = 'paper-item';
-      // XSS 방지: href/textContent에 직접 사용자 데이터가 들어오므로
-      // title·url은 textContent로, href는 URL 검증 후 설정
-      const safeUrl = /^https?:\/\//.test(ref.url || '') ? ref.url : '#';
+      const item     = document.createElement('div');
+      item.className = 'paper-item';
+      const safeUrl  = /^https?:\/\//.test(ref.url || '') ? ref.url : '#';
       item.innerHTML = `
         <span class="paper-arrow">▸</span>
         <div>
@@ -476,28 +674,29 @@ function renderResult(result, refs, pdfName) {
           </div>
           <div class="paper-reason"></div>
         </div>`;
-      item.querySelector('.paper-link').textContent = ref.title || ref.url || '';
-      item.querySelector('.paper-src').textContent  = ref.source ? `[${ref.source}]` : '';
+      item.querySelector('.paper-link').textContent   = ref.title || ref.url || '';
+      item.querySelector('.paper-src').textContent    = ref.source ? `[${ref.source}]` : '';
       item.querySelector('.paper-reason').textContent = ref.reason || '';
       papersList.appendChild(item);
     }
     papersCard.classList.add('visible');
   } else {
-    // B4: refs 없으면 카드 자체를 숨김
     papersCard.classList.remove('visible');
   }
 
   /* ─ U4: PDF 보고서 카드 ─ */
-  const reportCard = document.getElementById('report-card');
   if (pdfName) {
     _showReportOk();
+    // N3: 보고서 완료 → Todo 자동 체크
+    markTodoDone('rep');
+    // N4: 보고서 탭에 자동 등록
+    _addReportEntry(result, pdfName);
   } else {
-    // PDF 생성 실패 (pdfName이 null인 경우)
     _showReportError();
   }
 }
 
-/** U4: PDF 생성 중 상태 */
+/** U4: PDF 생성 중 */
 function _showReportLoading() {
   document.getElementById('report-state-loading').style.display = 'flex';
   document.getElementById('report-state-ok').style.display      = 'none';
@@ -505,7 +704,7 @@ function _showReportLoading() {
   document.getElementById('report-card').classList.add('visible');
 }
 
-/** U4: PDF 생성 완료 상태 */
+/** U4: PDF 생성 완료 */
 function _showReportOk() {
   document.getElementById('report-state-loading').style.display = 'none';
   document.getElementById('report-state-ok').style.display      = 'block';
@@ -513,7 +712,7 @@ function _showReportOk() {
   document.getElementById('report-card').classList.add('visible');
 }
 
-/** U4: PDF 생성 실패 상태 */
+/** U4: PDF 생성 실패 */
 function _showReportError() {
   document.getElementById('report-state-loading').style.display = 'none';
   document.getElementById('report-state-ok').style.display      = 'none';
@@ -521,51 +720,46 @@ function _showReportError() {
   document.getElementById('report-card').classList.add('visible');
 }
 
+/* ─ 유틸 함수 ─ */
+
 function _setText(id, value, fallback = '—') {
   const el = document.getElementById(id);
   if (!el) return;
-  const s = String(value || '').trim();
-  el.textContent = s || fallback;
+  el.textContent = String(value || '').trim() || fallback;
 }
 
 function _deriveBasisFromRationale(rationale) {
-  const text = String(rationale || '');
-  const lines = text.split('\n').map((x) => x.trim()).filter(Boolean);
-  const out = { marketMedical: '', regulatory: '', trade: '' };
+  const text  = String(rationale || '');
+  const lines = text.split('\n').map(x => x.trim()).filter(Boolean);
+  const out   = { marketMedical: '', regulatory: '', trade: '' };
   for (const line of lines) {
     const low = line.toLowerCase();
     if (!out.marketMedical && (low.includes('시장') || low.includes('의료'))) {
-      out.marketMedical = line.replace(/^[\-\d\.\)\s]+/, '');
-      continue;
+      out.marketMedical = line.replace(/^[\-\d\.\)\s]+/, ''); continue;
     }
     if (!out.regulatory && low.includes('규제')) {
-      out.regulatory = line.replace(/^[\-\d\.\)\s]+/, '');
-      continue;
+      out.regulatory = line.replace(/^[\-\d\.\)\s]+/, ''); continue;
     }
     if (!out.trade && low.includes('무역')) {
-      out.trade = line.replace(/^[\-\d\.\)\s]+/, '');
-      continue;
+      out.trade = line.replace(/^[\-\d\.\)\s]+/, ''); continue;
     }
   }
   if (!out.marketMedical && lines.length > 0) out.marketMedical = lines[0];
-  if (!out.regulatory && lines.length > 1) out.regulatory = lines[1];
-  if (!out.trade && lines.length > 2) out.trade = lines[2];
+  if (!out.regulatory    && lines.length > 1) out.regulatory    = lines[1];
+  if (!out.trade         && lines.length > 2) out.trade         = lines[2];
   return out;
 }
 
 function _formatDetailed(text) {
   const src = String(text || '').trim();
   if (!src) return '';
-  // 불릿 마커(- / • / * / 번호목록)로 시작하는 줄을 정리해 자연스러운 산문으로 변환
-  const lines = src.split('\n').map((x) => x.trim()).filter(Boolean);
-  const cleaned = lines.map((l) =>
+  const lines   = src.split('\n').map(x => x.trim()).filter(Boolean);
+  const cleaned = lines.map(l =>
     l.replace(/^[\-\•\*\·]\s+/, '').replace(/^\d+[\.\)]\s+/, '')
   );
-  // 줄들을 하나의 문단으로 이어 붙임
   let joined = '';
   for (const part of cleaned) {
     if (!joined) { joined = part; continue; }
-    // 앞 줄이 문장 종결이면 공백, 아니면 콤마+공백으로 자연스럽게 이음
     const prev = joined.trimEnd();
     const ends = prev.endsWith('.') || prev.endsWith('!') || prev.endsWith('?')
               || prev.endsWith('다') || prev.endsWith('음') || prev.endsWith('임');
@@ -574,10 +768,9 @@ function _formatDetailed(text) {
   return joined;
 }
 
-/** PBS DPMQ 한 줄 요약 */
 function _pbsLineFromApi(result) {
-  const aud = result.pbs_dpmq_aud;
-  const sgd = result.pbs_dpmq_sgd_hint;
+  const aud    = result.pbs_dpmq_aud;
+  const sgd    = result.pbs_dpmq_sgd_hint;
   const audNum = aud != null && aud !== '' ? Number(aud) : NaN;
   if (!Number.isNaN(audNum)) {
     const sNum = sgd != null && sgd !== '' ? Number(sgd) : NaN;
@@ -590,9 +783,20 @@ function _pbsLineFromApi(result) {
   return '참고 가격 정보 없음';
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   10. 초기화
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/** XSS 방지 HTML 이스케이프 */
+function _escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
-loadMacro();
-loadKeyStatus();   // U1
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §11. 초기화
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+loadKeyStatus();   // §6: API 키 배지
+loadExchange();    // §3: 환율 즉시 로드
+initTodo();        // §4: Todo 상태 복원
+renderReportTab(); // §5: 보고서 탭 초기 렌더

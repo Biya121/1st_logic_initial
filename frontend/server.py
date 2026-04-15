@@ -140,6 +140,50 @@ async def api_macro() -> JSONResponse:
     return JSONResponse(get_sg_macro())
 
 
+# ── 환율 (yfinance SGD/KRW) ───────────────────────────────────────────────────
+
+_exchange_cache: dict[str, Any] = {"data": None, "ts": 0.0}
+
+
+@app.get("/api/exchange")
+async def api_exchange() -> JSONResponse:
+    """SGD/KRW 실시간 환율 (yfinance). 60초 캐시."""
+    import time as _time
+
+    if _exchange_cache["data"] and _time.time() - _exchange_cache["ts"] < 60:
+        return JSONResponse(_exchange_cache["data"])
+
+    def _fetch() -> dict[str, Any]:
+        import yfinance as yf  # type: ignore[import]
+        sgd_krw = float(yf.Ticker("SGDKRW=X").fast_info.last_price)
+        usd_krw = float(yf.Ticker("USDKRW=X").fast_info.last_price)
+        sgd_usd = float(yf.Ticker("SGDUSD=X").fast_info.last_price)
+        return {
+            "sgd_krw": round(sgd_krw, 2),
+            "usd_krw": round(usd_krw, 2),
+            "sgd_usd": round(sgd_usd, 4),
+            "source": "Yahoo Finance",
+            "ok": True,
+        }
+
+    try:
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, _fetch)
+        _exchange_cache["data"] = data
+        _exchange_cache["ts"]   = _time.time()
+        return JSONResponse(data)
+    except Exception as exc:
+        fallback: dict[str, Any] = {
+            "sgd_krw": 1085.0,
+            "usd_krw": 1393.0,
+            "sgd_usd": 0.7795,
+            "source": "폴백 (Yahoo Finance 연결 실패)",
+            "ok": False,
+            "error": str(exc),
+        }
+        return JSONResponse(fallback)
+
+
 # ── 단일 품목 파이프라인 (분석 + 논문 + PDF) ──────────────────────────────────
 
 _pipeline_tasks: dict[str, dict[str, Any]] = {}

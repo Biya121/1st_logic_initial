@@ -1,285 +1,455 @@
 <!DOCTYPE html>
 <!--
-  UPharma Export AI — 싱가포르 1공정 수출 적합성 분석 대시보드
-  ════════════════════════════════════════════════════════════════
+  UPharma Export AI — 싱가포르 수출 적합성 분석 대시보드
+  ════════════════════════════════════════════════════════
   파일 구조:
-    index.html  ← 이 파일 (HTML 구조만)
-    style.css   ← 모든 스타일 (섹션별 주석 포함)
-    app.js      ← 모든 동작 로직 (버그 수정 + UX 개선 반영)
+    index.html  ← 이 파일 (HTML 구조)
+    style.css   ← 디자인 시스템 (AU 베이스, SG 콘텐츠, border 없음)
+    app.js      ← 전체 동작 로직
 
-  서버:
-    frontend/server.py (FastAPI, port 8765)
-    실행: sh run_dashboard.sh
+  탭 구조:
+    main  — 메인 프리뷰  (관세+환율 카드 | To-Do | 뉴스)
+    p1    — 1공정 · 시장조사  (기존 SG 파이프라인 전체)
+    p2    — 2공정 · 수출전략  (준비 중 — 빈 페이지)
+    p3    — 3공정 · 바이어 발굴  (준비 중 — 빈 페이지)
+    rep   — 보고서  (1공정 완료 시 자동 등록 · localStorage)
 
-  주요 API:
-    POST /api/pipeline/{product_key}     단일 품목 파이프라인
-    GET  /api/pipeline/{key}/status      파이프라인 진행 상태
-    GET  /api/pipeline/{key}/result      분석·논문·PDF 결과
-    GET  /api/keys/status                API 키 설정 여부
-    GET  /api/datasource/status          Supabase 연결·품목 수
-    GET  /api/macro                      거시지표
-    GET  /api/stream                     SSE 실시간 로그
-    GET  /api/report/download            PDF 다운로드
-
-  수정 이력 (app.js 참조):
-    B1  /api/sites 제거 → /api/datasource/status
-    B2  크롤링 step → DB 조회 step
-    B3  이상치 데이터 소스 수정
-    B4  논문 카드 0건 숨김
-    U1  API 키 상태 배지
-    U2  진입 경로 표시
-    U3  신뢰도 메모 표시
-    U4  PDF 3가지 상태
-    U5  데이터 소스 패널
-    U6  재분석 버튼
+  API:
+    GET  /api/exchange              yfinance SGD/KRW 환율
+    GET  /api/keys/status           Claude·Perplexity 키 상태
+    POST /api/pipeline/{key}        단일 품목 파이프라인
+    GET  /api/pipeline/{key}/status 진행 상태
+    GET  /api/pipeline/{key}/result 분석·논문·PDF 결과
+    POST /api/pipeline/custom       신약 분석
+    GET  /api/report/download       PDF 다운로드
 -->
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>싱가포르 1공정 — UPharma Export AI</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>싱가포르 수출 적합성 분석 — UPharma Export AI</title>
+  <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
+<div class="app">
 
-<!-- ════════════════════════════════════════════════════════════
-  헤더: 타이틀 + API 키 상태 배지 (U1)
-  배지 색상: 녹색 = 키 설정됨, 회색 = 미설정
-════════════════════════════════════════════════════════════ -->
-<header>
-  <div class="header-left">
-    <div class="header-flag">🇸🇬</div>
-    <div class="header-title">
-      <h1>싱가포르 국가 개요</h1>
-      <p>거시 지표 요약 및 8개 INN 진출 적합 분석 · UPharma Export AI</p>
+<!-- ════════════════════════════════════════════════════════
+  상단 바: 브랜드명 + API 키 배지 + 싱가포르 국기 pill
+════════════════════════════════════════════════════════ -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-text">
+      <h1>한국유나이티드제약(주) 해외 영업·마케팅 대시보드</h1>
     </div>
   </div>
-
-  <!-- U1: API 키 상태 — app.js loadKeyStatus()가 /api/keys/status 조회 후 업데이트 -->
-  <div class="key-status">
-    <span class="key-badge inactive" id="key-claude" title="Claude API 키 확인 중…">
-      <span class="key-badge-dot"></span> Claude
-    </span>
-    <span class="key-badge inactive" id="key-perplexity" title="Perplexity API 키 확인 중…">
-      <span class="key-badge-dot"></span> Perplexity
-    </span>
+  <div class="topbar-r">
+    <div class="key-status">
+      <span class="key-badge inactive" id="key-claude" title="Claude API 키 확인 중…">
+        <span class="key-badge-dot"></span> Claude
+      </span>
+      <span class="key-badge inactive" id="key-perplexity" title="Perplexity API 키 확인 중…">
+        <span class="key-badge-dot"></span> Perplexity
+      </span>
+    </div>
+    <div class="pill">
+      <span class="flag-emoji">🇸🇬</span>
+      <span>Singapore</span>
+    </div>
   </div>
 </header>
 
-<div class="container">
+<main class="main">
 
-  <!-- ════════════════════════════════════════════════════════════
-    거시지표 카드
-    데이터: GET /api/macro → Supabase sg_world_population·sg_health_expenditure
-            (Supabase 없으면 정적 폴백값 표시)
-  ════════════════════════════════════════════════════════════ -->
-  <div class="macro-grid" id="macro-grid">
-    <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
-    <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
-    <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
-    <div class="macro-card"><div class="macro-label">로딩 중</div><div class="macro-value">…</div></div>
+  <!-- ════ 내비게이션 탭 ════ -->
+  <nav class="nav">
+    <a class="tab on" onclick="goTab('main',this)">메인 프리뷰</a>
+    <a class="tab"    onclick="goTab('p1',this)">1공정 · 시장조사</a>
+    <a class="tab"    onclick="goTab('p2',this)">2공정 · 수출전략</a>
+    <a class="tab"    onclick="goTab('p3',this)">3공정 · 바이어 발굴</a>
+    <a class="tab"    onclick="goTab('rep',this)">보고서</a>
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════════
+    메인 프리뷰
+    ▸ g2: [관세+환율 카드] | [To-Do 카드]
+    ▸ g1: 시장 신호·뉴스 카드 (정적)
+  ════════════════════════════════════════════════════════ -->
+  <div id="main" class="page on">
+
+    <div class="g2">
+
+      <!-- ── 관세 + 환율 병합 카드 ──────────────────────────────── -->
+      <article class="card">
+        <div class="sec">
+          <div>
+            <h3>관세 · 환율 현황</h3>
+            <p>싱가포르 수출 기준 · SGD/KRW 실시간</p>
+          </div>
+          <span class="tag">FX · Tariff</span>
+        </div>
+
+        <!-- 관세 (정적 데이터) -->
+        <div class="irow">
+          <div class="irow-row">
+            <div>
+              <div class="tit">HS 3004 — 의약품 전품목</div>
+              <div class="sub">AKFTA(한-아세안 FTA) · MFN 동일 0% 적용</div>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:var(--green);">0%</span>
+          </div>
+        </div>
+        <div class="irow">
+          <div class="irow-row">
+            <div>
+              <div class="tit">HS 3006.30 — 조영제 (Gadvoa Inj.)</div>
+              <div class="sub">Gadobutrol 604.72mg</div>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:var(--green);">0%</span>
+          </div>
+        </div>
+        <div class="irow">
+          <div class="irow-row">
+            <div>
+              <div class="tit">GST (소비세)</div>
+              <div class="sub">GST 등록 사업자 매입세액 공제 가능</div>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:var(--warn);">9%</span>
+          </div>
+        </div>
+
+        <!-- 환율 (동적 — loadExchange() 가 채움) -->
+        <div id="exchange-content" style="margin-top:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">KRW / SGD</div>
+          <div id="exchange-main-rate"
+               style="font-size:28px;font-weight:900;color:var(--navy);letter-spacing:-.04em;line-height:1;">
+            —<span style="font-size:14px;margin-left:4px;color:var(--muted);font-weight:700;">원</span>
+          </div>
+          <div id="exchange-sub"
+               style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+          </div>
+          <div id="exchange-source"
+               style="font-size:10.5px;color:var(--muted);margin-top:8px;">
+            조회 중…
+          </div>
+        </div>
+
+        <button class="btn-refresh" id="btn-exchange-refresh" onclick="loadExchange()">
+          ↺ 환율 새로고침
+        </button>
+      </article>
+
+      <!-- ── To-Do 체크리스트 카드 ─────────────────────────────── -->
+      <article class="card">
+        <div class="sec">
+          <div>
+            <h3>공정 진행 체크리스트</h3>
+            <p>공정 완료 시 자동 체크 · 항목 직접 추가 가능</p>
+          </div>
+          <span class="tag">To-Do</span>
+        </div>
+
+        <!-- 고정 항목 (일부 자동 체크) -->
+        <div class="todo-list" id="todo-fixed-list">
+          <div class="todo-item" id="todo-p1" onclick="toggleTodo('p1')">
+            <div class="todo-check" id="todo-check-p1"></div>
+            <span class="todo-label">1공정 · 시장조사 분석</span>
+            <span class="todo-auto-badge">자동</span>
+          </div>
+          <div class="todo-item" id="todo-rep" onclick="toggleTodo('rep')">
+            <div class="todo-check" id="todo-check-rep"></div>
+            <span class="todo-label">보고서 생성</span>
+            <span class="todo-auto-badge">자동</span>
+          </div>
+          <div class="todo-item" id="todo-p2" onclick="toggleTodo('p2')">
+            <div class="todo-check" id="todo-check-p2"></div>
+            <span class="todo-label">2공정 · 수출전략 수립</span>
+            <span class="todo-auto-badge">예정</span>
+          </div>
+          <div class="todo-item" id="todo-p3" onclick="toggleTodo('p3')">
+            <div class="todo-check" id="todo-check-p3"></div>
+            <span class="todo-label">3공정 · 바이어 발굴</span>
+            <span class="todo-auto-badge">예정</span>
+          </div>
+        </div>
+
+        <!-- 사용자 추가 항목 -->
+        <div id="todo-custom-list"></div>
+
+        <!-- 추가 입력 -->
+        <div class="todo-add-row">
+          <input
+            class="todo-input"
+            id="todo-input"
+            type="text"
+            placeholder="항목 추가 후 Enter…"
+            onkeydown="if(event.key==='Enter')addTodoItem()"
+          />
+          <button class="btn-todo-add" onclick="addTodoItem()">+ 추가</button>
+        </div>
+      </article>
+
+    </div><!-- /g2 -->
+
+    <!-- ── 시장 신호 · 뉴스 카드 ──────────────────────────────────── -->
+    <article class="card g1">
+      <div class="sec">
+        <div>
+          <h3>시장 신호 · 뉴스</h3>
+          <p>싱가포르 의약품 시장 주요 동향</p>
+        </div>
+        <span class="tag">News</span>
+      </div>
+      <div class="irow">
+        <div class="tit">HSA, 의약품 패스트트랙 등록 절차 개정 발표</div>
+        <div class="sub">HSA.gov.sg · 2025-08-01</div>
+      </div>
+      <div class="irow">
+        <div class="tit">싱가포르 국립병원 입찰(GeBIZ) 의약품 수요 증가세 지속</div>
+        <div class="sub">GeBIZ · 2025-07-28</div>
+      </div>
+      <div class="irow">
+        <div class="tit">KAFTA 의약품 품목 추가 협상 개시 — 한-싱 제약협력 확대</div>
+        <div class="sub">산업통상자원부 · 2025-07-20</div>
+      </div>
+      <div class="irow">
+        <div class="tit">한-싱 제약 협력 MOU 체결 — 유나이티드제약 현지 파트너 물색</div>
+        <div class="sub">Pharmabiz SG · 2025-07-15</div>
+      </div>
+    </article>
+
+  </div><!-- /main -->
+
+  <!-- ════════════════════════════════════════════════════════
+    1공정 · 시장조사
+    ▸ 품목 선택 + 진행 단계
+    ▸ 신약 분석 폼
+    ▸ 분석 결과 카드 (신호등 · 근거 · 전략)
+    ▸ 논문 카드
+    ▸ PDF 보고서 카드
+  ════════════════════════════════════════════════════════ -->
+  <div id="p1" class="page">
+
+    <!-- 품목 선택 -->
+    <div class="selector-card">
+      <div class="selector-label">품목 선택 후 싱가포르 진출 적합 분석 실행</div>
+      <div class="selector-row">
+        <select id="product-select">
+          <option value="SG_sereterol_activair">Sereterol Activair — Fluticasone / Salmeterol</option>
+          <option value="SG_omethyl_omega3_2g">Omethyl — Omega-3 EE 2g</option>
+          <option value="SG_hydrine_hydroxyurea_500">하이드린 캡슐 — Hydroxyurea 500mg</option>
+          <option value="SG_gadvoa_gadobutrol_604">Gadvoa Inj. — Gadobutrol 604mg</option>
+          <option value="SG_rosumeg_combigel">Rosumeg Combigel — Rosuvastatin + Omega-3</option>
+          <option value="SG_atmeg_combigel">Atmeg Combigel — Atorvastatin + Omega-3</option>
+          <option value="SG_ciloduo_cilosta_rosuva">Ciloduo — Cilostazol + Rosuvastatin</option>
+          <option value="SG_gastiin_cr_mosapride">Gastiin CR — Mosapride (서방정)</option>
+        </select>
+        <button class="btn-analyze" id="btn-analyze" onclick="runPipeline()">
+          <span id="btn-icon">▶</span> 진출 적합 분석
+        </button>
+      </div>
+      <!--
+        진행 단계 표시
+        B2: 크롤링(미사용) → DB 조회(db_load)
+        ID 규칙: prog-{STEP_ORDER 값}
+      -->
+      <div class="progress-row" id="progress-row">
+        <div class="prog-step" id="prog-db_load">
+          <div class="prog-dot">1</div>
+          <div class="prog-label">DB 조회</div>
+        </div>
+        <div class="prog-step" id="prog-analyze">
+          <div class="prog-dot">2</div>
+          <div class="prog-label">Claude 분석</div>
+        </div>
+        <div class="prog-step" id="prog-refs">
+          <div class="prog-dot">3</div>
+          <div class="prog-label">논문 검색</div>
+        </div>
+        <div class="prog-step" id="prog-report">
+          <div class="prog-dot">4</div>
+          <div class="prog-label">PDF 생성</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 신약 분석 -->
+    <div class="selector-card">
+      <div class="selector-label">신약 분석</div>
+      <div class="custom-form">
+        <input type="text" id="custom-trade-name" class="custom-input" placeholder="약품명 (예: Nexavar)">
+        <input type="text" id="custom-inn"        class="custom-input" placeholder="성분명 (예: sorafenib)">
+        <input type="text" id="custom-dosage"     class="custom-input" placeholder="제형 (예: 200mg tablet)">
+        <button class="btn-analyze" id="btn-custom" onclick="runCustomPipeline()">
+          <span id="custom-icon">▶</span> 신약 분석
+        </button>
+      </div>
+      <div class="progress-row" id="custom-progress-row">
+        <div class="prog-step" id="cprog-analyze">
+          <div class="prog-dot">1</div>
+          <div class="prog-label">Claude 분석</div>
+        </div>
+        <div class="prog-step" id="cprog-refs">
+          <div class="prog-dot">2</div>
+          <div class="prog-label">논문 검색</div>
+        </div>
+        <div class="prog-step" id="cprog-report">
+          <div class="prog-dot">3</div>
+          <div class="prog-label">PDF 생성</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 분석 결과 카드 -->
+    <div class="result-card" id="result-card">
+      <div class="card-title"><div class="card-title-dot"></div> 수출 적합성 분석 결과</div>
+
+      <!-- S1: 제품 식별 -->
+      <div class="rs-block">
+        <div class="rs-block-label">제품 식별</div>
+        <div class="rs-product-row">
+          <div class="verdict-name" id="verdict-name">—</div>
+          <div class="verdict-inn"  id="verdict-inn">—</div>
+        </div>
+      </div>
+
+      <!-- S2: 핵심 판정 (신호등) -->
+      <div class="rs-block">
+        <div class="rs-block-label">핵심 판정</div>
+        <div class="rs-verdict-wrap">
+          <div class="traffic-light">
+            <div class="tl-lamp tl-red"    id="tl-red"></div>
+            <div class="tl-lamp tl-yellow" id="tl-yellow"></div>
+            <div class="tl-lamp tl-green"  id="tl-green"></div>
+          </div>
+          <span class="verdict-badge v-none" id="verdict-badge">—</span>
+        </div>
+      </div>
+
+      <!-- S3: 두괄식 판정 근거 -->
+      <div class="rs-block">
+        <div class="rs-block-label">두괄식 판정 근거</div>
+        <div class="basis-grid">
+          <div class="basis-item">
+            <div class="basis-label">시장 / 의료</div>
+            <div class="basis-value" id="basis-market-medical">—</div>
+          </div>
+          <div class="basis-item">
+            <div class="basis-label">규제</div>
+            <div class="basis-value" id="basis-regulatory">—</div>
+          </div>
+          <div class="basis-item">
+            <div class="basis-label">무역</div>
+            <div class="basis-value" id="basis-trade">—</div>
+          </div>
+          <div class="basis-item">
+            <div class="basis-label">참고 가격</div>
+            <div class="basis-value pbs-price-block" id="basis-pbs-line">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S4: 시장 진출 전략 -->
+      <div class="rs-block">
+        <div class="rs-block-label">시장 진출 전략</div>
+        <div class="rs-strategy-grid">
+          <div class="rs-strategy-item">
+            <div class="rs-strategy-sub">진입 채널 권고</div>
+            <span class="entry-pathway" id="entry-pathway"></span>
+          </div>
+          <div class="rs-strategy-item">
+            <div class="rs-strategy-sub">가격 포지셔닝</div>
+            <div class="basis-value pbs-price-block" id="price-positioning-pbs">—</div>
+          </div>
+          <div class="rs-strategy-item">
+            <div class="rs-strategy-sub">리스크 / 조건</div>
+            <div class="basis-value" id="risks-conditions">—</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-reanalyze" id="btn-reanalyze" onclick="runPipeline()">↺ 재분석</button>
+    </div>
+
+    <!-- 논문 카드 (refs 1건 이상일 때만 표시) -->
+    <div class="papers-card" id="papers-card">
+      <div class="card-title"><div class="card-title-dot"></div> Perplexity 추천 논문</div>
+      <div id="papers-list"></div>
+    </div>
+
+    <!-- PDF 보고서 카드 -->
+    <div class="report-card" id="report-card">
+      <div class="card-title"><div class="card-title-dot"></div> PDF 보고서</div>
+
+      <!-- 생성 중 -->
+      <div id="report-state-loading" style="display:none; align-items:center; gap:8px;">
+        <span class="report-loading-spinner"></span>
+        <span style="font-size:13px; color:var(--muted)">PDF 생성 중…</span>
+      </div>
+
+      <!-- 생성 완료 -->
+      <div id="report-state-ok" style="display:none">
+        <a class="btn-download" href="/api/report/download" target="_blank">
+          📄 PDF 보고서 다운로드
+        </a>
+        <p class="report-state">싱가포르 1공정 시장조사 보고서</p>
+      </div>
+
+      <!-- 생성 실패 -->
+      <div id="report-state-error" style="display:none">
+        <p class="report-state" style="color:var(--red)">PDF 생성 실패.</p>
+      </div>
+    </div>
+
+  </div><!-- /p1 -->
+
+  <!-- ════════════════════════════════════════════════════════
+    2공정 · 수출전략  (준비 중)
+  ════════════════════════════════════════════════════════ -->
+  <div id="p2" class="page">
+    <div class="empty-page">
+      <div class="ep-icon">🚧</div>
+      <div class="ep-msg">2공정 · 수출전략은 준비 중입니다</div>
+      <div class="ep-sub">추후 업데이트 예정</div>
+    </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════
-    품목 선택 & 분석 실행
-    동작: POST /api/pipeline/{product_key} → 폴링 → 결과 렌더링
-  ════════════════════════════════════════════════════════════ -->
-  <div class="selector-card">
-    <div class="selector-label">품목 선택 후 진출 적합 분석 실행</div>
-    <div class="selector-row">
-      <select id="product-select">
-        <option value="SG_sereterol_activair">Sereterol Activair — Fluticasone / Salmeterol</option>
-        <option value="SG_omethyl_omega3_2g">Omethyl — Omega-3 EE 2g</option>
-        <option value="SG_hydrine_hydroxyurea_500">하이드린 캡슐 — Hydroxyurea 500mg</option>
-        <option value="SG_gadvoa_gadobutrol_604">Gadvoa Inj. — Gadobutrol 604mg</option>
-        <option value="SG_rosumeg_combigel">Rosumeg Combigel — Rosuvastatin + Omega-3</option>
-        <option value="SG_atmeg_combigel">Atmeg Combigel — Atorvastatin + Omega-3</option>
-        <option value="SG_ciloduo_cilosta_rosuva">Ciloduo — Cilostazol + Rosuvastatin</option>
-        <option value="SG_gastiin_cr_mosapride">Gastiin CR — Mosapride (서방정)</option>
-      </select>
-      <button class="btn-analyze" id="btn-analyze" onclick="runPipeline()">
-        <span id="btn-icon">▶</span> 진출 적합 분석
-      </button>
-    </div>
-
-    <!--
-      진행 단계 표시
-      B2 수정: 크롤링(미사용) → DB 조회(db_load)
-      ID 규칙: prog-{STEP_ORDER 값}  (app.js STEP_ORDER 참조)
-    -->
-    <div class="progress-row" id="progress-row">
-      <div class="prog-step" id="prog-db_load">
-        <div class="prog-dot">1</div>
-        <div class="prog-label">DB 조회</div>
-      </div>
-      <div class="prog-step" id="prog-analyze">
-        <div class="prog-dot">2</div>
-        <div class="prog-label">Claude 분석</div>
-      </div>
-      <div class="prog-step" id="prog-refs">
-        <div class="prog-dot">3</div>
-        <div class="prog-label">논문 검색</div>
-      </div>
-      <div class="prog-step" id="prog-report">
-        <div class="prog-dot">4</div>
-        <div class="prog-label">PDF 생성</div>
-      </div>
+  <!-- ════════════════════════════════════════════════════════
+    3공정 · 바이어 발굴  (준비 중)
+  ════════════════════════════════════════════════════════ -->
+  <div id="p3" class="page">
+    <div class="empty-page">
+      <div class="ep-icon">🚧</div>
+      <div class="ep-msg">3공정 · 바이어 발굴은 준비 중입니다</div>
+      <div class="ep-sub">추후 업데이트 예정</div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════
-    신약 분석
-  ════════════════════════════════════════════════════════════ -->
-  <div class="selector-card" style="margin-top:16px">
-    <div class="selector-label">신약 분석</div>
-    <div class="custom-form">
-      <input type="text" id="custom-trade-name" class="custom-input" placeholder="약품명 (예: Nexavar)">
-      <input type="text" id="custom-inn"        class="custom-input" placeholder="성분명 (예: sorafenib)">
-      <input type="text" id="custom-dosage"     class="custom-input" placeholder="제형 (예: 200mg tablet)">
-      <button class="btn-analyze" id="btn-custom" onclick="runCustomPipeline()">
-        <span id="custom-icon">▶</span> 신약 분석
-      </button>
-    </div>
-    <div class="progress-row" id="custom-progress-row">
-      <div class="prog-step" id="cprog-analyze">
-        <div class="prog-dot">1</div>
-        <div class="prog-label">Claude 분석</div>
+  <!-- ════════════════════════════════════════════════════════
+    보고서 탭
+    ▸ 1공정 분석 완료 시 renderResult() → _addReportEntry() → 자동 등록
+    ▸ localStorage 저장 (최대 30건)
+  ════════════════════════════════════════════════════════ -->
+  <div id="rep" class="page">
+    <article class="card">
+      <div class="sec">
+        <div>
+          <h3>생성된 보고서</h3>
+          <p>1공정 분석 완료 시 자동 등록 · PDF 다운로드 가능</p>
+        </div>
+        <span class="tag">Reports</span>
       </div>
-      <div class="prog-step" id="cprog-refs">
-        <div class="prog-dot">2</div>
-        <div class="prog-label">논문 검색</div>
+      <div id="report-tab-list">
+        <div class="rep-empty">
+          아직 생성된 보고서가 없습니다.<br>
+          1공정 분석을 실행하면 여기에 자동으로 등록됩니다.
+        </div>
       </div>
-      <div class="prog-step" id="cprog-report">
-        <div class="prog-dot">3</div>
-        <div class="prog-label">PDF 생성</div>
-      </div>
-    </div>
+    </article>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════
-    분석 결과 카드 — 섹션 구조
-    S1: 제품 식별   S2: 핵심 판정(신호등)
-    S3: 두괄식 판정 근거   S4: 시장 진출 전략
-  ════════════════════════════════════════════════════════════ -->
-  <div class="result-card" id="result-card">
-    <div class="card-title"><div class="card-title-dot"></div> 수출 적합성 분석 결과</div>
+</main>
+</div><!-- /app -->
 
-    <!-- S1: 제품 식별 -->
-    <div class="rs-block">
-      <div class="rs-block-label">제품 식별</div>
-      <div class="rs-product-row">
-        <div class="verdict-name" id="verdict-name">—</div>
-        <div class="verdict-inn"  id="verdict-inn">—</div>
-      </div>
-    </div>
-
-    <!-- S2: 핵심 판정 (신호등) -->
-    <div class="rs-block">
-      <div class="rs-block-label">핵심 판정</div>
-      <div class="rs-verdict-wrap">
-        <div class="traffic-light">
-          <div class="tl-lamp tl-red"    id="tl-red"></div>
-          <div class="tl-lamp tl-yellow" id="tl-yellow"></div>
-          <div class="tl-lamp tl-green"  id="tl-green"></div>
-        </div>
-        <!-- 판정 배지: v-ok(적합) / v-warn(조건부) / v-err(부적합) / v-none(미분석) -->
-        <span class="verdict-badge v-none" id="verdict-badge">—</span>
-      </div>
-    </div>
-
-    <!-- S3: 두괄식 판정 근거 -->
-    <div class="rs-block">
-      <div class="rs-block-label">두괄식 판정 근거</div>
-      <div class="basis-grid">
-        <div class="basis-item">
-          <div class="basis-label">시장 / 의료</div>
-          <div class="basis-value" id="basis-market-medical">—</div>
-        </div>
-        <div class="basis-item">
-          <div class="basis-label">규제</div>
-          <div class="basis-value" id="basis-regulatory">—</div>
-        </div>
-        <div class="basis-item">
-          <div class="basis-label">무역</div>
-          <div class="basis-value" id="basis-trade">—</div>
-        </div>
-        <div class="basis-item basis-item-full">
-          <div class="basis-label">참고 가격</div>
-          <div class="basis-value pbs-price-block" id="basis-pbs-line">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- S4: 시장 진출 전략 -->
-    <div class="rs-block">
-      <div class="rs-block-label">시장 진출 전략</div>
-      <div class="rs-strategy-grid">
-        <div class="rs-strategy-item">
-          <div class="rs-strategy-sub">진입 채널 권고</div>
-          <!-- U2: 진입 경로 — CSS display:none 초기값, JS에서 값 있을 때 표시 -->
-          <span class="entry-pathway" id="entry-pathway"></span>
-        </div>
-        <div class="rs-strategy-item">
-          <div class="rs-strategy-sub">가격 포지셔닝</div>
-          <div class="basis-value pbs-price-block" id="price-positioning-pbs">—</div>
-        </div>
-        <div class="rs-strategy-item">
-          <div class="rs-strategy-sub">리스크 / 조건</div>
-          <div class="basis-value" id="risks-conditions">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- U6: 재분석 — CSS display:none 초기값, 분석 완료 후 표시 -->
-    <button class="btn-reanalyze" id="btn-reanalyze" onclick="runPipeline()">
-      ↺ 재분석
-    </button>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════════
-    논문 카드 (B4 수정: refs 1건 이상일 때만 표시)
-    데이터: Perplexity sonar-pro 검색 결과
-    PERPLEXITY_API_KEY 미설정 시 자동으로 숨겨짐
-  ════════════════════════════════════════════════════════════ -->
-  <div class="papers-card" id="papers-card">
-    <div class="card-title"><div class="card-title-dot"></div> Perplexity 추천 논문</div>
-    <div id="papers-list"></div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════════
-    PDF 보고서 카드 (U4 수정: 3가지 상태)
-    - report-state-loading: PDF 생성 중 스피너
-    - report-state-ok:      생성 완료 & 다운로드 버튼
-    - report-state-error:   생성 실패 메시지
-  ════════════════════════════════════════════════════════════ -->
-  <div class="report-card" id="report-card">
-    <div class="card-title"><div class="card-title-dot"></div> PDF 보고서</div>
-
-    <!-- 생성 중 -->
-    <div id="report-state-loading" style="display:none; align-items:center; gap:8px;">
-      <span class="report-loading-spinner"></span>
-      <span style="font-size:13px; color:var(--muted)">PDF 생성 중…</span>
-    </div>
-
-    <!-- 생성 완료 -->
-    <div id="report-state-ok" style="display:none">
-      <a class="btn-download" href="/api/report/download" target="_blank">
-        📄 PDF 보고서 다운로드
-      </a>
-      <p class="report-state">싱가포르 1공정 시장조사 보고서</p>
-    </div>
-
-    <!-- 생성 실패 -->
-    <div id="report-state-error" style="display:none">
-      <p class="report-state" style="color:var(--err)">
-        PDF 생성 실패.
-      </p>
-    </div>
-  </div>
-
-</div><!-- /container -->
-
-<!-- app.js: 모든 동작 로직 (버그 수정 + UX 개선) -->
 <script src="/static/app.js"></script>
 </body>
 </html>
