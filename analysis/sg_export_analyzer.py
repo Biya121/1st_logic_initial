@@ -240,7 +240,7 @@ def _build_analysis_prompt(
 
     return f"""당신은 싱가포르 의약품 수출 가능성을 분석하는 전문 컨설턴트입니다.
 아래 품목에 대해 싱가포르 1공정(규제 적합성·시장 진입 가능성) 관점에서 수출 적합성을 판단하세요.
-호주 PBS 공개 스케줄에서 추출한 참고 가격(DPMQ)이 있으면 반드시 활용하되,
+PBS 공개 스케줄에서 추출한 참고 가격(DPMQ)이 있으면 반드시 활용하되,
 반드시 "(PBS, 방법론적 추산)" 라벨을 붙이고 싱가포르 약가·ERP 직접 벤치마크가 아님을 분명히 하세요.
 사실 우선순위:
 1) 기관 원문 데이터(HSA/MOH/PBS/가이드라인)와 정적 컨텍스트
@@ -300,7 +300,7 @@ def _build_analysis_prompt(
   "basis_trade": "<무역/유통 근거 2~3문장. PBS DPMQ·환율 참고 시 무역/가격 맥락에 반영>",
   "key_factors": ["<요인1>", "<요인2>", "<요인3>"],
   "entry_pathway": "<권장 진입 경로: NDA Full / 동등성(Abridged) / 복합제 별도 등록 / 브랜드 등록>",
-  "price_positioning_pbs": "<가격 포지셔닝 2~3문장. 반드시 완전한 문장으로만 작성. PBS DPMQ가 확보된 경우 'DPMQ AUD X.XX, 참고 SGD Y.YY 수준(PBS, 방법론적 추산)'을 포함. PBS 미등재(204) 또는 데이터 없는 경우 '호주 PBS 미등재로 DPMQ 참고가를 직접 산출할 수 없으며, [레퍼런스 경쟁품명] 기존 약가를 벤치마크로 한 상대적 가격 전략 수립이 필요합니다.'와 같이 완전한 문장으로 서술. '제시할 수 없다' 같은 불완전 표현 사용 금지.>",
+  "price_positioning_pbs": "<가격 포지셔닝 2~3문장. 반드시 완전한 문장으로만 작성. PBS DPMQ가 확보된 경우 'DPMQ AUD X.XX, 참고 SGD Y.YY 수준(PBS, 방법론적 추산)'을 포함. PBS 미등재(204) 또는 데이터 없는 경우 '단일 가격이 공개되어 있으나 대상 품목 미등재로 직접 약가 벤치마크 산출이 제한적이며, [레퍼런스 경쟁품명] 기존 약가를 벤치마크로 한 상대적 가격 전략 수립이 필요합니다.'와 같이 서술. '제시할 수 없다' 같은 불완전 표현 사용 금지.>",
   "risks_conditions": "<진입 시 리스크/조건 2~3문장>",
   "sources": [
     {{"name": "<출처명>", "url": "<URL 또는 '내부 데이터'>"}}
@@ -401,6 +401,10 @@ def _sanitize_source_attribution_phrase(text: str) -> str:
         (r"DB\s*데이터에\s*따르면", "공개 기관 자료에 따르면"),
         (r"내부\s*(DB|데이터베이스|저장소)\s*기준", "현재 확보된 공개 기관 자료 기준"),
         (r"Supabase\s*기준", "현재 확보된 공개 기관 자료 기준"),
+        (r"호주\s*PBS", "PBS"),
+        (r"PBS\s*\(호주[^\)]*\)", "PBS"),
+        (r"호주\s*공개\s*스케줄", "공개 스케줄"),
+        (r"호주", ""),
     ]
     out = s
     for pat, repl in rules:
@@ -417,7 +421,7 @@ def _infer_source_name_from_url(url: str) -> str:
     if "healthhub.sg" in u:
         return "HealthHub Singapore"
     if "pharmaceutical-benefits-scheme" in u or "pbs.gov.au" in u:
-        return "PBS Australia"
+        return "PBS Public Schedule"
     if "data.gov.sg" in u:
         return "data.gov.sg"
     if "who.int" in u:
@@ -444,6 +448,10 @@ def _normalize_sources(result: dict[str, Any]) -> dict[str, Any]:
         url = str(s.get("url", "") or "").strip()
         if name and "supabase" in name.lower():
             continue
+        if name:
+            name = name.replace("PBS Australia", "PBS Public Schedule")
+            name = name.replace("호주 PBS", "PBS")
+            name = name.replace("호주", "").strip()
         if not name and url:
             name = _infer_source_name_from_url(url)
         if not name:
@@ -473,6 +481,48 @@ def _polish_evidence_texts(result: dict[str, Any]) -> dict[str, Any]:
         v = out.get(k)
         if isinstance(v, str):
             out[k] = _sanitize_source_attribution_phrase(v)
+    return out
+
+
+def _normalize_price_positioning_pbs(
+    result: dict[str, Any],
+    pbs_res: Any,
+) -> dict[str, Any]:
+    """가격 포지셔닝 문장을 사용자 가이드 문맥으로 정리."""
+    out = dict(result)
+    default_line = (
+        "단일 가격이 공개되어 있으나, 대상 품목 미등재로 인해 직접 약가 벤치마크를 "
+        "산출하기엔 제한적입니다. 싱가포르에서는 기존 경쟁품의 병원·약국 공급가와 "
+        "처방 채널 가격대를 기준으로 상대 가격 전략을 수립하는 접근이 적절합니다."
+    )
+
+    current = str(out.get("price_positioning_pbs", "") or "").strip()
+    if current:
+        current = _sanitize_source_attribution_phrase(current)
+
+    if getattr(pbs_res, "dpmq_aud", None) is not None:
+        aud = float(getattr(pbs_res, "dpmq_aud"))
+        sgd = getattr(pbs_res, "dpmq_sgd_hint", None)
+        if sgd is not None:
+            ref = f"DPMQ AUD {aud:.2f}(참고 SGD {float(sgd):.2f} 수준, PBS 방법론적 추산)"
+        else:
+            ref = f"DPMQ AUD {aud:.2f}(PBS 방법론적 추산)"
+        out["price_positioning_pbs"] = (
+            f"{ref}이 공개되어 있으나, 직접 약가 벤치마크로 단정하기에는 제한적입니다. "
+            "싱가포르에서는 기존 경쟁품의 병원·약국 공급가를 기준으로 상대 가격 전략을 수립하는 접근이 적절합니다."
+        )
+        return out
+
+    fetch_error = str(getattr(pbs_res, "fetch_error", "") or "").strip()
+    if "미등재" in fetch_error:
+        out["price_positioning_pbs"] = default_line
+        return out
+
+    if not current:
+        out["price_positioning_pbs"] = default_line
+        return out
+
+    out["price_positioning_pbs"] = current
     return out
 
 
@@ -669,7 +719,7 @@ async def analyze_product(
         if pbs_u and not any(
             isinstance(x, dict) and str(x.get("url", "")) == pbs_u for x in src_list
         ):
-            src_list.insert(0, {"name": "PBS Australia", "url": pbs_u})
+            src_list.insert(0, {"name": "PBS Public Schedule", "url": pbs_u})
         result["sources"] = src_list
 
     # API 미설정 또는 분석 실패 시 — 보고서에 명확히 표시
@@ -712,7 +762,7 @@ async def analyze_product(
             ),
             "risks_conditions": "",
             "sources": (
-                [{"name": "PBS Australia", "url": pbs_res.listing_url}]
+                [{"name": "PBS Public Schedule", "url": pbs_res.listing_url}]
                 if pbs_res.listing_url else []
             ),
             "confidence_note": "API 미설정" if no_api else "분석 실패",
@@ -720,6 +770,7 @@ async def analyze_product(
 
     result = _soften_analysis_language(result)
     result = _polish_evidence_texts(result)
+    result = _normalize_price_positioning_pbs(result, pbs_res)
     result = _normalize_sources(result)
 
     # PBS 가격 없으면 Haiku로 참고 가격 보완
@@ -731,7 +782,7 @@ async def analyze_product(
     if not (result.get("price_positioning_pbs") or "").strip():
         if pbs_res.dpmq_aud is not None:
             result["price_positioning_pbs"] = (
-                f"호주 PBS DPMQ 약 AUD {pbs_res.dpmq_aud:.2f}, "
+                f"PBS DPMQ 약 AUD {pbs_res.dpmq_aud:.2f}, "
                 f"참고 SGD 약 {pbs_res.dpmq_sgd_hint} 수준(환율 변동). "
                 "싱가포르 소매가와 동일시하지 않습니다."
             )
@@ -739,7 +790,7 @@ async def analyze_product(
             result["price_positioning_pbs"] = haiku_estimate
         elif pbs_res.fetch_error:
             result["price_positioning_pbs"] = (
-                "호주 PBS 미등재 또는 조회 오류로 DPMQ 참고가를 직접 산출할 수 없습니다. "
+                "PBS 미등재 또는 조회 오류로 DPMQ 참고가를 직접 산출하기엔 제한적입니다. "
                 "싱가포르 약가 포지셔닝은 동일 성분 경쟁 제품의 기존 약가를 벤치마크로 하여 "
                 "tender 입찰 경쟁력을 고려한 상대적 가격 전략 수립이 필요합니다."
             )
@@ -853,6 +904,7 @@ async def analyze_custom_product(
     if result is not None:
         result = _soften_analysis_language(result)
         result = _polish_evidence_texts(result)
+        result = _normalize_price_positioning_pbs(result, pbs_res)
         result = _normalize_sources(result)
 
     haiku_estimate: str | None = None
@@ -879,7 +931,7 @@ async def analyze_custom_product(
     if not (result.get("price_positioning_pbs") or "").strip():
         if pbs_res.dpmq_aud is not None:
             result["price_positioning_pbs"] = (
-                f"호주 PBS DPMQ 약 AUD {pbs_res.dpmq_aud:.2f}, "
+                f"PBS DPMQ 약 AUD {pbs_res.dpmq_aud:.2f}, "
                 f"참고 SGD 약 {pbs_res.dpmq_sgd_hint} 수준(환율 변동)."
             )
         elif haiku_estimate:
