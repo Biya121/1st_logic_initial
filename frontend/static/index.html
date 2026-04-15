@@ -100,24 +100,25 @@
         </div>
 
         <!-- 환율 (동적 — loadExchange() 가 채움) -->
-        <div id="exchange-content" style="margin-top:14px;">
-          <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">KRW / SGD</div>
-          <div id="exchange-main-rate"
-               style="font-size:28px;font-weight:900;color:var(--navy);letter-spacing:-.04em;line-height:1;">
-            —<span style="font-size:14px;margin-left:4px;color:var(--muted);font-weight:700;">원</span>
+        <div class="exchange-section">
+          <div id="exchange-content">
+            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">KRW / SGD</div>
+            <div id="exchange-main-rate"
+                 style="font-size:28px;font-weight:900;color:var(--navy);letter-spacing:-.04em;line-height:1;">
+              —<span style="font-size:14px;margin-left:4px;color:var(--muted);font-weight:700;">원</span>
+            </div>
+            <div id="exchange-sub"
+                 style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+            </div>
+            <div id="exchange-source"
+                 style="font-size:10.5px;color:var(--muted);margin-top:8px;">
+              조회 중…
+            </div>
           </div>
-          <div id="exchange-sub"
-               style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
-          </div>
-          <div id="exchange-source"
-               style="font-size:10.5px;color:var(--muted);margin-top:8px;">
-            조회 중…
-          </div>
+          <button class="btn-refresh" id="btn-exchange-refresh" onclick="loadExchange()">
+            ↺ 환율 새로고침
+          </button>
         </div>
-
-        <button class="btn-refresh" id="btn-exchange-refresh" onclick="loadExchange()">
-          ↺ 환율 새로고침
-        </button>
       </article>
 
       <!-- ── To-Do 체크리스트 카드 ─────────────────────────────── -->

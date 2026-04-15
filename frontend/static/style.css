@@ -201,6 +201,15 @@ body {
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 14px; }
 .g1 { margin-bottom: 14px; }
 
+/* 관세 카드 — 환율 섹션을 하단 고정 */
+#main .g3 .card:first-child {
+  display: flex;
+  flex-direction: column;
+}
+.exchange-section {
+  margin-top: auto;
+  padding-top: 14px;
+}
 
 /* ── 8. 뱃지 ─────────────────────────────────────────────────────────────── */
 .bdg {
