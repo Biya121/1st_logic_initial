@@ -296,7 +296,7 @@ def _build_analysis_prompt(
   "basis_trade": "<무역/유통 근거 2~3문장. PBS DPMQ·환율 참고 시 무역/가격 맥락에 반영>",
   "key_factors": ["<요인1>", "<요인2>", "<요인3>"],
   "entry_pathway": "<권장 진입 경로: NDA Full / 동등성(Abridged) / 복합제 별도 등록 / 브랜드 등록>",
-  "price_positioning_pbs": "<호주 PBS DPMQ·참고 SGD 환산·(PBS, 방법론적 추산) 라벨을 포함한 가격 포지셔닝 2~3문장. PBS 데이터 없으면 현재 확보된 데이터 기준으로 서술>",
+  "price_positioning_pbs": "<가격 포지셔닝 2~3문장. 반드시 완전한 문장으로만 작성. PBS DPMQ가 확보된 경우 'DPMQ AUD X.XX, 참고 SGD Y.YY 수준(PBS, 방법론적 추산)'을 포함. PBS 미등재(204) 또는 데이터 없는 경우 '호주 PBS 미등재로 DPMQ 참고가를 직접 산출할 수 없으며, [레퍼런스 경쟁품명] 기존 약가를 벤치마크로 한 상대적 가격 전략 수립이 필요합니다.'와 같이 완전한 문장으로 서술. '제시할 수 없다' 같은 불완전 표현 사용 금지.>",
   "risks_conditions": "<진입 시 리스크/조건 2~3문장>",
   "sources": [
     {{"name": "<출처명>", "url": "<URL 또는 '내부 데이터'>"}}
@@ -640,7 +640,11 @@ async def analyze_product(
         elif haiku_estimate:
             result["price_positioning_pbs"] = haiku_estimate
         elif pbs_res.fetch_error:
-            result["price_positioning_pbs"] = "현재 확보된 범위에서 가격 데이터를 확인할 수 없습니다."
+            result["price_positioning_pbs"] = (
+                "호주 PBS 미등재 또는 조회 오류로 DPMQ 참고가를 직접 산출할 수 없습니다. "
+                "싱가포르 약가 포지셔닝은 동일 성분 경쟁 제품의 기존 약가를 벤치마크로 하여 "
+                "tender 입찰 경쟁력을 고려한 상대적 가격 전략 수립이 필요합니다."
+            )
 
     return {
         "product_id": product_id,

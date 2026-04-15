@@ -252,18 +252,35 @@ def build_report(
             "papers":  papers_list,
         }
 
+        # DB/기관별 정적 설명 매핑 — 이름 키워드 기반으로 적절한 설명 선택
+        _DB_DESC_MAP: dict[str, str] = {
+            "SG:kup_pipeline":          "KU Pharma 내부 파이프라인 DB — 제품 식별자·시장 세그먼트·규제 ID·신뢰도 점수 보유",
+            "Supabase Database":        "KU Pharma 내부 Supabase DB — 제품별 시장 세그먼트·규제 식별자·신뢰도 점수 관리",
+            "KU Pharma Pipeline":       "KU Pharma 내부 Supabase DB — 제품별 시장 세그먼트·규제 식별자·신뢰도 점수 관리",
+            "HSA Therapeutic":          "싱가포르 HSA 공식 의약품 등록 DB — 등록 번호·승인일·성분명·레퍼런스 제품 정보 조회",
+            "HSA Singapore":            "싱가포르 HSA 공식 의약품 등록 DB — 등록 번호·승인일·성분명·레퍼런스 제품 정보 조회",
+            "PBS Public Schedule":      "호주 PBS 공개 스케줄 — DPMQ 기준 약가 및 등재 여부(미등재 204 포함). 싱가포르 약가와 직접 동일시 불가",
+            "PBS Australia":            "호주 PBS 공개 스케줄 — DPMQ 기준 약가 및 등재 여부(미등재 204 포함). 싱가포르 약가와 직접 동일시 불가",
+            "GeBIZ":                    "싱가포르 정부 공공조달 플랫폼(GeBIZ) — 발주기관별 tender 이력·낙찰 품목·의약품 수요 규모 조회",
+            "Perplexity":               "Perplexity 실시간 규제 검색 — HSA 최신 공지·임상 가이드라인·학술 논문 링크 실시간 보완",
+            "NDF":                      "싱가포르 국가 약제 포뮬러리(NDF) — 공립 병원 처방 허용 목록·포뮬러리 등재 현황 조회",
+        }
+
+        def _resolve_db_desc(name: str) -> str:
+            for keyword, desc in _DB_DESC_MAP.items():
+                if keyword.lower() in name.lower():
+                    return desc
+            return "분석에 참조된 데이터 출처"
+
         used_data_sources: list[dict[str, str]] = []
         if row:
             src_name = str(row.get("source_name", "") or "")
             src_url = str(row.get("source_url", "") or "")
             if src_name:
-                desc = "Supabase products 테이블의 수집 원천 레코드"
-                if src_name == "SG:kup_pipeline":
-                    desc = "KUP 파이프라인 표준 행(제품 식별/세그먼트/신뢰도)"
                 used_data_sources.append(
                     {
                         "name": src_name,
-                        "description": desc,
+                        "description": _resolve_db_desc(src_name),
                         "url": src_url,
                     }
                 )
@@ -279,7 +296,7 @@ def build_report(
             used_data_sources.append(
                 {
                     "name": name,
-                    "description": "분석 단계에서 실제로 참조된 근거 출처",
+                    "description": _resolve_db_desc(name),
                     "url": url,
                 }
             )
@@ -291,10 +308,7 @@ def build_report(
                 used_data_sources.append(
                     {
                         "name": "PBS Australia",
-                        "description": (
-                            "호주 PBS 공개 스케줄에서 추출한 DPMQ 등 "
-                            "(PBS, 방법론적 추산 — 싱가포르 약가 아님)"
-                        ),
+                        "description": _resolve_db_desc("PBS Australia"),
                         "url": pbs_url.strip(),
                     }
                 )
@@ -716,23 +730,8 @@ def render_pdf(report: dict, out_path: Path) -> None:
 
         story.append(Spacer(1, 8))
 
-        # ── 4-2. 출처 요약 ─────────────────────────────────────────────────────
-        pbs_n   = "1" if product.get("pbs_search_hit") else "0"
-        paper_n = str(len(valid_papers))
-        story.append(Paragraph(_rx("4-2. 출처 요약 (건수·비고)"), s_section))
-        story.append(
-            _triple_table(
-                [
-                    ("출처", "건수", "신뢰도 / 비고"),
-                    ("Perplexity 논문", paper_n, "문헌 링크·요약 참고"),
-                    ("PBS Australia", pbs_n, "(PBS, 방법론적 추산) — 싱가포르 약가 아님"),
-                ]
-            )
-        )
-        story.append(Spacer(1, 8))
-
-        # ── 4-3. 사용된 DB/기관 (3컬럼 표) ────────────────────────────────────
-        story.append(Paragraph(_rx("4-3. 사용된 DB/기관"), s_section))
+        # ── 4-2. 사용된 DB/기관 (3컬럼 표) ────────────────────────────────────
+        story.append(Paragraph(_rx("4-2. 사용된 DB/기관"), s_section))
         db_sources = [
             src for src in (product.get("used_data_sources", []) or [])
             if isinstance(src, dict) and src.get("name")
