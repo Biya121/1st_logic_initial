@@ -133,6 +133,7 @@ async function loadExchange() {
 
 const TODO_FIXED_IDS = ['p1', 'rep', 'p2', 'p3'];
 const TODO_LS_KEY    = 'sg_upharma_todos_v1';
+let _lastTodoAddAt   = 0;
 
 /** localStorage에서 todo 상태 읽기 */
 function _loadTodoState() {
@@ -188,14 +189,23 @@ function markTodoDone(id) {
 }
 
 /** 사용자가 직접 항목 추가 */
-function addTodoItem() {
+function addTodoItem(evt) {
+  if (evt) {
+    if (evt.isComposing || evt.repeat) return;
+    evt.preventDefault();
+  }
+
+  const now = Date.now();
+  if (now - _lastTodoAddAt < 250) return;
+  _lastTodoAddAt = now;
+
   const input = document.getElementById('todo-input');
   const text  = input ? input.value.trim() : '';
   if (!text) return;
 
   const state   = _loadTodoState();
   const customs = state.customs || [];
-  customs.push({ id: Date.now(), text, done: false });
+  customs.push({ id: now + Math.floor(Math.random() * 1000), text, done: false });
   state.customs = customs;
   _saveTodoState(state);
   _renderCustomTodos(state);
@@ -225,6 +235,7 @@ function deleteCustomTodo(id) {
 function _renderCustomTodos(state) {
   const container = document.getElementById('todo-custom-list');
   if (!container) return;
+  container.classList.add('todo-list');
 
   const customs = state.customs || [];
   if (!customs.length) { container.innerHTML = ''; return; }
@@ -236,7 +247,7 @@ function _renderCustomTodos(state) {
       <button
         onclick="event.stopPropagation();deleteCustomTodo(${c.id})"
         style="background:none;color:var(--muted);font-size:16px;cursor:pointer;
-               padding:0 4px;line-height:1;flex-shrink:0;"
+               border:none;outline:none;padding:0 4px;line-height:1;flex-shrink:0;"
         title="삭제"
       >×</button>
     </div>
