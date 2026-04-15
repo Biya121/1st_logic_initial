@@ -293,6 +293,8 @@ def build_report(
                 continue
             if any(d["name"] == name and d.get("url", "") == url for d in used_data_sources):
                 continue
+            if "korea united" in name.lower():
+                continue
             used_data_sources.append(
                 {
                     "name": name,
@@ -530,10 +532,6 @@ def render_pdf(report: dict, out_path: Path) -> None:
         escaped = _rx(cleaned)
         return Paragraph(escaped, style)
 
-    _ACE_NOTE = (
-        "ACE는 호주·캐나다·영국 등 HTA 기관 결정을 참고해 싱가포르 적용 가능성을 검토합니다."
-    )
-
     def _pbs_one_line(p: dict[str, Any]) -> str:
         aud = p.get("pbs_dpmq_aud")
         sgd = p.get("pbs_dpmq_sgd_hint")
@@ -541,11 +539,12 @@ def render_pdf(report: dict, out_path: Path) -> None:
             line = f"DPMQ AUD {aud:.2f}"
             if isinstance(sgd, (int, float)):
                 line += f", 참고 SGD {sgd:.2f}"
-            return f"{line} / {_ACE_NOTE}"
+            line += " (PBS, 방법론적 추산 — 싱가포르 약가 아님)"
+            return line
         haiku = str(p.get("pbs_haiku_estimate") or "").strip()
         if haiku:
             return haiku
-        return _ACE_NOTE
+        return "PBS 미등재 — 국제 가격 벤치마크 수집 후 산출 예정"
 
     def _triple_table(rows: list[tuple[str, str, str]]) -> Table:
         w1, w2, w3 = CONTENT_W * 0.28, CONTENT_W * 0.14, CONTENT_W * 0.58
@@ -616,9 +615,8 @@ def render_pdf(report: dict, out_path: Path) -> None:
         story.append(Spacer(1, 6))
 
         pid = str(product.get("product_id", ""))
-        packaging = _PACKAGING.get(pid, inn)
-        hs_code   = _HS_CODES.get(pid, "3004.90")
-        bar_txt = f"{trade}  |  {packaging}  |  HS {hs_code}"
+        hs_code = _HS_CODES.get(pid, "3004.90")
+        bar_txt = f"{trade} — {inn}  |  HS CODE: {hs_code}"
         bar_tbl = Table([[Paragraph(_rx(bar_txt), s_bar)]], colWidths=[CONTENT_W])
         bar_tbl.setStyle(
             TableStyle(
