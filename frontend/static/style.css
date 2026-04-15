@@ -69,8 +69,8 @@ body {
 
 /* ── 2. 앱 래퍼 ──────────────────────────────────────────────────────────── */
 .app {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100vh;
   background: var(--shell);
 }
 
@@ -109,7 +109,7 @@ body {
 .flag-emoji { font-size: 22px; line-height: 1; }
 
 /* ── 4. 내비게이션 탭 ────────────────────────────────────────────────────── */
-.main { padding: 18px 24px 28px; }
+.main { padding: 18px 32px 32px; }
 
 .nav {
   display: flex;
@@ -756,21 +756,21 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 @keyframes spin { to { transform: rotate(1turn); } }
 
 /* ── 23. 반응형 ──────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .g3 { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 960px) {
   .g2 { grid-template-columns: 1fr; }
   .g3 { grid-template-columns: 1fr; }
   .rs-strategy-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
-  body  { padding: 8px; }
-  .main { padding: 12px 14px 20px; }
+  .main { padding: 12px 16px 20px; }
   .topbar { padding: 10px 16px; }
   .brand-text h1 { font-size: 13px; }
   .g4 { grid-template-columns: repeat(2,1fr); }
   .selector-row   { flex-direction: column; }
   .btn-analyze    { width: 100%; justify-content: center; }
-  .key-status     { gap: 5px; }
-  .key-badge      { padding: 3px 8px; font-size: 10px; }
 }
 
 /* ── 24. 스크롤바 ────────────────────────────────────────────────────────── */
