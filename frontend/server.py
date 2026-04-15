@@ -451,6 +451,15 @@ async def pipeline_result(product_key: str) -> JSONResponse:
 
 _report_cache: dict[str, Any] = {"path": None, "running": False}
 
+def _latest_report_pdf() -> Path | None:
+    reports_dir = ROOT / "reports"
+    if not reports_dir.exists():
+        return None
+    pdfs = [p for p in reports_dir.glob("sg_report_*.pdf") if p.is_file()]
+    if not pdfs:
+        return None
+    return max(pdfs, key=lambda p: p.stat().st_mtime)
+
 
 class ReportBody(BaseModel):
     run_analysis: bool = False
@@ -489,21 +498,27 @@ async def trigger_report(body: ReportBody | None = None) -> JSONResponse:
 @app.get("/api/report/status")
 async def report_status() -> dict[str, Any]:
     reports_dir = ROOT / "reports"
-    pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True) if reports_dir.exists() else []
+    pdfs = [p for p in reports_dir.glob("sg_report_*.pdf")] if reports_dir.exists() else []
+    latest = _latest_report_pdf()
     return {
         "running": _report_cache["running"],
-        "latest_pdf": _report_cache["path"],
+        "latest_pdf": str(latest) if latest else _report_cache["path"],
         "pdf_count": len(pdfs),
     }
 
 
 @app.get("/api/report/download")
-async def download_report() -> Any:
+async def download_report(name: str | None = None) -> Any:
     reports_dir = ROOT / "reports"
-    pdfs = sorted(reports_dir.glob("sg_report_*.pdf"), reverse=True) if reports_dir.exists() else []
-    if not pdfs:
+    if name:
+        target = reports_dir / Path(name).name
+        if target.is_file():
+            return FileResponse(str(target), media_type="application/pdf", filename=target.name)
+
+    latest = _latest_report_pdf()
+    if not latest:
         raise HTTPException(status_code=404, detail="생성된 보고서 없음. POST /api/report 먼저 실행")
-    return FileResponse(str(pdfs[0]), media_type="application/pdf", filename=pdfs[0].name)
+    return FileResponse(str(latest), media_type="application/pdf", filename=latest.name)
 
 
 # ── products 조회 ─────────────────────────────────────────────────────────────

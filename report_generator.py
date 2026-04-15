@@ -150,6 +150,9 @@ def build_report(
     if analysis:
         ordered = [a.get("product_id", "") for a in analysis if a.get("product_id")]
         target_pids = [pid for pid in _EXPECTED_PRODUCTS if pid in ordered]
+        for pid in ordered:
+            if pid not in target_pids:
+                target_pids.append(pid)
     else:
         target_pids = list(_EXPECTED_PRODUCTS)
     total = len(target_pids)
@@ -369,6 +372,7 @@ def _register_korean_font() -> str:
         return _FONT_CACHE
 
     from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     from reportlab.pdfbase.ttfonts import TTFont
 
     candidates = [
@@ -390,6 +394,13 @@ def _register_korean_font() -> str:
                 return name
             except Exception:
                 continue
+    try:
+        # ReportLab 내장 CID 폰트 폴백(시스템 TTF 없어도 한글 표시 가능)
+        pdfmetrics.registerFont(UnicodeCIDFont("HYSMyeongJo-Medium"))
+        _FONT_CACHE = "HYSMyeongJo-Medium"
+        return "HYSMyeongJo-Medium"
+    except Exception:
+        pass
     _FONT_CACHE = "Helvetica"
     return "Helvetica"
 
@@ -416,6 +427,8 @@ def render_pdf(report: dict, out_path: Path) -> None:
 
     base_font = _register_korean_font()
     bold_font = f"{base_font}-Bold"
+    if base_font == "HYSMyeongJo-Medium":
+        bold_font = base_font
 
     # ── 템플릿 색상 ────────────────────────────────────────────────────────────
     C_NAVY   = colors.HexColor("#1B2A4A")
@@ -707,10 +720,10 @@ def render_pdf(report: dict, out_path: Path) -> None:
 
                 title_lines = _rx(title)
                 if source:
-                    title_lines += f"\n[{_rx(source)}]"
+                    title_lines += f"<br/>[{_rx(source)}]"
                 if url:
                     short_url = url[:75] + ("…" if len(url) > 75 else "")
-                    title_lines += f"\n{short_url}"
+                    title_lines += f"<br/>{_rx(short_url)}"
 
                 paper_tbl.append([
                     Paragraph(str(i), s_cell),

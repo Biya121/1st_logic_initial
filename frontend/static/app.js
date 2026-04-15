@@ -697,7 +697,7 @@ function renderResult(result, refs, pdfName) {
 
   /* ─ U4: PDF 보고서 카드 ─ */
   if (pdfName) {
-    _showReportOk();
+    _showReportOk(pdfName);
     // N3: 보고서 완료 → Todo 자동 체크
     markTodoDone('rep');
     // N4: 보고서 탭에 자동 등록
@@ -716,7 +716,12 @@ function _showReportLoading() {
 }
 
 /** U4: PDF 생성 완료 */
-function _showReportOk() {
+function _showReportOk(pdfName) {
+  const dl = document.querySelector('#report-state-ok .btn-download');
+  if (dl) {
+    const q = pdfName ? `?name=${encodeURIComponent(pdfName)}` : '';
+    dl.setAttribute('href', `/api/report/download${q}`);
+  }
   document.getElementById('report-state-loading').style.display = 'none';
   document.getElementById('report-state-ok').style.display      = 'block';
   document.getElementById('report-state-error').style.display   = 'none';

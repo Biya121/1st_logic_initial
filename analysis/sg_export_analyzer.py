@@ -243,7 +243,7 @@ def _build_analysis_prompt(
 호주 PBS 공개 스케줄에서 추출한 참고 가격(DPMQ)이 있으면 반드시 활용하되,
 반드시 "(PBS, 방법론적 추산)" 라벨을 붙이고 싱가포르 약가·ERP 직접 벤치마크가 아님을 분명히 하세요.
 사실 우선순위:
-1) Supabase DB(아래 'Supabase 사실')와 정적 컨텍스트
+1) 기관 원문 데이터(HSA/MOH/PBS/가이드라인)와 정적 컨텍스트
 2) PBS 참고 가격 블록(있을 때)
 3) Perplexity 실시간 컨텍스트(있을 때만 보강)
 4) 일반 추론
@@ -260,7 +260,7 @@ def _build_analysis_prompt(
 - HSA 등재 상태: {meta['hsa_reg']}
 - 주요 리스크: {meta['key_risk']}
 
-## Supabase 사실 (우선 근거)
+## 내부 저장 데이터 (원문 출처 메타 포함)
 {db_facts}
 {static_section}{pbs_section}
 ## 실시간 규제·시장 정보 (Perplexity)
@@ -280,6 +280,10 @@ def _build_analysis_prompt(
 - 줄바꿈(\n), 불릿 기호(-, •, *), 번호 목록(1. 2. 등), 소제목을 절대 사용하지 마세요.
 - 각 필드는 2~3개의 연속된 문장으로만 구성하세요.
 - 제조사명을 본문에 언급하지 마세요.
+- "Supabase에 따르면", "DB에 따르면", "내부 저장소 기준" 같은 표현을 본문에 쓰지 마세요.
+- 두괄식 판정 근거 및 시장 진출 전략 문장에는 반드시 기관+자료명을 명시하세요.
+  예: "HSA Therapeutic Products Register(조회일: YYYY-MM-DD)에 따르면 ...", "MOH 통계 연보(연도)에 따르면 ..."
+- 각 핵심 근거 문장에는 가능하면 수치/상태값(예: 등재 여부, 경쟁품 수, 등록 유형)을 1개 이상 포함하세요.
 
 문장 톤 규칙:
 - "불가능", "확인 불가", "제공되지 않아" 같은 단정적 결핍 표현은 쓰지 마세요.
@@ -377,6 +381,98 @@ def _soften_analysis_language(result: dict[str, Any]) -> dict[str, Any]:
         out["key_factors"] = [
             _soften_limit_phrase(str(x)) for x in out["key_factors"]
         ]
+    return out
+
+
+def _sanitize_source_attribution_phrase(text: str) -> str:
+    """저장소 중심 표현을 기관/자료 중심 표현으로 정리."""
+    import re
+
+    s = (text or "").strip()
+    if not s:
+        return s
+
+    rules: list[tuple[str, str]] = [
+        (
+            r"Supabase\s*(및|와)?\s*HSA\s*(시장\s*조사\s*)?데이터에\s*따르면",
+            "HSA 공개 자료에 따르면",
+        ),
+        (r"Supabase\s*데이터에\s*따르면", "공개 기관 자료에 따르면"),
+        (r"DB\s*데이터에\s*따르면", "공개 기관 자료에 따르면"),
+        (r"내부\s*(DB|데이터베이스|저장소)\s*기준", "현재 확보된 공개 기관 자료 기준"),
+        (r"Supabase\s*기준", "현재 확보된 공개 기관 자료 기준"),
+    ]
+    out = s
+    for pat, repl in rules:
+        out = re.sub(pat, repl, out, flags=re.IGNORECASE)
+    return out
+
+
+def _infer_source_name_from_url(url: str) -> str:
+    u = (url or "").lower()
+    if "hsa.gov.sg" in u:
+        return "HSA Singapore"
+    if "moh.gov.sg" in u:
+        return "MOH Singapore"
+    if "healthhub.sg" in u:
+        return "HealthHub Singapore"
+    if "pharmaceutical-benefits-scheme" in u or "pbs.gov.au" in u:
+        return "PBS Australia"
+    if "data.gov.sg" in u:
+        return "data.gov.sg"
+    if "who.int" in u:
+        return "WHO"
+    if "ncbi.nlm.nih.gov" in u or "pubmed" in u:
+        return "PubMed"
+    return "공개 출처"
+
+
+def _normalize_sources(result: dict[str, Any]) -> dict[str, Any]:
+    """sources를 기관/자료 중심으로 정리하고 내부 저장소 표기를 제거."""
+    out = dict(result)
+    src_raw = out.get("sources")
+    if not isinstance(src_raw, list):
+        out["sources"] = []
+        return out
+
+    normalized: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for s in src_raw:
+        if not isinstance(s, dict):
+            continue
+        name = str(s.get("name", "") or "").strip()
+        url = str(s.get("url", "") or "").strip()
+        if name and "supabase" in name.lower():
+            continue
+        if not name and url:
+            name = _infer_source_name_from_url(url)
+        if not name:
+            continue
+        key = (name.lower(), url.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append({"name": name, "url": url})
+    out["sources"] = normalized
+    return out
+
+
+def _polish_evidence_texts(result: dict[str, Any]) -> dict[str, Any]:
+    """근거 문장에서 저장소 기반 표현 제거."""
+    out = dict(result)
+    for k in (
+        "rationale",
+        "basis_market_medical",
+        "basis_regulatory",
+        "basis_trade",
+        "entry_pathway",
+        "price_positioning_pbs",
+        "risks_conditions",
+        "confidence_note",
+    ):
+        v = out.get(k)
+        if isinstance(v, str):
+            out[k] = _sanitize_source_attribution_phrase(v)
     return out
 
 
@@ -623,6 +719,8 @@ async def analyze_product(
         }
 
     result = _soften_analysis_language(result)
+    result = _polish_evidence_texts(result)
+    result = _normalize_sources(result)
 
     # PBS 가격 없으면 Haiku로 참고 가격 보완
     haiku_estimate: str | None = None
@@ -670,15 +768,15 @@ async def analyze_product(
                 if analysis_error is None else "fallback (API 미설정/실패)"
             ),
             "두괄식 근거 - 시장/의료": (
-                "Claude Haiku + Supabase/정적 컨텍스트"
+                "Claude Haiku + HSA/MOH/공개기관 컨텍스트"
                 if analysis_error is None else "fallback"
             ),
             "두괄식 근거 - 규제": (
-                "Claude Haiku + Supabase/정적 컨텍스트"
+                "Claude Haiku + HSA/MOH/공개기관 컨텍스트"
                 if analysis_error is None else "fallback"
             ),
             "두괄식 근거 - 무역": (
-                "Claude Haiku + Supabase/정적 컨텍스트"
+                "Claude Haiku + HSA/MOH/공개기관 컨텍스트"
                 if analysis_error is None else "fallback"
             ),
             "시장 진출 전략 - 진입 채널 권고": (
@@ -686,7 +784,7 @@ async def analyze_product(
                 if analysis_error is None else "fallback"
             ),
             "시장 진출 전략 - 리스크/조건": (
-                "Claude Haiku + Supabase/정적 컨텍스트"
+                "Claude Haiku + HSA/MOH/공개기관 컨텍스트"
                 if analysis_error is None else "fallback"
             ),
         },
@@ -754,6 +852,8 @@ async def analyze_custom_product(
 
     if result is not None:
         result = _soften_analysis_language(result)
+        result = _polish_evidence_texts(result)
+        result = _normalize_sources(result)
 
     haiku_estimate: str | None = None
     if pbs_res.dpmq_aud is None and claude_key:
