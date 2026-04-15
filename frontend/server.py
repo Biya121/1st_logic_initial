@@ -132,6 +132,59 @@ async def analyze_status() -> dict[str, Any]:
     }
 
 
+# ── 시장 신호 · 뉴스 (SerpAPI Google News) ───────────────────────────────────
+
+_news_cache: dict[str, Any] = {"data": None, "ts": 0.0}
+_NEWS_TTL = 1800  # 30분 캐시
+
+
+@app.get("/api/news")
+async def api_news() -> JSONResponse:
+    """SerpAPI Google News — 싱가포르 제약 시장 뉴스 (30분 캐시)."""
+    import time as _time
+    import os
+
+    if _news_cache["data"] and _time.time() - _news_cache["ts"] < _NEWS_TTL:
+        return JSONResponse(_news_cache["data"])
+
+    serp_key = os.environ.get("SERP_API_KEY", "")
+    if not serp_key:
+        return JSONResponse({"ok": False, "error": "SERP_API_KEY 미설정", "items": []})
+
+    def _fetch() -> dict[str, Any]:
+        import urllib.request, urllib.parse, json as _json
+
+        params = urllib.parse.urlencode({
+            "engine":  "google_news",
+            "q":       "Singapore pharmaceutical drug HSA export",
+            "hl":      "en",
+            "gl":      "sg",
+            "api_key": serp_key,
+        })
+        url = f"https://serpapi.com/search.json?{params}"
+        with urllib.request.urlopen(url, timeout=10) as r:
+            raw = _json.loads(r.read())
+
+        items = []
+        for n in raw.get("news_results", [])[:6]:
+            items.append({
+                "title":  n.get("title", ""),
+                "source": n.get("source", {}).get("name", "") if isinstance(n.get("source"), dict) else str(n.get("source", "")),
+                "date":   n.get("date", ""),
+                "link":   n.get("link", ""),
+            })
+        return {"ok": True, "items": items}
+
+    try:
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, _fetch)
+        _news_cache["data"] = data
+        _news_cache["ts"]   = _time.time()
+        return JSONResponse(data)
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": str(exc)[:120], "items": []})
+
+
 # ── 거시지표 ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/macro")

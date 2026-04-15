@@ -793,10 +793,50 @@ function _escHtml(s) {
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   §11. 초기화
+   §11. 시장 신호 · 뉴스 (SerpAPI)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+async function loadNews() {
+  const listEl = document.getElementById('news-list');
+  const btn    = document.getElementById('btn-news-refresh');
+  if (!listEl) return;
+
+  if (btn) btn.disabled = true;
+  listEl.innerHTML = '<div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0;">뉴스 로드 중…</div>';
+
+  try {
+    const res  = await fetch('/api/news');
+    const data = await res.json();
+
+    if (!data.ok || !data.items?.length) {
+      listEl.innerHTML = `<div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:16px 0;">${data.error || '뉴스를 불러올 수 없습니다.'}</div>`;
+      return;
+    }
+
+    listEl.innerHTML = data.items.map(item => {
+      const href   = item.link ? `href="${_escHtml(item.link)}" target="_blank" rel="noopener"` : '';
+      const tag    = item.link ? 'a' : 'div';
+      const source = [item.source, item.date].filter(Boolean).join(' · ');
+      return `
+        <${tag} class="irow news-item" ${href} style="${item.link ? 'text-decoration:none;display:block;' : ''}">
+          <div class="tit">${_escHtml(item.title)}</div>
+          ${source ? `<div class="sub">${_escHtml(source)}</div>` : ''}
+        </${tag}>`;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = '<div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:16px 0;">뉴스 조회 실패 — 잠시 후 다시 시도해 주세요</div>';
+    console.warn('뉴스 로드 실패:', e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §12. 초기화
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 loadKeyStatus();   // §6: API 키 배지
 loadExchange();    // §3: 환율 즉시 로드
 initTodo();        // §4: Todo 상태 복원
 renderReportTab(); // §5: 보고서 탭 초기 렌더
+loadNews();        // §11: 시장 뉴스 즉시 로드
