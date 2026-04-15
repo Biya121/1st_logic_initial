@@ -63,11 +63,7 @@
 body {
   font-family: "Pretendard", "Noto Sans KR", "SF Pro Text", system-ui, sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at 8% 0%, rgba(240,161,58,.06), transparent 22%),
-    radial-gradient(circle at 92% 0%, rgba(23,63,120,.05), transparent 24%),
-    linear-gradient(180deg, #f2ede5, #eee8de);
-  padding: 16px;
+  background: var(--shell);
   min-height: 100vh;
 }
 
@@ -76,9 +72,6 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   background: var(--shell);
-  border-radius: 28px;
-  box-shadow: 0 16px 48px rgba(23,63,120,.09);
-  overflow: hidden;
 }
 
 /* ── 3. 상단 바 ──────────────────────────────────────────────────────────── */
@@ -120,28 +113,43 @@ body {
 
 .nav {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 2px solid rgba(23,63,120,.10);
+  position: relative;
 }
 .tab {
-  height: 44px;
-  padding: 0 20px;
-  border-radius: 999px;
-  background: #fff;
-  color: #6880a2;
-  box-shadow: var(--sh2);
+  height: 46px;
+  padding: 0 24px;
+  background: transparent;
+  color: var(--muted);
   display: inline-flex;
   align-items: center;
-  font-weight: 800;
+  font-weight: 700;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 13.5px;
   cursor: pointer;
-  transition: background .15s, color .15s, box-shadow .15s;
+  transition: color .18s;
   user-select: none;
+  position: relative;
+  letter-spacing: -.01em;
 }
-.tab:hover  { background: rgba(23,63,120,.05); }
-.tab.on     { background: var(--navy); color: #fff; box-shadow: 0 8px 18px rgba(23,63,120,.18); }
+.tab::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 80%;
+  height: 2px;
+  background: var(--navy);
+  border-radius: 2px 2px 0 0;
+  transition: transform .2s ease;
+}
+.tab:hover  { color: var(--navy); }
+.tab.on     { color: var(--navy); font-weight: 800; }
+.tab.on::after { transform: translateX(-50%) scaleX(1); }
 
 /* ── 5. 페이지 전환 ──────────────────────────────────────────────────────── */
 .page     { display: none; }
