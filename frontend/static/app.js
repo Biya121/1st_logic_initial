@@ -709,6 +709,8 @@ function renderResult(result, refs, pdfName) {
 
 /** U4: PDF 생성 중 */
 function _showReportLoading() {
+  const preview = document.getElementById('pdf-preview-frame');
+  if (preview) preview.setAttribute('src', 'about:blank');
   document.getElementById('report-state-loading').style.display = 'flex';
   document.getElementById('report-state-ok').style.display      = 'none';
   document.getElementById('report-state-error').style.display   = 'none';
@@ -717,11 +719,13 @@ function _showReportLoading() {
 
 /** U4: PDF 생성 완료 */
 function _showReportOk(pdfName) {
+  let downloadUrl = '/api/report/download';
   const dl = document.querySelector('#report-state-ok .btn-download');
-  if (dl) {
-    const q = pdfName ? `?name=${encodeURIComponent(pdfName)}` : '';
-    dl.setAttribute('href', `/api/report/download${q}`);
-  }
+  const q = pdfName ? `?name=${encodeURIComponent(pdfName)}` : '';
+  downloadUrl += q;
+  if (dl) dl.setAttribute('href', downloadUrl);
+  const preview = document.getElementById('pdf-preview-frame');
+  if (preview) preview.setAttribute('src', downloadUrl);
   document.getElementById('report-state-loading').style.display = 'none';
   document.getElementById('report-state-ok').style.display      = 'block';
   document.getElementById('report-state-error').style.display   = 'none';
@@ -730,6 +734,8 @@ function _showReportOk(pdfName) {
 
 /** U4: PDF 생성 실패 */
 function _showReportError() {
+  const preview = document.getElementById('pdf-preview-frame');
+  if (preview) preview.setAttribute('src', 'about:blank');
   document.getElementById('report-state-loading').style.display = 'none';
   document.getElementById('report-state-ok').style.display      = 'none';
   document.getElementById('report-state-error').style.display   = 'block';

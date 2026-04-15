@@ -159,6 +159,10 @@ body {
 /* ── 5. 페이지 전환 ──────────────────────────────────────────────────────── */
 .page     { display: none; }
 .page.on  { display: block; }
+#p1 {
+  max-width: 1080px;
+  margin: 0 auto;
+}
 
 /* ── 6. 카드 공통 ────────────────────────────────────────────────────────── */
 .card {
@@ -381,8 +385,8 @@ a.news-item:hover .tit { color: var(--navy2); }
 .selector-card {
   background: var(--card);
   border-radius: 16px;
-  padding: 24px 28px;
-  margin-bottom: 18px;
+  padding: 20px 24px;
+  margin-bottom: 14px;
   box-shadow: var(--sh);
 }
 .selector-label {
@@ -498,8 +502,8 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .result-card, .papers-card, .report-card {
   background: var(--card);
   border-radius: 16px;
-  padding: 24px 28px;
-  margin-bottom: 16px;
+  padding: 20px 24px;
+  margin-bottom: 14px;
   box-shadow: var(--sh);
   display: none;
 }
@@ -675,6 +679,19 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .btn-download:hover { background: rgba(23,63,120,.13); }
 
 .report-state { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.pdf-preview-wrap {
+  margin-top: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--sh3);
+  background: #fff;
+}
+.pdf-preview-frame {
+  width: 100%;
+  height: 420px;
+  display: block;
+  background: #fff;
+}
 
 /* 재분석 버튼 */
 .btn-reanalyze {
@@ -786,6 +803,12 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   .topbar { padding: 10px 16px; }
   .brand-text h1 { font-size: 13px; }
   .g4 { grid-template-columns: repeat(2,1fr); }
+  #p1 { max-width: none; }
+  .selector-card,
+  .result-card,
+  .papers-card,
+  .report-card { padding: 16px 18px; }
+  .pdf-preview-frame { height: 300px; }
   .selector-row   { flex-direction: column; }
   .btn-analyze    { width: 100%; justify-content: center; }
 }
