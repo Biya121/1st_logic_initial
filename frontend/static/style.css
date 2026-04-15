@@ -60,18 +60,24 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { height: 100%; }
+
 body {
   font-family: "Pretendard", "Noto Sans KR", "SF Pro Text", system-ui, sans-serif;
   color: var(--text);
   background: var(--shell);
-  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── 2. 앱 래퍼 ──────────────────────────────────────────────────────────── */
 .app {
+  flex: 1;
   width: 100%;
-  min-height: 100vh;
   background: var(--shell);
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── 3. 상단 바 ──────────────────────────────────────────────────────────── */
@@ -84,6 +90,12 @@ body {
   background: #fff;
 }
 .brand { display: flex; align-items: center; gap: 12px; }
+.brand-logo {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
 .brand-text h1 {
   font-size: 15px;
   font-weight: 800;
@@ -109,7 +121,12 @@ body {
 .flag-emoji { font-size: 22px; line-height: 1; }
 
 /* ── 4. 내비게이션 탭 ────────────────────────────────────────────────────── */
-.main { padding: 18px 32px 32px; }
+.main {
+  padding: 18px 32px 32px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 
 .nav {
   display: flex;
@@ -152,8 +169,8 @@ body {
 .tab.on::after { transform: translateX(-50%) scaleX(1); }
 
 /* ── 5. 페이지 전환 ──────────────────────────────────────────────────────── */
-.page     { display: none; }
-.page.on  { display: block; }
+.page    { display: none; }
+.page.on { flex: 1; display: flex; flex-direction: column; }
 
 /* ── 6. 카드 공통 ────────────────────────────────────────────────────────── */
 .card {
@@ -192,9 +209,22 @@ body {
 
 /* ── 7. 그리드 레이아웃 ──────────────────────────────────────────────────── */
 .g2 { display: grid; grid-template-columns: 1.05fr 1fr; gap: 14px; margin-bottom: 14px; }
-.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; align-items: stretch; }
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 14px; }
 .g1 { margin-bottom: 14px; }
+
+/* 메인 프리뷰 g3 — 남은 높이 모두 채우기 */
+#main .g3 {
+  flex: 1;
+  margin-bottom: 0;
+  grid-template-rows: 1fr;
+  min-height: 0;
+}
+#main .g3 .card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 
 /* ── 8. 뱃지 ─────────────────────────────────────────────────────────────── */
 .bdg {

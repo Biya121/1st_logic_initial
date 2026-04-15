@@ -116,7 +116,7 @@ async function loadExchange() {
     if (srcEl) {
       const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
       const fallbackNote = data.ok ? '' : ' · 폴백값';
-      srcEl.textContent = `출처: ${data.source} · 조회: ${now}${fallbackNote}`;
+      srcEl.textContent = `조회: ${now}${fallbackNote}`;
     }
   } catch (e) {
     const srcEl = document.getElementById('exchange-source');
