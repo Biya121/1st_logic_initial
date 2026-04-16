@@ -785,6 +785,227 @@ def render_pdf(report: dict, out_path: Path) -> None:
     doc.build(story)
 
 
+# ── 2공정 PDF 렌더링 ──────────────────────────────────────────────────────────
+
+def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
+    """2공정 수출 가격 전략 PDF 생성.
+
+    p2_data 필드:
+      product_name  : str
+      verdict       : str  (적합/조건부/부적합/—)
+      seg_label     : str  (공공시장/민간시장)
+      base_price    : float | None  (SGD)
+      formula_str   : str  (공식 텍스트)
+      mode_label    : str  (직접 입력 / AI 분석)
+      scenarios     : list[{label, price, reason}]
+      ai_rationale  : list[str]  (AI 모드에서만 채워짐)
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
+
+    W, _H = A4
+    MARGIN = 20 * mm
+    CONTENT_W = W - 2 * MARGIN
+
+    base_font = _register_korean_font()
+    bold_font = f"{base_font}-Bold"
+    if base_font == "HYSMyeongJo-Medium":
+        bold_font = base_font
+
+    C_NAVY   = colors.HexColor("#1B2A4A")
+    C_BODY   = colors.HexColor("#1A1A1A")
+    C_BORDER = colors.HexColor("#D0D7E3")
+    C_ALT    = colors.HexColor("#F4F6F9")
+
+    COL1 = CONTENT_W * 0.30
+    COL2 = CONTENT_W * 0.70
+
+    def ps(name: str, **kw) -> ParagraphStyle:
+        return ParagraphStyle(name, **kw)
+
+    def _rx(text: str) -> str:
+        return (
+            (text or "")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+    s_title    = ps("P2Title",   fontName=bold_font, fontSize=18, leading=24,
+                    alignment=TA_CENTER, textColor=C_NAVY, spaceAfter=4)
+    s_subtitle = ps("P2Sub",     fontName=base_font, fontSize=10, leading=13,
+                    alignment=TA_CENTER, textColor=colors.HexColor("#6B7280"))
+    s_section  = ps("P2Section", fontName=bold_font, fontSize=11, textColor=C_NAVY,
+                    leading=15, spaceBefore=10, spaceAfter=4)
+    s_cell_h   = ps("P2CellH",   fontName=bold_font, fontSize=9, textColor=C_NAVY,
+                    leading=13, wordWrap="CJK")
+    s_cell     = ps("P2Cell",    fontName=base_font, fontSize=9, textColor=C_BODY,
+                    leading=14, wordWrap="CJK")
+    s_bar      = ps("P2Bar",     fontName=bold_font, fontSize=9, textColor=colors.white,
+                    leading=13, wordWrap="CJK")
+    s_mono     = ps("P2Mono",    fontName=base_font, fontSize=9, textColor=C_BODY,
+                    leading=14, wordWrap="CJK")
+    s_reason   = ps("P2Reason",  fontName=base_font, fontSize=8,
+                    textColor=colors.HexColor("#374151"), leading=12, wordWrap="CJK")
+
+    def _base_style(extra: list | None = None) -> list:
+        cmds = [
+            ("GRID",            (0, 0), (-1, -1), 0.5, C_BORDER),
+            ("VALIGN",          (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING",      (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING",   (0, 0), (-1, -1), 5),
+            ("LEFTPADDING",     (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING",    (0, 0), (-1, -1), 8),
+        ]
+        if extra:
+            cmds.extend(extra)
+        return cmds
+
+    doc = SimpleDocTemplate(
+        str(out_path),
+        pagesize=A4,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=MARGIN,  bottomMargin=MARGIN,
+        title="싱가포르 2공정 수출 가격 전략 보고서",
+    )
+
+    product_name = str(p2_data.get("product_name", "") or "제품명 없음")
+    verdict      = str(p2_data.get("verdict",      "") or "—")
+    seg_label    = str(p2_data.get("seg_label",    "") or "—")
+    base_price   = p2_data.get("base_price")
+    formula_str  = str(p2_data.get("formula_str",  "") or "—")
+    mode_label   = str(p2_data.get("mode_label",   "") or "—")
+    scenarios    = p2_data.get("scenarios",    []) or []
+    ai_rationale = p2_data.get("ai_rationale", []) or []
+
+    from datetime import datetime, timezone as _tz_p2
+    generated_date = datetime.now(_tz_p2.utc).strftime("%Y-%m-%d")
+    base_str = f"SGD {base_price:,.4f}" if isinstance(base_price, (int, float)) else "—"
+
+    story: list = []
+
+    # ── 제목 + 제품 바 ────────────────────────────────────────────────────────
+    story.append(Paragraph(_rx("싱가포르 수출 가격 전략 보고서 (2공정)"), s_title))
+    story.append(Paragraph(_rx(generated_date), s_subtitle))
+    story.append(Spacer(1, 6))
+
+    bar_txt = f"{product_name}  |  판정: {verdict}  |  시장: {seg_label}"
+    bar_tbl = Table([[Paragraph(_rx(bar_txt), s_bar)]], colWidths=[CONTENT_W])
+    bar_tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#4B5563")),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+        ("TOPPADDING",    (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    story.append(bar_tbl)
+    story.append(Spacer(1, 10))
+
+    # ── 1. 원 가격 ────────────────────────────────────────────────────────────
+    story.append(Paragraph(_rx("1. 원 가격 (기준 가격)"), s_section))
+    base_tbl = Table([
+        [Paragraph(_rx("기준 가격"), s_cell_h), Paragraph(_rx(base_str),    s_cell)],
+        [Paragraph(_rx("산정 방식"), s_cell_h), Paragraph(_rx(mode_label),  s_cell)],
+        [Paragraph(_rx("시장 구분"), s_cell_h), Paragraph(_rx(seg_label),   s_cell)],
+    ], colWidths=[COL1, COL2])
+    base_tbl.setStyle(TableStyle(_base_style([
+        ("BACKGROUND", (0, 1), (-1, 1), C_ALT),
+    ])))
+    story.append(base_tbl)
+    story.append(Spacer(1, 6))
+
+    # ── 2. 적용한 계산 공식 ────────────────────────────────────────────────────
+    story.append(Paragraph(_rx("2. 적용한 계산 공식"), s_section))
+    formula_tbl = Table([
+        [Paragraph(_rx("공식"), s_cell_h), Paragraph(_rx(formula_str), s_mono)],
+    ], colWidths=[COL1, COL2])
+    formula_tbl.setStyle(TableStyle(_base_style()))
+    story.append(formula_tbl)
+    story.append(Spacer(1, 6))
+
+    # ── AI 분석 근거 (AI 모드 전용) ────────────────────────────────────────────
+    if ai_rationale:
+        story.append(Paragraph(_rx("AI 분석 근거"), s_section))
+        rat_rows = [
+            [Paragraph(_rx(f"• {line}"), s_cell)]
+            for line in ai_rationale
+            if str(line).strip()
+        ]
+        if rat_rows:
+            rat_tbl = Table(rat_rows, colWidths=[CONTENT_W])
+            rat_tbl.setStyle(TableStyle([
+                ("GRID",          (0, 0), (-1, -1), 0.5, C_BORDER),
+                ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING",    (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+                ("BACKGROUND",    (0, 0), (-1, -1), C_ALT),
+            ]))
+            story.append(rat_tbl)
+        story.append(Spacer(1, 6))
+
+    # ── 3. 가격 시나리오 ──────────────────────────────────────────────────────
+    story.append(Paragraph(_rx("3. 가격 시나리오"), s_section))
+
+    _SC_BG: dict[str, Any] = {
+        "공격적": colors.HexColor("#FEF2F2"),
+        "평균":   colors.HexColor("#EFF6FF"),
+        "보수적": colors.HexColor("#F0FDF4"),
+    }
+    _SC_LC: dict[str, Any] = {
+        "공격적": colors.HexColor("#DC2626"),
+        "평균":   colors.HexColor("#2563EB"),
+        "보수적": colors.HexColor("#16A34A"),
+    }
+
+    for sc in scenarios:
+        label     = str(sc.get("label", "") or "")
+        price_val = sc.get("price")
+        reason    = str(sc.get("reason", "") or "—")
+        price_str = (
+            f"SGD {price_val:,.4f}" if isinstance(price_val, (int, float)) else "—"
+        )
+        bg = _SC_BG.get(label, C_ALT)
+        lc = _SC_LC.get(label, C_NAVY)
+
+        s_sc_label = ps(f"ScL_{label}", fontName=bold_font, fontSize=10,
+                        textColor=lc, leading=14, wordWrap="CJK")
+        s_sc_price = ps(f"ScP_{label}", fontName=bold_font, fontSize=12,
+                        textColor=C_NAVY, leading=16, wordWrap="CJK")
+
+        sc_tbl = Table([
+            [Paragraph(_rx(label),     s_sc_label),
+             Paragraph(_rx(price_str), s_sc_price)],
+            [Paragraph(_rx("근거"),    s_cell_h),
+             Paragraph(_rx(reason),    s_reason)],
+        ], colWidths=[COL1, COL2])
+        sc_tbl.setStyle(TableStyle([
+            ("GRID",          (0, 0), (-1, -1), 0.5, C_BORDER),
+            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING",    (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
+            ("BACKGROUND",    (0, 0), (-1, -1), bg),
+        ]))
+        story.append(sc_tbl)
+        story.append(Spacer(1, 4))
+
+    doc.build(story)
+
+
 # ── 메인 ─────────────────────────────────────────────────────────────────────
 
 def main(argv: list[str] | None = None) -> int:

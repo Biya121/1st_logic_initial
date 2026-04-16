@@ -599,6 +599,50 @@ async def download_report(name: str | None = None, inline: bool = False) -> Any:
     )
 
 
+# ── 2공정 가격 전략 PDF ───────────────────────────────────────────────────────
+
+class P2ReportBody(BaseModel):
+    product_name:  str   = ""
+    verdict:       str   = ""
+    seg_label:     str   = ""
+    base_price:    float | None = None
+    formula_str:   str   = ""
+    mode_label:    str   = ""
+    scenarios:     list  = []
+    ai_rationale:  list  = []
+
+
+@app.post("/api/p2/report")
+async def generate_p2_report(body: P2ReportBody) -> JSONResponse:
+    """2공정 수출 가격 전략 PDF 생성."""
+    import re
+    from datetime import datetime, timezone as _tz_p2
+
+    _ts = datetime.now(_tz_p2.utc).strftime("%Y%m%d_%H%M%S")
+    _reports_dir = ROOT / "reports"
+    _reports_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_name = re.sub(r"[^\w가-힣]", "_", body.product_name)[:30] or "product"
+    pdf_name  = f"sg_p2_{safe_name}_{_ts}.pdf"
+    pdf_path  = _reports_dir / pdf_name
+
+    p2_data = {
+        "product_name":  body.product_name,
+        "verdict":       body.verdict,
+        "seg_label":     body.seg_label,
+        "base_price":    body.base_price,
+        "formula_str":   body.formula_str,
+        "mode_label":    body.mode_label,
+        "scenarios":     body.scenarios,
+        "ai_rationale":  body.ai_rationale,
+    }
+
+    from report_generator import render_p2_pdf
+    await asyncio.to_thread(render_p2_pdf, p2_data, pdf_path)
+
+    return JSONResponse({"ok": True, "pdf": pdf_name})
+
+
 # ── products 조회 ─────────────────────────────────────────────────────────────
 
 @app.get("/api/products")

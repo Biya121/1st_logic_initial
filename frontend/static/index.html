@@ -404,14 +404,19 @@
       </div>
 
       <div class="p2-grid">
+
+        <!-- ① 보고서 선택 -->
         <div>
           <div class="selector-label">1공정 보고서 선택</div>
           <select id="p2-report-select">
             <option value="">보고서를 선택하세요</option>
           </select>
-          <div id="p2-report-brief" class="p2-brief">보고서를 선택하면 가격/근거 요약이 표시됩니다.</div>
+          <div id="p2-report-brief" class="p2-brief-wrap">
+            <p class="p2-brief-empty">보고서를 선택하면 가격 정보가 표시됩니다.</p>
+          </div>
         </div>
 
+        <!-- ② 산정 방식 -->
         <div>
           <div class="selector-label">산정 방식</div>
           <div class="p2-mode-row">
@@ -420,29 +425,56 @@
           </div>
         </div>
 
+        <!-- ③-A 직접 입력 -->
         <div id="p2-manual-box" class="p2-mode-box on">
-          <div class="selector-label">직접 입력 · 시장 선택</div>
+          <div class="selector-label">시장 선택</div>
           <div class="p2-seg-row">
-            <button class="p2-seg-btn on" data-p2-manual-seg="public" type="button">공공 가격</button>
-            <button class="p2-seg-btn" data-p2-manual-seg="private" type="button">민간 가격</button>
+            <button class="p2-seg-btn on" data-p2-manual-seg="public"  type="button">공공 시장</button>
+            <button class="p2-seg-btn"    data-p2-manual-seg="private" type="button">민간 시장</button>
           </div>
 
+          <!-- Step 카드 목록 -->
           <div id="p2-manual-options"></div>
+          <!-- 비활성 옵션 복원 -->
           <div id="p2-manual-removed" class="p2-removed"></div>
+          <!-- 커스텀 옵션 추가 -->
+          <div id="p2-custom-add-section"></div>
 
+          <!-- 계산 공식 미리보기 -->
+          <div class="p2-formula-wrap">
+            <div class="selector-label" style="margin-top:4px;">계산 공식</div>
+            <div id="p2-formula-preview" class="p2-formula-text">—</div>
+          </div>
+
+          <!-- 시나리오 -->
+          <div class="selector-label" style="margin-top:18px;">시나리오 산정</div>
           <div id="p2-manual-scenarios" class="p2-scenarios"></div>
+
+          <!-- PDF 생성 -->
+          <div id="p2-manual-pdf-section" class="p2-pdf-section"></div>
         </div>
 
+        <!-- ③-B AI 분석 -->
         <div id="p2-ai-box" class="p2-mode-box">
-          <div class="selector-label">AI 분석 · 시장 선택</div>
+          <div class="selector-label">시장 선택</div>
           <div class="p2-seg-row">
-            <button class="p2-seg-btn on" data-p2-ai-seg="public" type="button">공공 가격</button>
-            <button class="p2-seg-btn" data-p2-ai-seg="private" type="button">민간 가격</button>
+            <button class="p2-seg-btn on" data-p2-ai-seg="public"  type="button">공공 시장</button>
+            <button class="p2-seg-btn"    data-p2-ai-seg="private" type="button">민간 시장</button>
             <button id="p2-ai-run" class="btn-analyze" type="button">AI 자체 분석 실행</button>
           </div>
           <div id="p2-ai-note" class="p2-note">보고서를 선택한 뒤 AI 분석을 실행하세요.</div>
+
+          <!-- AI 추론 근거 -->
+          <div id="p2-ai-rationale"></div>
+
+          <!-- 시나리오 -->
+          <div class="selector-label" id="p2-ai-scenario-label" style="margin-top:16px; display:none;">시나리오 산정</div>
           <div id="p2-ai-scenarios" class="p2-scenarios"></div>
+
+          <!-- PDF 생성 -->
+          <div id="p2-ai-pdf-section" class="p2-pdf-section"></div>
         </div>
+
       </div>
     </article>
   </div>
