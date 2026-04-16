@@ -271,10 +271,14 @@ async def api_exchange() -> JSONResponse:
         sgd_krw = float(yf.Ticker("SGDKRW=X").fast_info.last_price)
         usd_krw = float(yf.Ticker("USDKRW=X").fast_info.last_price)
         sgd_usd = float(yf.Ticker("SGDUSD=X").fast_info.last_price)
+        sgd_jpy = float(yf.Ticker("SGDJPY=X").fast_info.last_price)
+        sgd_cny = float(yf.Ticker("SGDCNY=X").fast_info.last_price)
         return {
             "sgd_krw": round(sgd_krw, 2),
             "usd_krw": round(usd_krw, 2),
             "sgd_usd": round(sgd_usd, 4),
+            "sgd_jpy": round(sgd_jpy, 4),
+            "sgd_cny": round(sgd_cny, 4),
             "source": "Yahoo Finance",
             "ok": True,
         }
@@ -290,6 +294,8 @@ async def api_exchange() -> JSONResponse:
             "sgd_krw": 1085.0,
             "usd_krw": 1393.0,
             "sgd_usd": 0.7795,
+            "sgd_jpy": 113.2,
+            "sgd_cny": 5.63,
             "source": "폴백 (Yahoo Finance 연결 실패)",
             "ok": False,
             "error": str(exc),

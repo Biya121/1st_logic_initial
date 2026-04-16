@@ -95,10 +95,13 @@ async function loadExchange() {
       rateEl.innerHTML = `${fmt}<span style="font-size:14px;margin-left:4px;color:var(--muted);font-weight:700;">원</span>`;
     }
 
-    // 서브 그리드 (USD/KRW, SGD/USD)
+    // 서브 그리드 (USD/KRW + SGD 연관 환율)
     const subEl = document.getElementById('exchange-sub');
     if (subEl) {
       const fmtUsd = data.usd_krw.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const fmtSgdUsd = Number(data.sgd_usd).toFixed(4);
+      const fmtSgdJpy = Number(data.sgd_jpy).toFixed(4);
+      const fmtSgdCny = Number(data.sgd_cny).toFixed(4);
       subEl.innerHTML = `
         <div class="irow" style="margin:0">
           <div style="font-size:10.5px;color:var(--muted);margin-bottom:3px;">USD / KRW</div>
@@ -106,7 +109,15 @@ async function loadExchange() {
         </div>
         <div class="irow" style="margin:0">
           <div style="font-size:10.5px;color:var(--muted);margin-bottom:3px;">SGD / USD</div>
-          <div style="font-size:15px;font-weight:900;color:var(--navy);">${data.sgd_usd.toFixed(4)}</div>
+          <div style="font-size:15px;font-weight:900;color:var(--navy);">${fmtSgdUsd}</div>
+        </div>
+        <div class="irow" style="margin:0">
+          <div style="font-size:10.5px;color:var(--muted);margin-bottom:3px;">SGD / JPY</div>
+          <div style="font-size:15px;font-weight:900;color:var(--navy);">${fmtSgdJpy}</div>
+        </div>
+        <div class="irow" style="margin:0">
+          <div style="font-size:10.5px;color:var(--muted);margin-bottom:3px;">SGD / CNY</div>
+          <div style="font-size:15px;font-weight:900;color:var(--navy);">${fmtSgdCny}</div>
         </div>
       `;
     }
