@@ -379,142 +379,295 @@ function renderReportTab() {
    §6. 2공정 수출전략 (P2)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-let _p2Ready           = false;
-let _p2Mode            = 'manual';
-let _p2ManualSeg       = 'public';
-let _p2AiSeg           = 'public';
+let _p2Ready = false;
+let _p2Tab = 'ai';
+let _p2ManualSeg = 'public';
+let _p2AiSeg = 'public';
 let _p2SelectedReportId = '';
-let _p2Manual          = _makeP2Defaults();
-let _p2LastScenarios   = null; // PDF 생성용 마지막 산정 결과
-
-/* ── 기본값 데이터 구조 ─────────────────────────────────────────────────── */
+let _p2AiSelectedReportId = '';
+let _p2UploadedReportFilename = '';
+let _p2AiPollTimer = null;
+let _p2Manual = _makeP2Defaults();
+let _p2LastScenarios = null;
 
 function _makeP2Defaults() {
   return {
     public: [
-      {
-        key: 'base_price', label: '기준 입찰가', value: 0,
-        type: 'abs_input', unit: 'SGD', step: 0.5, min: 0, max: 99999,
-        enabled: true, fixed: false, expanded: false,
-        hint: '경쟁사 E-catalogue 입찰가 (USD 또는 SGD 직접 입력)',
-        rationale: 'ALPS 공개 입찰가 기준. 27개 공공기관 통합 구매력이 강력한 하방압력을 형성합니다.',
-      },
-      {
-        key: 'exchange', label: '환율 (USD→SGD)', value: 1.0,
-        type: 'abs_input', unit: 'rate', step: 0.0001, min: 0.0001, max: 99,
-        enabled: true, fixed: false, expanded: false,
-        hint: '입찰가가 USD인 경우 적용. SGD 직접 입력 시 1.0 유지',
-        rationale: 'USD 수출가와 SGD 현지가 혼용 방지. /api/exchange에서 실시간 로드됩니다.',
-      },
-      {
-        key: 'pub_ratio', label: '공공 수출가 산출 비율', value: 30,
-        type: 'pct_mult', unit: '%', step: 1, min: 20, max: 40,
-        enabled: true, fixed: false, expanded: false,
-        hint: '기본값 30% | 범위 20~40%',
-        rationale: '수입비용(40~50%)+유통비용(15~20%)+파트너마진(20~30%)을 일괄 내포. 제네릭 경쟁 심화 시 20% 권장.',
-      },
+      { key: 'base_price', label: '기준 입찰가', value: 0, type: 'abs_input', unit: 'SGD', step: 0.5, min: 0, max: 99999, enabled: true, fixed: false, expanded: false, hint: '경쟁사 입찰가 또는 목표 기준가', rationale: '공공 채널은 입찰 경쟁이 강해 기준가 설정이 핵심입니다.' },
+      { key: 'exchange', label: '환율 (USD→SGD)', value: 1.0, type: 'abs_input', unit: 'rate', step: 0.0001, min: 0.0001, max: 99, enabled: true, fixed: false, expanded: false, hint: 'USD 입력 시 적용, SGD면 1.0 유지', rationale: '실시간 환율을 반영해 환차 리스크를 줄입니다.' },
+      { key: 'pub_ratio', label: '공공 수출가 산출 비율', value: 30, type: 'pct_mult', unit: '%', step: 1, min: 10, max: 60, enabled: true, fixed: false, expanded: false, hint: '기준가 대비 최종 반영 비율', rationale: '입찰·유통·파트너 마진을 반영한 목표 비율입니다.' },
     ],
     private: [
-      {
-        key: 'base_het', label: '경쟁사 HET / HNA', value: 0,
-        type: 'abs_input', unit: 'SGD', step: 0.5, min: 0, max: 99999,
-        enabled: true, fixed: false, expanded: false,
-        hint: 'HET(소비자 최종가) 또는 HNA(병원·약국 입고가) 중 선택 입력',
-        rationale: 'Guardian·Watsons·Unity 체인 소매가 기준. HNA 직접 입력 시 GST·소매마진 역산 불필요.',
-      },
-      {
-        key: 'exchange', label: '환율 (USD→SGD)', value: 1.0,
-        type: 'abs_input', unit: 'rate', step: 0.0001, min: 0.0001, max: 99,
-        enabled: true, fixed: false, expanded: false,
-        hint: '입력가가 USD인 경우 적용. SGD 직접 입력 시 1.0 유지',
-        rationale: '공공 시장과 동일. USD/SGD 혼용 방지 필수.',
-      },
-      {
-        key: 'gst', label: 'GST 공제 (÷1.09)', value: 9,
-        type: 'gst_fixed', unit: '%', step: 0, min: 9, max: 9,
-        enabled: true, fixed: true, expanded: false,
-        hint: '싱가포르 GST 9% 고정 (2024년 1월 확정)',
-        rationale: '소비자가에 이미 포함된 세금 역산 분리. ×0.91이 아닌 ÷1.09 처리 필수.',
-      },
-      {
-        key: 'retail', label: '소매 마진율', value: 40,
-        type: 'pct_deduct', unit: '%', step: 1, min: 20, max: 50,
-        enabled: true, fixed: false, expanded: false,
-        hint: 'OTC(일반의약품) 권장 50% | Rx(전문의약품) 권장 30% | 기본값 40%',
-        rationale: '싱가포르 아시아권 소매마진 상한 50%. Guardian·Watsons OTC 수익 의존도, 피부과·웰니스 50% 적용.',
-      },
-      {
-        key: 'partner', label: '파트너사 마진', value: 20,
-        type: 'pct_deduct', unit: '%', step: 1, min: 15, max: 30,
-        enabled: true, fixed: false, expanded: false,
-        hint: '기본값 20% | 서구권 제조 시 25% 상향 | 범위 15~30%',
-        rationale: 'HSA 라이선스 비용($1,000~$17,500) 전가분 + 현지 에이전트 수수료. 서구권 원가 프리미엄 반영.',
-      },
-      {
-        key: 'distribution', label: '도매/물류 유통 마진', value: 15,
-        type: 'pct_deduct', unit: '%', step: 1, min: 0, max: 25,
-        enabled: true, fixed: false, expanded: false,
-        hint: '상온 보관: 15% | 콜드체인(바이오·백신·항암): 25%',
-        rationale: '도매 순마진 6.5% + 물류 오버헤드. HSA GDP 기준 냉장물류 프리미엄. 바이오허브 특성상 고비용.',
-      },
+      { key: 'base_het', label: '민간 기준가 (HET/HNA)', value: 0, type: 'abs_input', unit: 'SGD', step: 0.5, min: 0, max: 99999, enabled: true, fixed: false, expanded: false, hint: '소매/입고 기준 가격', rationale: '민간 시장은 소매 가격 구조 역산이 중요합니다.' },
+      { key: 'exchange', label: '환율 (USD→SGD)', value: 1.0, type: 'abs_input', unit: 'rate', step: 0.0001, min: 0.0001, max: 99, enabled: true, fixed: false, expanded: false, hint: 'USD 입력 시 적용', rationale: '실시간 환율 반영으로 가격 정합성을 유지합니다.' },
+      { key: 'gst', label: 'GST 공제 (÷1.09)', value: 9, type: 'gst_fixed', unit: '%', step: 0, min: 9, max: 9, enabled: true, fixed: true, expanded: false, hint: '싱가포르 GST 9% 고정', rationale: '민간 소비자 가격에서 세금을 분리합니다.' },
+      { key: 'retail', label: '소매 마진율', value: 40, type: 'pct_deduct', unit: '%', step: 1, min: 10, max: 60, enabled: true, fixed: false, expanded: false, hint: '체인/약국 마진 차감', rationale: '채널별 마진 차이를 반영합니다.' },
+      { key: 'partner', label: '파트너사 마진', value: 20, type: 'pct_deduct', unit: '%', step: 1, min: 0, max: 40, enabled: true, fixed: false, expanded: false, hint: '현지 파트너 수수료', rationale: '현지 영업·등록 비용을 포함합니다.' },
+      { key: 'distribution', label: '유통 마진', value: 15, type: 'pct_deduct', unit: '%', step: 1, min: 0, max: 40, enabled: true, fixed: false, expanded: false, hint: '물류/도매 비용', rationale: '유통 구조별 고정비를 반영합니다.' },
     ],
   };
 }
 
-/* ── 초기화 ─────────────────────────────────────────────────────────────── */
-
 function initP2Strategy() {
-  const select = document.getElementById('p2-report-select');
-  if (!select) return;
+  if (!document.getElementById('p2-wrap')) return;
   _p2Ready = true;
 
-  document.getElementById('p2-mode-manual')?.addEventListener('click', () => _setP2Mode('manual'));
-  document.getElementById('p2-mode-ai')?.addEventListener('click',    () => _setP2Mode('ai'));
-  document.getElementById('p2-ai-run')?.addEventListener('click',     _runP2AiAnalysis);
+  const manualSelect = document.getElementById('p2-report-select');
+  if (manualSelect) {
+    manualSelect.addEventListener('change', (e) => {
+      _p2SelectedReportId = e.target.value || '';
+      _renderP2ReportBrief();
+      _p2FillBaseFromReport();
+      _renderP2Manual();
+    });
+  }
 
-  select.addEventListener('change', (e) => {
-    _p2SelectedReportId = e.target.value || '';
-    _renderP2ReportBrief();
-    _p2FillBaseFromReport();
-    _renderP2Manual();
-  });
+  const aiSelect = document.getElementById('p2-ai-report-select');
+  if (aiSelect) {
+    aiSelect.addEventListener('change', (e) => {
+      _p2AiSelectedReportId = e.target.value || '';
+      if (_p2AiSelectedReportId) {
+        _p2UploadedReportFilename = '';
+        const upEl = document.getElementById('p2-upload-status');
+        if (upEl) upEl.style.display = 'none';
+      }
+    });
+  }
 
   document.querySelectorAll('[data-p2-manual-seg]').forEach((btn) => {
     btn.addEventListener('click', () => {
       _p2ManualSeg = btn.getAttribute('data-p2-manual-seg') || 'public';
-      document.querySelectorAll('[data-p2-manual-seg]').forEach(x => x.classList.remove('on'));
+      document.querySelectorAll('[data-p2-manual-seg]').forEach((x) => x.classList.remove('on'));
       btn.classList.add('on');
       _renderP2Manual();
     });
   });
 
-  document.querySelectorAll('[data-p2-ai-seg]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      _p2AiSeg = btn.getAttribute('data-p2-ai-seg') || 'public';
-      document.querySelectorAll('[data-p2-ai-seg]').forEach(x => x.classList.remove('on'));
-      btn.classList.add('on');
-    });
-  });
-
-  _p2FillExchangeRate();
   _syncP2ReportsOptions();
-  _setP2Mode('manual');
+  _p2FillExchangeRate();
+  switchP2Tab('ai');
   _renderP2Manual();
 }
 
-/* ── 환율 자동 채움 ──────────────────────────────────────────────────────── */
+function switchP2Tab(tab) {
+  _p2Tab = tab === 'manual' ? 'manual' : 'ai';
+  const aiBtn = document.getElementById('p2-tab-ai');
+  const manualBtn = document.getElementById('p2-tab-manual');
+  const aiTab = document.getElementById('p2-ai-tab');
+  const manualTab = document.getElementById('p2-manual-tab');
+  if (aiBtn && manualBtn) {
+    aiBtn.classList.toggle('on', _p2Tab === 'ai');
+    manualBtn.classList.toggle('on', _p2Tab === 'manual');
+  }
+  if (aiTab && manualTab) {
+    aiTab.style.display = _p2Tab === 'ai' ? '' : 'none';
+    manualTab.style.display = _p2Tab === 'manual' ? '' : 'none';
+  }
+  const desc = document.getElementById('p2-tab-desc');
+  if (desc) {
+    desc.textContent = _p2Tab === 'ai'
+      ? '1공정 보고서를 기반으로 AI가 자동으로 가격을 추출·산정합니다.'
+      : '필요한 옵션만 남겨 직접 산정 공식을 구성할 수 있습니다.';
+  }
+  if (_p2Tab === 'ai') _showP2AiStatus(false, '');
+}
+
+function setP2AiSeg(seg) {
+  _p2AiSeg = seg === 'private' ? 'private' : 'public';
+  document.getElementById('p2-ai-seg-public')?.classList.toggle('on', _p2AiSeg === 'public');
+  document.getElementById('p2-ai-seg-private')?.classList.toggle('on', _p2AiSeg === 'private');
+  const desc = document.getElementById('p2-ai-seg-desc');
+  if (desc) {
+    desc.textContent = _p2AiSeg === 'public'
+      ? '공공 시장: ALPS 조달청 채널 · 27개 공공기관 통합구매 기준'
+      : '민간 시장: 병원·약국·체인 채널 중심 유통 구조 기준';
+  }
+}
+
+async function handleP2FileSelect(inputEl) {
+  const file = inputEl?.files?.[0];
+  const statusEl = document.getElementById('p2-upload-status');
+  const textEl = document.getElementById('p2-upload-text');
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'PDF 파일만 업로드 가능합니다.';
+    }
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = '업로드 중…';
+  }
+  if (textEl) textEl.textContent = file.name;
+
+  try {
+    const arr = await file.arrayBuffer();
+    const bytes = new Uint8Array(arr);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+    const contentB64 = btoa(binary);
+
+    const res = await fetch('/api/p2/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, content_b64: contentB64 }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.filename) throw new Error(data.detail || `HTTP ${res.status}`);
+
+    _p2UploadedReportFilename = data.filename;
+    _p2AiSelectedReportId = '';
+    const aiSelect = document.getElementById('p2-ai-report-select');
+    if (aiSelect) aiSelect.value = '';
+    if (statusEl) statusEl.textContent = `업로드 완료: ${data.filename}`;
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `업로드 실패: ${err.message}`;
+  }
+}
+
+function _showP2AiStatus(show, text) {
+  const card = document.getElementById('p2-ai-progress-card');
+  const label = document.getElementById('p2-ai-step-label-text');
+  if (card) card.style.display = show ? '' : 'none';
+  if (label && text) label.textContent = text;
+}
+
+function _resetP2AiResultView() {
+  const resultSection = document.getElementById('p2-ai-result-section');
+  if (resultSection) resultSection.style.display = 'none';
+  const dlState = document.getElementById('p2-report-dl-state');
+  if (dlState) {
+    dlState.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="report-loading-spinner"></span>
+        <span style="font-size:13px;color:var(--muted);">분석 완료 후 보고서가 준비됩니다.</span>
+      </div>`;
+  }
+}
+
+async function runP2AiPipeline() {
+  const runBtn = document.getElementById('btn-p2-ai-run');
+  const runIcon = document.getElementById('p2-ai-run-icon');
+  const selectedReport = _loadReports().find((r) => String(r.id) === String(_p2AiSelectedReportId));
+  const reportFilename = _p2UploadedReportFilename || (selectedReport ? (selectedReport.pdf_name || '') : '');
+
+  if (!reportFilename) {
+    _showP2AiStatus(true, '실행 전 PDF가 있는 보고서를 선택하거나 PDF를 직접 업로드해 주세요.');
+    return;
+  }
+
+  if (_p2AiPollTimer) clearInterval(_p2AiPollTimer);
+  _resetP2AiResultView();
+  _showP2AiStatus(true, 'AI 가격 파이프라인을 시작합니다…');
+
+  if (runBtn) runBtn.disabled = true;
+  if (runIcon) runIcon.textContent = '⏳';
+
+  try {
+    const res = await fetch('/api/p2/pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report_filename: reportFilename, market: _p2AiSeg }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    _p2AiPollTimer = setInterval(_pollP2AiPipeline, 1800);
+  } catch (err) {
+    _showP2AiStatus(true, `실행 실패: ${err.message}`);
+    if (runBtn) runBtn.disabled = false;
+    if (runIcon) runIcon.textContent = '▶';
+  }
+}
+
+async function _pollP2AiPipeline() {
+  try {
+    const res = await fetch('/api/p2/pipeline/status');
+    const data = await res.json();
+    if (data.status === 'idle') return;
+
+    const label = data.step_label || '분석 중…';
+    _showP2AiStatus(true, label);
+
+    if (data.status === 'done') {
+      clearInterval(_p2AiPollTimer);
+      _p2AiPollTimer = null;
+      const rr = await fetch('/api/p2/pipeline/result');
+      const result = await rr.json();
+      _renderP2AiResult(result);
+      _showP2AiStatus(false, '');
+      document.getElementById('btn-p2-ai-run')?.removeAttribute('disabled');
+      const runIcon = document.getElementById('p2-ai-run-icon');
+      if (runIcon) runIcon.textContent = '▶';
+    } else if (data.status === 'error') {
+      clearInterval(_p2AiPollTimer);
+      _p2AiPollTimer = null;
+      _showP2AiStatus(true, `오류: ${data.step_label || '파이프라인 실패'}`);
+      document.getElementById('btn-p2-ai-run')?.removeAttribute('disabled');
+      const runIcon = document.getElementById('p2-ai-run-icon');
+      if (runIcon) runIcon.textContent = '▶';
+    }
+  } catch (_err) {
+    // polling retry
+  }
+}
+
+function _renderP2AiResult(data) {
+  const extracted = data?.extracted || {};
+  const analysis = data?.analysis || {};
+  const rates = data?.exchange_rates || {};
+  const scenarios = Array.isArray(analysis.scenarios) ? analysis.scenarios : [];
+  const resultSection = document.getElementById('p2-ai-result-section');
+  if (resultSection) resultSection.style.display = '';
+
+  _setText('p2r-product-name', extracted.product_name || '미상');
+  _setText('p2r-ref-price-text', extracted.ref_price_text || (extracted.ref_price_sgd ? `SGD ${Number(extracted.ref_price_sgd).toFixed(2)}` : '추출값 없음'));
+  _setText('p2r-verdict', extracted.verdict || '미상');
+  _setText('p2r-exchange', rates.sgd_krw ? `1 SGD = ${Number(rates.sgd_krw).toFixed(2)} KRW` : '환율 정보 없음');
+  _setText('p2r-final-price', `SGD ${Number(analysis.final_price_sgd || 0).toFixed(2)}`);
+  _setText('p2r-formula', analysis.formula_str || '산정 공식 없음');
+  _setText('p2r-rationale', analysis.rationale || '산정 이유 없음');
+
+  const scenEl = document.getElementById('p2r-scenarios');
+  if (scenEl) {
+    if (scenarios.length) {
+      scenEl.innerHTML = scenarios.map((s, idx) => {
+        const cls = idx === 0 ? 'agg' : idx === 1 ? 'avg' : 'cons';
+        return `
+          <div class="p2-scenario p2-scenario--${cls}">
+            <div class="p2-scenario-top">
+              <span class="p2-scenario-name">${_escHtml(String(s.name || `시나리오 ${idx + 1}`))}</span>
+              <span class="p2-scenario-price">SGD ${Number(s.price_sgd || 0).toFixed(2)}</span>
+            </div>
+            <div class="p2-scenario-reason">${_escHtml(String(s.reason || ''))}</div>
+          </div>`;
+      }).join('');
+    } else {
+      scenEl.innerHTML = '<div class="p2-note">시나리오 데이터가 없습니다.</div>';
+    }
+  }
+
+  const dlState = document.getElementById('p2-report-dl-state');
+  if (dlState && data?.pdf) {
+    dlState.innerHTML = `
+      <a class="btn-download"
+         href="/api/report/download?name=${encodeURIComponent(data.pdf)}"
+         target="_blank">PDF 보고서 다운로드</a>`;
+  }
+}
 
 function _p2FillExchangeRate() {
   const rates = window._exchangeRates;
   if (!rates) return;
-  // sgd_usd = 1 SGD → ? USD  →  1 USD = 1/sgd_usd SGD
   const sgdUsd = Number(rates.sgd_usd);
   if (!sgdUsd || sgdUsd <= 0) return;
   const usdToSgd = Number((1 / sgdUsd).toFixed(4));
-  for (const seg of ['public', 'private']) {
-    const opt = _p2Manual[seg].find(x => x.key === 'exchange');
+  ['public', 'private'].forEach((seg) => {
+    const opt = _p2Manual[seg].find((x) => x.key === 'exchange');
     if (opt) opt.value = usdToSgd;
-  }
+  });
 }
 
 function _p2FillBaseFromReport() {
@@ -522,39 +675,42 @@ function _p2FillBaseFromReport() {
   if (!report) return;
   const hint = _extractSgdHint(report.price_hint || report.price_positioning_pbs || '');
   if (!Number.isNaN(hint) && hint > 0) {
-    const pub  = _p2Manual.public.find(x => x.key === 'base_price');
-    const priv = _p2Manual.private.find(x => x.key === 'base_het');
-    if (pub)  pub.value  = hint;
-    if (priv) priv.value = hint;
+    const pub = _p2Manual.public.find((x) => x.key === 'base_price');
+    const pri = _p2Manual.private.find((x) => x.key === 'base_het');
+    if (pub) pub.value = hint;
+    if (pri) pri.value = hint;
   }
 }
 
-/* ── 보고서 관련 ─────────────────────────────────────────────────────────── */
-
 function _syncP2ReportsOptions() {
   if (!_p2Ready) return;
-  const select = document.getElementById('p2-report-select');
-  if (select) {
-    const reports = _loadReports();
-    const current = _p2SelectedReportId;
+  const reports = _loadReports();
+  const optionHtml = ['<option value="">보고서를 선택하세요</option>']
+    .concat(reports.map((r) => `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`))
+    .join('');
 
-    const options = ['<option value="">보고서를 선택하세요</option>']
-      .concat(reports.map(r => (
-        `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`
-      )));
-    select.innerHTML = options.join('');
-
-    const hasCurrent = reports.some(r => String(r.id) === String(current));
-    _p2SelectedReportId = hasCurrent ? current : '';
-    select.value = _p2SelectedReportId;
-    _renderP2ReportBrief();
+  const manualSelect = document.getElementById('p2-report-select');
+  if (manualSelect) {
+    const curr = _p2SelectedReportId;
+    manualSelect.innerHTML = optionHtml;
+    _p2SelectedReportId = reports.some((r) => String(r.id) === String(curr)) ? curr : '';
+    manualSelect.value = _p2SelectedReportId;
   }
+
+  const aiSelect = document.getElementById('p2-ai-report-select');
+  if (aiSelect) {
+    const curr = _p2AiSelectedReportId;
+    aiSelect.innerHTML = optionHtml;
+    _p2AiSelectedReportId = reports.some((r) => String(r.id) === String(curr)) ? curr : '';
+    aiSelect.value = _p2AiSelectedReportId;
+  }
+
+  _renderP2ReportBrief();
 }
 
 function _getP2SelectedReport() {
   if (!_p2SelectedReportId) return null;
-  const reports = _loadReports();
-  return reports.find(r => String(r.id) === String(_p2SelectedReportId)) || null;
+  return _loadReports().find((r) => String(r.id) === String(_p2SelectedReportId)) || null;
 }
 
 function _extractSgdHint(text) {
@@ -574,14 +730,9 @@ function _renderP2ReportBrief() {
     el.innerHTML = '<p class="p2-brief-empty">보고서를 선택하면 가격 정보가 표시됩니다.</p>';
     return;
   }
-  const vc = report.verdict === '적합'   ? 'green'
-           : report.verdict === '부적합' ? 'red'
-           : report.verdict !== '—'      ? 'orange'
-           :                               'gray';
-  const priceHint  = String(report.price_hint || '').trim() || '파악된 가격 없음';
-  const pricePbs   = String(report.price_positioning_pbs || '').trim();
+  const vc = report.verdict === '적합' ? 'green' : report.verdict === '부적합' ? 'red' : report.verdict !== '—' ? 'orange' : 'gray';
+  const priceHint = String(report.price_hint || '').trim() || '가격 힌트 없음';
   const basisTrade = String(report.basis_trade || '').trim() || '무역 근거 없음';
-
   el.innerHTML = `
     <div class="p2-brief-badge-row">
       <span class="bdg ${vc}">${_escHtml(report.verdict || '—')}</span>
@@ -589,60 +740,26 @@ function _renderP2ReportBrief() {
     </div>
     <div class="p2-brief-grid">
       <div class="p2-brief-item">
-        <div class="basis-label">참고 가격 (PBS/SGD)</div>
+        <div class="basis-label">참고 가격</div>
         <div class="basis-value">${_escHtml(priceHint)}</div>
       </div>
-      ${pricePbs ? `
-      <div class="p2-brief-item">
-        <div class="basis-label">가격 포지셔닝 전략</div>
-        <div class="basis-value">${_escHtml(pricePbs)}</div>
-      </div>` : ''}
       <div class="p2-brief-item p2-brief-item--wide">
-        <div class="basis-label">무역 조건 (관세·FTA)</div>
+        <div class="basis-label">무역 조건</div>
         <div class="basis-value">${_escHtml(basisTrade)}</div>
       </div>
     </div>`;
 }
 
-/* ── 모드 전환 ───────────────────────────────────────────────────────────── */
-
-function _setP2Mode(mode) {
-  _p2Mode = mode === 'ai' ? 'ai' : 'manual';
-  document.getElementById('p2-manual-box')?.classList.toggle('on', _p2Mode === 'manual');
-  document.getElementById('p2-ai-box')?.classList.toggle('on',    _p2Mode === 'ai');
-  const manualBtn = document.getElementById('p2-mode-manual');
-  const aiBtn     = document.getElementById('p2-mode-ai');
-  if (manualBtn && aiBtn) {
-    manualBtn.classList.toggle('p2-btn-alt', _p2Mode !== 'manual');
-    aiBtn.classList.toggle('p2-btn-alt',    _p2Mode !== 'ai');
-  }
-}
-
-/* ── 직접 입력 계산 엔진 ──────────────────────────────────────────────────── */
-
 function _calcP2Manual() {
-  const seg     = _p2ManualSeg;
-  const options = _p2Manual[seg];
-  const active  = options.filter(x => x.enabled);
-
+  const seg = _p2ManualSeg;
+  const options = _p2Manual[seg].filter((x) => x.enabled);
   if (seg === 'public') {
-    const baseOpt  = active.find(x => x.key === 'base_price');
-    const exchOpt  = active.find(x => x.key === 'exchange');
-    const ratioOpt = active.find(x => x.key === 'pub_ratio');
-
-    let price = baseOpt ? Number(baseOpt.value) : 0;
-    const parts = [`SGD ${price.toFixed(2)}`];
-
-    if (exchOpt && Number(exchOpt.value) !== 1.0) {
-      const r = Number(exchOpt.value);
-      price *= r;
-      parts.push(`× ${r.toFixed(4)} (환율)`);
-    }
-    const ratio = ratioOpt ? Number(ratioOpt.value) : 30;
-    price *= ratio / 100;
-    parts.push(`× ${ratio}%`);
-
-    for (const opt of active) {
+    const base = Number(options.find((x) => x.key === 'base_price')?.value || 0);
+    const ex = Number(options.find((x) => x.key === 'exchange')?.value || 1);
+    const ratio = Number(options.find((x) => x.key === 'pub_ratio')?.value || 30);
+    let price = base * ex * (ratio / 100);
+    const parts = [`SGD ${base.toFixed(2)}`, `× ${ex.toFixed(4)}`, `× ${ratio}%`];
+    options.forEach((opt) => {
       if (opt.type === 'pct_add_custom') {
         price *= (1 + Number(opt.value) / 100);
         parts.push(`× (1+${Number(opt.value).toFixed(1)}%)`);
@@ -650,153 +767,132 @@ function _calcP2Manual() {
         price += Number(opt.value);
         parts.push(`+ SGD ${Number(opt.value).toFixed(2)}`);
       }
-    }
-
-    const kup = Math.max(0, price);
-    return { kup, formulaStr: parts.join('  ') + `  =  KUP  SGD ${kup.toFixed(2)}` };
-
-  } else {
-    let price = 0;
-    const parts = [];
-    for (const opt of active) {
-      if (opt.key === 'base_het' && opt.type === 'abs_input') {
-        price = Number(opt.value);
-        parts.push(`SGD ${price.toFixed(2)}`);
-      } else if (opt.key === 'exchange' && opt.type === 'abs_input' && Number(opt.value) !== 1.0) {
-        price *= Number(opt.value);
-        parts.push(`× ${Number(opt.value).toFixed(4)} (환율)`);
-      } else if (opt.type === 'gst_fixed') {
-        price /= 1.09;
-        parts.push(`÷ 1.09 (GST)`);
-      } else if (opt.type === 'pct_deduct') {
-        const m = Number(opt.value);
-        price *= (1 - m / 100);
-        parts.push(`× (1−${m}%)`);
-      } else if (opt.type === 'pct_add_custom') {
-        price *= (1 + Number(opt.value) / 100);
-        parts.push(`× (1+${Number(opt.value).toFixed(1)}%)`);
-      } else if (opt.type === 'abs_add_custom') {
-        price += Number(opt.value);
-        parts.push(`+ SGD ${Number(opt.value).toFixed(2)}`);
-      }
-    }
-    const kup = Math.max(0, price);
-    return { kup, formulaStr: (parts.join('  ') || 'SGD 0.00') + `  =  KUP  SGD ${kup.toFixed(2)}` };
+    });
+    return { kup: Math.max(price, 0), formulaStr: `${parts.join('  ')}  =  KUP  SGD ${Math.max(price, 0).toFixed(2)}` };
   }
+
+  let price = 0;
+  const parts = [];
+  options.forEach((opt) => {
+    if (opt.key === 'base_het') {
+      price = Number(opt.value);
+      parts.push(`SGD ${price.toFixed(2)}`);
+    } else if (opt.key === 'exchange' && Number(opt.value) !== 1) {
+      price *= Number(opt.value);
+      parts.push(`× ${Number(opt.value).toFixed(4)}`);
+    } else if (opt.type === 'gst_fixed') {
+      price /= 1.09;
+      parts.push('÷ 1.09');
+    } else if (opt.type === 'pct_deduct') {
+      price *= (1 - Number(opt.value) / 100);
+      parts.push(`× (1−${Number(opt.value).toFixed(1)}%)`);
+    } else if (opt.type === 'pct_add_custom') {
+      price *= (1 + Number(opt.value) / 100);
+      parts.push(`× (1+${Number(opt.value).toFixed(1)}%)`);
+    } else if (opt.type === 'abs_add_custom') {
+      price += Number(opt.value);
+      parts.push(`+ SGD ${Number(opt.value).toFixed(2)}`);
+    }
+  });
+  return { kup: Math.max(price, 0), formulaStr: `${(parts.join('  ') || 'SGD 0.00')}  =  KUP  SGD ${Math.max(price, 0).toFixed(2)}` };
 }
 
-/* ── 직접 입력 렌더링 ────────────────────────────────────────────────────── */
-
 function _renderP2Manual() {
-  const wrapEl     = document.getElementById('p2-manual-options');
-  const removedEl  = document.getElementById('p2-manual-removed');
+  const wrapEl = document.getElementById('p2-manual-options');
+  const removedEl = document.getElementById('p2-manual-removed');
   const scenarioEl = document.getElementById('p2-manual-scenarios');
-  const formulaEl  = document.getElementById('p2-formula-preview');
-  if (!wrapEl || !removedEl || !scenarioEl) return;
+  const formulaEl = document.getElementById('p2-formula-preview');
+  if (!wrapEl || !removedEl || !scenarioEl || !formulaEl) return;
 
   const options = _p2Manual[_p2ManualSeg];
-  const active  = options.filter(x => x.enabled);
-  const inactive = options.filter(x => !x.enabled);
+  const active = options.filter((x) => x.enabled);
+  const inactive = options.filter((x) => !x.enabled);
+  wrapEl.innerHTML = active.map((opt) => _p2OptionCardHtml(opt)).join('');
+  _bindP2OptionEvents(wrapEl, options);
 
-  wrapEl.innerHTML = active.map((opt, i) => _p2StepCardHtml(opt, i + 1)).join('');
-  _bindP2StepEvents(wrapEl, options);
-
-  removedEl.innerHTML = inactive.length ? `
-    <span class="p2-removed-label">복원:</span>
-    ${inactive.map(opt => `<button class="p2-add-btn" data-p2-op="add" data-key="${_escHtml(opt.key)}" type="button">+ ${_escHtml(opt.label)}</button>`).join('')}
-  ` : '';
-  removedEl.querySelectorAll('[data-p2-op="add"]').forEach(btn => {
+  removedEl.innerHTML = inactive.length
+    ? `<span class="p2-removed-label">복원:</span>${inactive.map((opt) => `<button class="p2-add-btn" data-p2-op="add" data-key="${_escHtml(opt.key)}" type="button">+ ${_escHtml(opt.label)}</button>`).join('')}`
+    : '';
+  removedEl.querySelectorAll('[data-p2-op="add"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const item = options.find(x => x.key === btn.getAttribute('data-key'));
-      if (item) { item.enabled = true; _renderP2Manual(); }
+      const item = options.find((x) => x.key === btn.getAttribute('data-key'));
+      if (item) {
+        item.enabled = true;
+        _renderP2Manual();
+      }
     });
   });
 
   _renderP2CustomAddSection();
+  const calc = _calcP2Manual();
+  formulaEl.textContent = calc.formulaStr;
 
-  const { kup, formulaStr } = _calcP2Manual();
-  if (formulaEl) formulaEl.textContent = formulaStr;
+  const agg = calc.kup * 0.9;
+  const avg = calc.kup;
+  const cons = calc.kup * 1.1;
+  const aggReason = _p2ManualScenarioReason('aggressive', _p2ManualSeg);
+  const avgReason = _p2ManualScenarioReason('average', _p2ManualSeg);
+  const consReason = _p2ManualScenarioReason('conservative', _p2ManualSeg);
+  scenarioEl.innerHTML = _p2ScenarioHtml(agg, avg, cons, aggReason, avgReason, consReason);
 
-  const report     = _getP2SelectedReport();
-  const agg        = kup * 0.88;
-  const cons       = kup * 1.10;
-  const aggReason  = _p2ManualScenarioReason('aggressive',   _p2ManualSeg, report);
-  const avgReason  = _p2ManualScenarioReason('average',      _p2ManualSeg, report);
-  const consReason = _p2ManualScenarioReason('conservative', _p2ManualSeg, report);
-
-  scenarioEl.innerHTML = _p2ScenarioHtml(agg, kup, cons, aggReason, avgReason, consReason);
-
-  _p2LastScenarios = {
-    mode: 'manual', seg: _p2ManualSeg, base: kup,
-    agg, avg: kup, cons, formulaStr,
-    aggReason, avgReason, consReason, rationaleLines: [],
-  };
-  _renderP2PdfSection('manual');
+  _p2LastScenarios = { mode: 'manual', seg: _p2ManualSeg, base: calc.kup, agg, avg, cons, formulaStr: calc.formulaStr, aggReason, avgReason, consReason, rationaleLines: [] };
+  _renderP2PdfSection();
 }
 
-/* ── Step 카드 HTML ──────────────────────────────────────────────────────── */
-
-function _p2StepCardHtml(opt, stepNum) {
-  const exp      = opt.expanded;
-  const isInput  = opt.type === 'abs_input';
-  const isFixed  = opt.type === 'gst_fixed';
-  const canStep  = !isInput && !isFixed && opt.step > 0;
-  const canDelete = !opt.fixed;
+function _p2OptionCardHtml(opt) {
+  const isInput = opt.type === 'abs_input';
+  const isFixed = opt.type === 'gst_fixed';
+  const canStep = !isInput && !isFixed && opt.step > 0;
 
   let valDisplay = '';
-  if (isFixed)                         valDisplay = '÷ 1.09 고정';
-  else if (opt.type === 'pct_mult')    valDisplay = `× ${Number(opt.value).toFixed(0)}%`;
-  else if (opt.type === 'pct_deduct')  valDisplay = `× (1−${Number(opt.value).toFixed(0)}%)`;
+  if (isFixed) valDisplay = '÷ 1.09 고정';
+  else if (opt.type === 'pct_mult') valDisplay = `× ${Number(opt.value).toFixed(0)}%`;
+  else if (opt.type === 'pct_deduct') valDisplay = `× (1−${Number(opt.value).toFixed(0)}%)`;
   else if (opt.type === 'pct_add_custom') valDisplay = `× (1+${Number(opt.value).toFixed(1)}%)`;
-  else if (opt.unit === 'SGD')         valDisplay = `SGD ${Number(opt.value).toFixed(2)}`;
-  else if (opt.unit === 'rate')        valDisplay = `× ${Number(opt.value).toFixed(4)}`;
-  else                                 valDisplay = `+ SGD ${Number(opt.value).toFixed(2)}`;
+  else if (opt.unit === 'SGD') valDisplay = `SGD ${Number(opt.value).toFixed(2)}`;
+  else if (opt.unit === 'rate') valDisplay = `× ${Number(opt.value).toFixed(4)}`;
+  else valDisplay = `+ SGD ${Number(opt.value).toFixed(2)}`;
 
-  const inputVal = opt.unit === 'rate'
-    ? Number(opt.value).toFixed(4)
-    : Number(opt.value).toFixed(2);
-
+  const inputVal = opt.unit === 'rate' ? Number(opt.value).toFixed(4) : Number(opt.value).toFixed(2);
   return `
-    <div class="p2-step-card${exp ? ' open' : ''}">
+    <div class="p2-step-card">
       <div class="p2-step-header">
         <button class="p2-step-toggle" data-p2-op="toggle" data-key="${_escHtml(opt.key)}" type="button">
-          <span class="p2-step-num">Step ${stepNum}</span>
           <span class="p2-step-label-text">${_escHtml(opt.label)}</span>
-          <span class="p2-step-arrow">${exp ? '▾' : '▸'}</span>
+          <span class="p2-step-arrow">${opt.expanded ? '▾' : '▸'}</span>
         </button>
         <div class="p2-step-controls">
-          ${isInput ? `
-            <input class="p2-step-input" type="number"
-              data-p2-op="input" data-key="${_escHtml(opt.key)}"
-              value="${inputVal}" step="${opt.step}" min="${opt.min}" max="${opt.max}">
-          ` : canStep ? `
-            <span class="p2-step-val-display">${_escHtml(valDisplay)}</span>
-            <button class="p2-step-btn" data-p2-op="dec" data-key="${_escHtml(opt.key)}" type="button">−</button>
-            <button class="p2-step-btn" data-p2-op="inc" data-key="${_escHtml(opt.key)}" type="button">+</button>
-          ` : `<span class="p2-step-val-display">${_escHtml(valDisplay)}</span>`}
-          ${canDelete ? `<button class="p2-del-btn" data-p2-op="del" data-key="${_escHtml(opt.key)}" type="button" title="옵션 제거">×</button>` : ''}
+          ${isInput
+            ? `<input class="p2-step-input" type="number" data-p2-op="input" data-key="${_escHtml(opt.key)}" value="${inputVal}" step="${opt.step}" min="${opt.min}" max="${opt.max}">`
+            : canStep
+              ? `<span class="p2-step-val-display">${_escHtml(valDisplay)}</span><button class="p2-step-btn" data-p2-op="dec" data-key="${_escHtml(opt.key)}" type="button">−</button><button class="p2-step-btn" data-p2-op="inc" data-key="${_escHtml(opt.key)}" type="button">+</button>`
+              : `<span class="p2-step-val-display">${_escHtml(valDisplay)}</span>`
+          }
+          ${opt.fixed ? '' : `<button class="p2-del-btn" data-p2-op="del" data-key="${_escHtml(opt.key)}" type="button" title="옵션 제거">×</button>`}
         </div>
       </div>
-      ${exp ? `
-        <div class="p2-step-body">
-          <div class="p2-step-hint">${_escHtml(opt.hint)}</div>
-          <div class="p2-step-rationale">${_escHtml(opt.rationale)}</div>
-          ${!isFixed ? `<div class="p2-step-range">범위: ${opt.min}${opt.unit === '%' ? '%' : opt.unit === 'SGD' ? ' SGD' : ''} ~ ${opt.max}${opt.unit === '%' ? '%' : opt.unit === 'SGD' ? ' SGD' : ''}</div>` : ''}
-        </div>` : ''}
+      ${opt.expanded ? `<div class="p2-step-body"><div class="p2-step-hint">${_escHtml(opt.hint || '')}</div><div class="p2-step-rationale">${_escHtml(opt.rationale || '')}</div></div>` : ''}
     </div>`;
 }
 
-function _bindP2StepEvents(wrap, options) {
-  wrap.querySelectorAll('[data-p2-op]').forEach(el => {
-    const op   = el.getAttribute('data-p2-op');
-    const key  = el.getAttribute('data-key');
-    const item = options.find(x => x.key === key);
+function _bindP2OptionEvents(wrap, options) {
+  wrap.querySelectorAll('[data-p2-op]').forEach((el) => {
+    const op = el.getAttribute('data-p2-op');
+    const key = el.getAttribute('data-key');
+    const item = options.find((x) => x.key === key);
     if (!item) return;
 
     if (op === 'toggle') {
-      el.addEventListener('click', () => { item.expanded = !item.expanded; _renderP2Manual(); });
+      el.addEventListener('click', () => {
+        item.expanded = !item.expanded;
+        _renderP2Manual();
+      });
     } else if (op === 'del') {
-      el.addEventListener('click', () => { item.enabled = false; item.expanded = false; _renderP2Manual(); });
+      el.addEventListener('click', () => {
+        item.enabled = false;
+        item.expanded = false;
+        _renderP2Manual();
+      });
     } else if (op === 'inc') {
       el.addEventListener('click', () => {
         item.value = Math.min(item.max, Number((Number(item.value) + item.step).toFixed(4)));
@@ -810,7 +906,7 @@ function _bindP2StepEvents(wrap, options) {
     } else if (op === 'input') {
       el.addEventListener('change', () => {
         const v = parseFloat(el.value);
-        if (!Number.isNaN(v)) item.value = Math.min(item.max, Math.max(item.min, v));
+        if (!Number.isNaN(v)) item.value = Math.max(item.min, Math.min(item.max, v));
         _renderP2Manual();
       });
     }
@@ -822,7 +918,7 @@ function _renderP2CustomAddSection() {
   if (!section) return;
   section.innerHTML = `
     <div class="p2-custom-add-row">
-      <input class="p2-custom-input" id="p2c-label" type="text" placeholder="옵션명 (예: 관세 가산)" maxlength="30" style="flex:2">
+      <input class="p2-custom-input" id="p2c-label" type="text" placeholder="옵션명" maxlength="30" style="flex:2">
       <select class="p2-custom-type-select" id="p2c-type">
         <option value="pct_deduct">% 차감</option>
         <option value="pct_add_custom">% 가산</option>
@@ -833,218 +929,116 @@ function _renderP2CustomAddSection() {
     </div>`;
   document.getElementById('p2c-add')?.addEventListener('click', () => {
     const label = (document.getElementById('p2c-label')?.value || '').trim();
-    const type  = document.getElementById('p2c-type')?.value || 'pct_deduct';
-    const val   = parseFloat(document.getElementById('p2c-val')?.value || '0');
+    const type = document.getElementById('p2c-type')?.value || 'pct_deduct';
+    const val = parseFloat(document.getElementById('p2c-val')?.value || '0');
     if (!label || Number.isNaN(val) || val < 0) return;
     _p2Manual[_p2ManualSeg].push({
-      key: `custom_${Date.now()}`, label, value: val, type,
+      key: `custom_${Date.now()}`,
+      label,
+      value: val,
+      type,
       unit: type === 'abs_add_custom' ? 'SGD' : '%',
-      step: type === 'abs_add_custom' ? 0.1 : 1, min: 0,
+      step: type === 'abs_add_custom' ? 0.1 : 1,
+      min: 0,
       max: type === 'abs_add_custom' ? 9999 : 100,
-      enabled: true, fixed: false, expanded: false,
-      hint: '사용자 추가 옵션', rationale: '',
+      enabled: true,
+      fixed: false,
+      expanded: false,
+      hint: '사용자 추가 옵션',
+      rationale: '',
     });
     _renderP2Manual();
   });
 }
 
-/* ── 시나리오 이유 서술 ──────────────────────────────────────────────────── */
-
-function _p2ManualScenarioReason(type, seg, report) {
-  const verdict  = report ? String(report.verdict || '—') : '—';
-  const isPublic = seg === 'public';
-
+function _p2ManualScenarioReason(type, seg) {
   if (type === 'aggressive') {
-    const parts = [];
-    if (isPublic) {
-      parts.push('ALPS E-catalogue 경쟁 구조에서 추가 입찰가 인하 여지를 최대한 반영한 시나리오입니다.');
-      parts.push('제네릭 경쟁이 활성화된 품목일수록 낙찰을 위한 공격적 가격이 시장 진입에 유리합니다.');
-    } else {
-      parts.push('소매 체인 입점 초기 협상에서 낮은 진입가로 채널을 확보하는 전략입니다.');
-      parts.push('Guardian·Watsons 등 주요 체인과의 초기 계약 시 경쟁 우위 선점이 가능합니다.');
-    }
-    if (verdict === '적합') parts.push(`1공정 '${verdict}' 판정으로 가격 경쟁력 확보 여력이 충분합니다.`);
-    return parts.join(' ');
+    return seg === 'public'
+      ? '입찰 경쟁 대응을 위해 점유율 확보 우선의 공격적 가격입니다.'
+      : '민간 채널 진입 초기 확산을 위한 공격적 가격입니다.';
   }
   if (type === 'average') {
-    const parts = ['현재 입력한 마진 구조를 그대로 반영한 기준 수출가입니다.'];
-    if (isPublic) parts.push('ALPS 입찰 통과 가능 단가로, 수입비용·유통비용·파트너마진을 균형 있게 배분합니다.');
-    else          parts.push('GST·소매·파트너·유통 마진을 모두 역산한 수출 기준가입니다. 시장 평균 진입 가격으로 권장됩니다.');
-    return parts.join(' ');
+    return '현재 입력 옵션을 그대로 반영한 기준 시나리오입니다.';
   }
-  if (type === 'conservative') {
-    const parts = ['초기 진입 시 예상치 못한 비용에 대비한 안전 버퍼를 포함한 시나리오입니다.'];
-    if (isPublic) parts.push('공공 입찰 재심사 또는 가격 재협상 시 하방 여유를 확보합니다. HSA 등록비·물류 지연·환율 변동 리스크를 반영합니다.');
-    else          parts.push('민간 유통 채널 초기 정착 비용 및 반품·재고 리스크(HSA 등록 $1,000~$17,500 포함)를 가격에 흡수합니다.');
-    if (verdict === '조건부') parts.push(`1공정 '${verdict}' 판정에 따른 조건 이행 비용(임상 데이터 보완 등)을 추가 반영합니다.`);
-    return parts.join(' ');
-  }
-  return '';
+  return seg === 'public'
+    ? '재입찰 및 환율 변동 리스크를 반영한 보수적 가격입니다.'
+    : '유통/재고 리스크를 반영한 보수적 가격입니다.';
 }
 
-/* ── 시나리오 HTML ────────────────────────────────────────────────────────── */
-
 function _p2ScenarioHtml(agg, avg, cons, aggReason, avgReason, consReason) {
-  const _card = (name, cls, price, reason) => `
+  const card = (name, cls, price, reason) => `
     <div class="p2-scenario p2-scenario--${cls}">
       <div class="p2-scenario-top">
         <span class="p2-scenario-name">${_escHtml(name)}</span>
         <span class="p2-scenario-price">SGD ${Number(price).toFixed(2)}</span>
       </div>
-      ${reason ? `<div class="p2-scenario-reason">${_escHtml(reason)}</div>` : ''}
+      <div class="p2-scenario-reason">${_escHtml(reason)}</div>
     </div>`;
-  return _card('공격적인 시나리오', 'agg',  agg,  aggReason)
-       + _card('평균 시나리오',     'avg',  avg,  avgReason)
-       + _card('보수 시나리오',     'cons', cons, consReason);
+  return card('공격적인 시나리오', 'agg', agg, aggReason)
+    + card('평균 시나리오', 'avg', avg, avgReason)
+    + card('보수 시나리오', 'cons', cons, consReason);
 }
 
-/* ── AI 분석 ─────────────────────────────────────────────────────────────── */
-
-function _runP2AiAnalysis() {
-  const report    = _getP2SelectedReport();
-  const noteEl    = document.getElementById('p2-ai-note');
-  const outEl     = document.getElementById('p2-ai-scenarios');
-  const ratEl     = document.getElementById('p2-ai-rationale');
-  const lblEl     = document.getElementById('p2-ai-scenario-label');
-  if (!noteEl || !outEl) return;
-
-  if (!report) {
-    noteEl.textContent = '먼저 1공정 보고서를 선택해 주세요.';
-    outEl.innerHTML = '';
-    if (ratEl) ratEl.innerHTML = '';
-    return;
-  }
-
-  const base          = _extractSgdHint(report.price_hint || report.price_positioning_pbs || '') || 0;
-  const verdict       = String(report.verdict || '—');
-  const verdictFactor = verdict === '적합' ? 1.04 : verdict === '조건부' ? 0.98 : 0.93;
-  const segFactor     = _p2AiSeg === 'public' ? 0.95 : 1.06;
-  const hasRisk       = String(report.risks_conditions || '').trim().length > 0;
-  const riskFactor    = hasRisk ? 0.98 : 1.0;
-
-  const avg  = Math.max(0, base * verdictFactor * segFactor * riskFactor);
-  const agg  = avg * 0.90;
-  const cons = avg * 1.12;
-
-  const verdictCapacity = verdict === '적합' ? '높음' : verdict === '조건부' ? '보통' : '낮음';
-
-  const rationaleLines = [
-    `판정 계수 ×${verdictFactor.toFixed(2)} — 1공정 '${verdict}' 판정 기준으로 가격 경쟁력 여력이 '${verdictCapacity}'으로 평가됩니다.`,
-    `시장 계수 ×${segFactor.toFixed(2)} — ${_p2AiSeg === 'public' ? 'ALPS 집중 구매 압력을 반영해 민간 대비 약 5% 낮게 산정합니다.' : '민간 채널의 높은 마진 허용 구조를 반영해 공공 대비 약 6% 높게 산정합니다.'}`,
-    hasRisk
-      ? `리스크 계수 ×${riskFactor.toFixed(2)} — 보고서 리스크 항목이 존재해 2% 안전마진을 추가했습니다.`
-      : `리스크 계수 ×${riskFactor.toFixed(2)} — 보고서에 리스크 항목 없음, 추가 할인 불필요.`,
-  ];
-
-  if (ratEl) {
-    ratEl.innerHTML = `
-      <div class="p2-ai-rationale-block">
-        <div class="selector-label" style="margin-bottom:6px;">AI 추론 근거</div>
-        ${rationaleLines.map(l => `<div class="p2-ai-rationale-line">${_escHtml(l)}</div>`).join('')}
-      </div>`;
-  }
-
-  const aggReason  = _p2AiScenarioReason('aggressive',   verdict, _p2AiSeg, hasRisk, verdictFactor, segFactor, riskFactor);
-  const avgReason  = _p2AiScenarioReason('average',      verdict, _p2AiSeg, hasRisk, verdictFactor, segFactor, riskFactor);
-  const consReason = _p2AiScenarioReason('conservative', verdict, _p2AiSeg, hasRisk, verdictFactor, segFactor, riskFactor);
-
-  noteEl.textContent = `기준가 SGD ${Number(base).toFixed(2)} 기반 산정 완료.`;
-  if (lblEl) lblEl.style.display = '';
-  outEl.innerHTML = _p2ScenarioHtml(agg, avg, cons, aggReason, avgReason, consReason);
-
-  _p2LastScenarios = {
-    mode: 'ai', seg: _p2AiSeg, base, agg, avg, cons,
-    formulaStr: `SGD ${Number(base).toFixed(2)} × ${verdictFactor.toFixed(2)} × ${segFactor.toFixed(2)} × ${riskFactor.toFixed(2)}  =  KUP  SGD ${Number(avg).toFixed(2)}`,
-    aggReason, avgReason, consReason, rationaleLines,
-  };
-  _renderP2PdfSection('ai');
-}
-
-function _p2AiScenarioReason(type, verdict, seg, hasRisk, verdictFactor, segFactor, riskFactor) {
-  const isPublic        = seg === 'public';
-  const verdictCapacity = verdict === '적합' ? '높음' : verdict === '조건부' ? '보통' : '낮음';
-
-  if (type === 'aggressive') {
-    const parts = [`1공정 '${verdict}' 판정으로 가격 경쟁력 여력이 '${verdictCapacity}'입니다.`];
-    if (isPublic) parts.push('공공 시장 ALPS 집중 구매 압력에 대응해 공격적 입찰가를 산정합니다. 초기 점유율 확보 우선 전략입니다.');
-    else          parts.push('민간 채널 초기 점유율 확보를 위해 마진 일부를 희생한 저가 진입 전략입니다.');
-    return parts.join(' ');
-  }
-  if (type === 'average') {
-    const parts = [`판정 계수(×${verdictFactor.toFixed(2)}), 시장 계수(×${segFactor.toFixed(2)})를 순차 적용한 AI 기준가입니다.`];
-    if (hasRisk) parts.push(`보고서 리스크 항목 반영으로 2% 안전마진(×${riskFactor.toFixed(2)})을 추가했습니다.`);
-    else         parts.push('보고서에 리스크 항목이 없어 추가 할인 없이 기준가를 그대로 유지합니다.');
-    return parts.join(' ');
-  }
-  if (type === 'conservative') {
-    const parts = ['HSA 등록비($1,000~$17,500), 물류 지연, 환율 변동에 대비한 보수적 시나리오입니다.'];
-    if (verdict === '조건부') parts.push(`'조건부' 판정에 따른 추가 조건 이행 비용(임상 데이터 보완 등)을 반영합니다.`);
-    if (isPublic)             parts.push('공공 입찰 재심사 시 하방 여유를 확보합니다.');
-    else                      parts.push('민간 채널 초기 정착 비용 및 반품·재고 리스크를 가격에 흡수합니다.');
-    return parts.join(' ');
-  }
-  return '';
-}
-
-/* ── PDF 생성 ────────────────────────────────────────────────────────────── */
-
-function _renderP2PdfSection(mode) {
-  const el = document.getElementById(`p2-${mode}-pdf-section`);
+function _renderP2PdfSection() {
+  const el = document.getElementById('p2-manual-pdf-section');
   if (!el) return;
   el.innerHTML = `
     <div class="p2-pdf-bar">
       <span class="p2-pdf-label">2공정 수출가 시나리오 보고서</span>
-      <button class="btn-analyze" id="p2-pdf-btn-${mode}" type="button" style="font-size:13px;padding:8px 18px;">📄 PDF 생성</button>
-      <div id="p2-pdf-state-${mode}" class="p2-pdf-state"></div>
+      <button class="btn-analyze" id="p2-pdf-btn-manual" type="button" style="font-size:13px;padding:8px 18px;">PDF 생성</button>
+      <div id="p2-pdf-state-manual" class="p2-pdf-state"></div>
     </div>`;
-  document.getElementById(`p2-pdf-btn-${mode}`)?.addEventListener('click', () => _generateP2Pdf(mode));
+  document.getElementById('p2-pdf-btn-manual')?.addEventListener('click', _generateP2Pdf);
 }
 
-async function _generateP2Pdf(mode) {
-  const btn     = document.getElementById(`p2-pdf-btn-${mode}`);
-  const stateEl = document.getElementById(`p2-pdf-state-${mode}`);
-  const sc      = _p2LastScenarios;
+async function _generateP2Pdf() {
+  const btn = document.getElementById('p2-pdf-btn-manual');
+  const stateEl = document.getElementById('p2-pdf-state-manual');
+  const sc = _p2LastScenarios;
   if (!sc) {
     if (stateEl) stateEl.textContent = '먼저 시나리오를 산정해 주세요.';
     return;
   }
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 생성 중…'; }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '생성 중…';
+  }
   if (stateEl) stateEl.textContent = '';
 
-  const report = _getP2SelectedReport();
-  const body = {
-    product_name: report ? (report.report_title || report.product || '제품명 미상') : '제품명 미상',
-    verdict:      report ? (report.verdict || '—') : '—',
-    seg_label:    sc.seg === 'public' ? '공공 시장' : '민간 시장',
-    base_price:   sc.base,
-    formula_str:  sc.formulaStr,
-    mode_label:   mode === 'manual' ? '직접 입력' : 'AI 분석',
-    scenarios: [
-      { name: '공격적인 시나리오', price: sc.agg,  reason: sc.aggReason  },
-      { name: '평균 시나리오',     price: sc.avg,  reason: sc.avgReason  },
-      { name: '보수 시나리오',     price: sc.cons, reason: sc.consReason },
-    ],
-    ai_rationale: sc.rationaleLines || [],
-  };
-
   try {
+    const report = _getP2SelectedReport();
+    const body = {
+      product_name: report ? (report.report_title || report.product || '제품명 미상') : '제품명 미상',
+      verdict: report ? (report.verdict || '—') : '—',
+      seg_label: sc.seg === 'public' ? '공공 시장' : '민간 시장',
+      base_price: sc.base,
+      formula_str: sc.formulaStr,
+      mode_label: '직접 입력',
+      scenarios: [
+        { name: '공격적인 시나리오', price: sc.agg, reason: sc.aggReason },
+        { name: '평균 시나리오', price: sc.avg, reason: sc.avgReason },
+        { name: '보수 시나리오', price: sc.cons, reason: sc.consReason },
+      ],
+      ai_rationale: [],
+    };
     const res = await fetch('/api/p2/report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (!data.pdf) throw new Error('PDF 파일명 없음');
-    if (stateEl) stateEl.innerHTML = `
-      <a class="btn-download"
-         href="/api/report/download?name=${encodeURIComponent(data.pdf)}"
-         target="_blank"
-         style="font-size:12px;padding:6px 14px;">📄 다운로드</a>`;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.pdf) throw new Error(data.detail || `HTTP ${res.status}`);
+    if (stateEl) {
+      stateEl.innerHTML = `<a class="btn-download" href="/api/report/download?name=${encodeURIComponent(data.pdf)}" target="_blank" style="font-size:12px;padding:6px 14px;">다운로드</a>`;
+    }
   } catch (err) {
     if (stateEl) stateEl.textContent = `생성 실패: ${err.message}`;
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📄 PDF 생성'; }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'PDF 생성';
+    }
   }
 }
 
@@ -1596,6 +1590,7 @@ async function loadNews() {
 
 loadKeyStatus();        // API 키 배지
 loadExchange();         // 환율 즉시 로드
+setInterval(() => { loadExchange(); }, 20000); // yfinance 준실시간 반영
 initTodo();             // Todo 상태 복원
 renderReportTab();      // 보고서 탭 초기 렌더
 initP2Strategy();       // 2공정 수출전략 수동 입력 초기화

@@ -256,14 +256,15 @@ async def api_macro() -> JSONResponse:
 # ── 환율 (yfinance SGD/KRW) ───────────────────────────────────────────────────
 
 _exchange_cache: dict[str, Any] = {"data": None, "ts": 0.0}
+_EXCHANGE_TTL_SEC = 5.0
 
 
 @app.get("/api/exchange")
 async def api_exchange() -> JSONResponse:
-    """SGD/KRW 실시간 환율 (yfinance). 60초 캐시."""
+    """SGD/KRW 실시간 환율 (yfinance). 짧은 캐시로 준실시간 제공."""
     import time as _time
 
-    if _exchange_cache["data"] and _time.time() - _exchange_cache["ts"] < 60:
+    if _exchange_cache["data"] and _time.time() - _exchange_cache["ts"] < _EXCHANGE_TTL_SEC:
         return JSONResponse(_exchange_cache["data"])
 
     def _fetch() -> dict[str, Any]:
@@ -280,6 +281,7 @@ async def api_exchange() -> JSONResponse:
             "sgd_jpy": round(sgd_jpy, 4),
             "sgd_cny": round(sgd_cny, 4),
             "source": "Yahoo Finance",
+            "fetched_at": _time.time(),
             "ok": True,
         }
 
@@ -297,6 +299,7 @@ async def api_exchange() -> JSONResponse:
             "sgd_jpy": 113.2,
             "sgd_cny": 5.63,
             "source": "폴백 (Yahoo Finance 연결 실패)",
+            "fetched_at": _time.time(),
             "ok": False,
             "error": str(exc),
         }
