@@ -508,17 +508,29 @@ async def report_status() -> dict[str, Any]:
 
 
 @app.get("/api/report/download")
-async def download_report(name: str | None = None) -> Any:
+async def download_report(name: str | None = None, inline: bool = False) -> Any:
+    """PDF 반환. inline=true면 브라우저/iframe 미리보기용(Content-Disposition: inline)."""
     reports_dir = ROOT / "reports"
+    disp = "inline" if inline else "attachment"
     if name:
         target = reports_dir / Path(name).name
         if target.is_file():
-            return FileResponse(str(target), media_type="application/pdf", filename=target.name)
+            return FileResponse(
+                str(target),
+                media_type="application/pdf",
+                filename=target.name,
+                content_disposition_type=disp,
+            )
 
     latest = _latest_report_pdf()
     if not latest:
         raise HTTPException(status_code=404, detail="생성된 보고서 없음. POST /api/report 먼저 실행")
-    return FileResponse(str(latest), media_type="application/pdf", filename=latest.name)
+    return FileResponse(
+        str(latest),
+        media_type="application/pdf",
+        filename=latest.name,
+        content_disposition_type=disp,
+    )
 
 
 # ── products 조회 ─────────────────────────────────────────────────────────────

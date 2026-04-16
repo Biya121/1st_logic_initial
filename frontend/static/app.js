@@ -739,13 +739,15 @@ function _showReportLoading() {
 
 /** U4: PDF 생성 완료 */
 function _showReportOk(pdfName) {
-  let downloadUrl = '/api/report/download';
   const dl = document.querySelector('#report-state-ok .btn-download');
-  const q = pdfName ? `?name=${encodeURIComponent(pdfName)}` : '';
-  downloadUrl += q;
+  const baseQ = pdfName ? `name=${encodeURIComponent(pdfName)}` : '';
+  const downloadUrl = `/api/report/download${baseQ ? `?${baseQ}` : ''}`;
   if (dl) dl.setAttribute('href', downloadUrl);
   const preview = document.getElementById('pdf-preview-frame');
-  if (preview) preview.setAttribute('src', downloadUrl);
+  if (preview) {
+    const previewUrl = `/api/report/download?${baseQ ? `${baseQ}&` : ''}inline=1`;
+    preview.setAttribute('src', previewUrl);
+  }
   document.getElementById('report-state-loading').style.display = 'none';
   document.getElementById('report-state-ok').style.display      = 'block';
   document.getElementById('report-state-error').style.display   = 'none';
