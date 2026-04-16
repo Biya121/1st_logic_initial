@@ -1141,12 +1141,21 @@ async function runP2AiPipeline() {
   try {
     let reportFilename = '';
 
-    // 1) 파일 업로드 우선, 없으면 선택된 저장 보고서 사용
+    // 1) 파일 업로드 우선 (base64 JSON), 없으면 선택된 저장 보고서 사용
     if (_p2UploadedFile) {
       if (stepLabelEl) stepLabelEl.textContent = 'PDF 업로드 중…';
-      const fd  = new FormData();
-      fd.append('file', _p2UploadedFile);
-      const upRes = await fetch('/api/p2/upload', { method: 'POST', body: fd });
+      // FileReader로 base64 변환 후 JSON 전송 (python-multipart 불필요)
+      const b64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(_p2UploadedFile);
+      });
+      const upRes = await fetch('/api/p2/upload', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ filename: _p2UploadedFile.name, content_b64: b64 }),
+      });
       if (!upRes.ok) {
         const e = await upRes.json().catch(() => ({}));
         throw new Error(e.detail || `업로드 실패 (HTTP ${upRes.status})`);

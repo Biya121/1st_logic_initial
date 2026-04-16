@@ -20,7 +20,7 @@ try:
 except ImportError:
     pass
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -881,19 +881,29 @@ SGD 가격이 명시되지 않고 USD만 있다면 ref_price_sgd는 null로 설�
         await _emit({"phase": "p2_pipeline", "message": f"P2 오류: {exc}", "level": "error"})
 
 
+class UploadBody(BaseModel):
+    filename: str
+    content_b64: str  # base64 인코딩된 PDF 바이너리
+
+
 @app.post("/api/p2/upload")
-async def upload_p2_pdf(file: UploadFile = File(...)) -> JSONResponse:
-    """P2 파이프라인용 PDF 업로드 (reports/ 에 저장)."""
-    fname = file.filename or ""
+async def upload_p2_pdf(body: UploadBody) -> JSONResponse:
+    """P2 파이프라인용 PDF 업로드 (base64 JSON — python-multipart 불필요)."""
+    import base64
+    import re as _re_up
+
+    fname = body.filename or "upload.pdf"
     if not fname.lower().endswith(".pdf"):
         raise HTTPException(400, "PDF 파일(.pdf)만 업로드 가능합니다.")
 
-    import re as _re_up
+    try:
+        content = base64.b64decode(body.content_b64)
+    except Exception:
+        raise HTTPException(400, "base64 디코딩 실패 — 올바른 PDF 파일인지 확인하세요.")
+
     safe_fname = _re_up.sub(r"[^\w가-힣\-\.]", "_", fname)[:80]
     _reports_dir = ROOT / "reports"
     _reports_dir.mkdir(parents=True, exist_ok=True)
-
-    content = await file.read()
     dest = _reports_dir / f"upload_{safe_fname}"
     dest.write_bytes(content)
 
