@@ -790,6 +790,100 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .p2-btn-alt { background: rgba(23,63,120,.15); color: var(--navy); }
 .p2-mode-box { display: none; }
 .p2-mode-box.on { display: block; }
+
+/* ── 탭 버튼 ────────────────────────────────────────────────────────────── */
+.p2-tab-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.p2-tab-btn {
+  height: 38px;
+  padding: 0 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  font-family: inherit;
+  background: rgba(23,63,120,.08);
+  color: var(--muted);
+}
+.p2-tab-btn:hover { background: rgba(23,63,120,.13); color: var(--navy); }
+.p2-tab-btn.on    { background: var(--navy); color: #fff; }
+
+/* ── 업로드 영역 ─────────────────────────────────────────────────────────── */
+.p2-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.p2-or-divider::before,
+.p2-or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(23,63,120,.08);
+}
+
+.p2-upload-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  border-radius: 12px;
+  background: rgba(23,63,120,.04);
+  transition: background .15s;
+  cursor: pointer;
+}
+.p2-upload-area:hover { background: rgba(23,63,120,.08); }
+
+.p2-upload-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 16px 24px;
+  width: 100%;
+  justify-content: center;
+}
+.p2-upload-icon { font-size: 22px; }
+#p2-upload-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+/* ── 최종 산정가 블록 ────────────────────────────────────────────────────── */
+.p2-final-price-block {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 16px 20px;
+  background: rgba(23,63,120,.05);
+  border-radius: 14px;
+}
+.p2-final-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+.p2-final-price {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--navy);
+  letter-spacing: -.04em;
+  line-height: 1;
+}
 .p2-seg-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .p2-seg-btn {
   height: 34px; padding: 0 12px; border-radius: 10px;

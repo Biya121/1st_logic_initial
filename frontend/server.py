@@ -20,7 +20,7 @@ try:
 except ImportError:
     pass
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -641,6 +641,322 @@ async def generate_p2_report(body: P2ReportBody) -> JSONResponse:
     await asyncio.to_thread(render_p2_pdf, p2_data, pdf_path)
 
     return JSONResponse({"ok": True, "pdf": pdf_name})
+
+
+# ── 2공정 AI 파이프라인 (PDF → Haiku 가격 추출 → 계산 → Haiku 분석 → PDF) ────────
+
+_p2_ai_task: dict[str, Any] = {}
+
+
+async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
+    global _p2_ai_task
+    try:
+        import json
+        import os
+        import re
+
+        import anthropic
+
+        api_key = (
+            os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY", "")
+        ).strip()
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY 미설정 — 환경변수를 확인하세요.")
+
+        # ── Step 1: PDF 텍스트 추출 ────────────────────────────────────────────
+        _p2_ai_task.update({"step": "extract", "step_label": "PDF 텍스트 추출 중…"})
+        await _emit({"phase": "p2_pipeline", "message": "PDF 텍스트 추출 시작", "level": "info"})
+
+        pdf_text = ""
+        try:
+            from pypdf import PdfReader  # type: ignore[import]
+            reader = PdfReader(report_path)
+            for page in reader.pages:
+                pdf_text += (page.extract_text() or "") + "\n"
+        except Exception as exc_pdf:
+            await _emit({"phase": "p2_pipeline", "message": f"PDF 추출 경고: {exc_pdf}", "level": "warn"})
+
+        if not pdf_text.strip():
+            raise ValueError("PDF에서 텍스트를 추출할 수 없습니다. 스캔 이미지 PDF이거나 암호화된 파일일 수 있습니다.")
+
+        await _emit({"phase": "p2_pipeline", "message": f"텍스트 {len(pdf_text)}자 추출 완료", "level": "success"})
+
+        # ── Step 2: Claude Haiku — 가격 정보 추출 ──────────────────────────────
+        _p2_ai_task.update({"step": "ai_extract", "step_label": "AI 가격 정보 추출 중…"})
+        await _emit({"phase": "p2_pipeline", "message": "Claude Haiku — 가격 정보 추출", "level": "info"})
+
+        client = anthropic.Anthropic(api_key=api_key)
+
+        extract_prompt = f"""다음 의약품 수출 분석 보고서에서 가격 관련 정보를 추출하세요.
+
+보고서 내용:
+{pdf_text[:7000]}
+
+아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
+{{
+  "product_name": "제품명 (없으면 '미상')",
+  "ref_price_sgd": 숫자 또는 null,
+  "ref_price_currency": "SGD 또는 USD",
+  "ref_price_text": "원문 가격 텍스트 (없으면 빈 문자열)",
+  "competitor_prices": [{{"name": "경쟁사명", "price_sgd": 숫자}}],
+  "market_context": "시장 맥락 요약 (1-2문장)",
+  "hs_code": "HS 코드 (없으면 빈 문자열)",
+  "verdict": "수출 적합성 판정 (적합/조건부/부적합/미상)"
+}}
+
+SGD 가격이 명시되지 않고 USD만 있다면 ref_price_sgd는 null로 설정하세요."""
+
+        extract_resp = await asyncio.to_thread(
+            lambda: client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": extract_prompt}],
+            )
+        )
+
+        extracted: dict[str, Any] = {}
+        try:
+            raw_extract = extract_resp.content[0].text
+            m_json = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", raw_extract, re.S)
+            if m_json:
+                extracted = json.loads(m_json.group(0))
+        except Exception:
+            extracted = {
+                "product_name": "미상",
+                "ref_price_sgd": None,
+                "ref_price_text": "",
+                "market_context": "",
+                "verdict": "미상",
+            }
+
+        _p2_ai_task["extracted"] = extracted
+        await _emit({
+            "phase": "p2_pipeline",
+            "message": f"가격 추출 완료 — 참조가: SGD {extracted.get('ref_price_sgd', '미확인')}",
+            "level": "success",
+        })
+
+        # ── Step 3: 실시간 환율 (yfinance) ────────────────────────────────────
+        _p2_ai_task.update({"step": "exchange", "step_label": "실시간 환율 조회 중…"})
+        await _emit({"phase": "p2_pipeline", "message": "yfinance 환율 조회", "level": "info"})
+
+        exchange_rates: dict[str, Any] = {
+            "sgd_krw": 1085.0, "usd_krw": 1393.0,
+            "sgd_usd": 0.7795, "source": "폴백값 (Yahoo Finance 연결 실패)",
+        }
+        try:
+            import yfinance as yf  # type: ignore[import]
+
+            def _fetch_rates() -> dict[str, Any]:
+                return {
+                    "sgd_krw": round(float(yf.Ticker("SGDKRW=X").fast_info.last_price), 2),
+                    "usd_krw": round(float(yf.Ticker("USDKRW=X").fast_info.last_price), 2),
+                    "sgd_usd": round(float(yf.Ticker("SGDUSD=X").fast_info.last_price), 4),
+                    "source": "Yahoo Finance (실시간)",
+                }
+
+            exchange_rates = await asyncio.to_thread(_fetch_rates)
+        except Exception as exc_fx:
+            await _emit({"phase": "p2_pipeline", "message": f"환율 폴백: {exc_fx}", "level": "warn"})
+
+        _p2_ai_task["exchange_rates"] = exchange_rates
+        await _emit({
+            "phase": "p2_pipeline",
+            "message": f"환율 — 1 SGD = {exchange_rates['sgd_krw']} KRW",
+            "level": "success",
+        })
+
+        # ── Step 4: Claude Haiku — 최종 가격 전략 분석 ──────────────────────────
+        _p2_ai_task.update({"step": "ai_analysis", "step_label": "AI 최종 분석 중…"})
+        await _emit({"phase": "p2_pipeline", "message": "Claude Haiku — 최종 가격 전략 분석", "level": "info"})
+
+        ref_price   = extracted.get("ref_price_sgd") or 0
+        sgd_krw     = exchange_rates["sgd_krw"]
+        market_label = "공공 시장 (ALPS/조달청 채널)" if market == "public" else "민간 시장 (병원·약국·체인 채널)"
+        verdict_src  = extracted.get("verdict", "미상")
+        competitor_json = json.dumps(extracted.get("competitor_prices", []), ensure_ascii=False)
+
+        analysis_prompt = f"""싱가포르 수출 가격 전략을 수립해주세요.
+
+## 추출된 보고서 정보
+- 제품명: {extracted.get('product_name', '미상')}
+- 수출 적합성 판정: {verdict_src}
+- 참조가: SGD {ref_price if ref_price else '미확인'}
+- 참조가 원문: {extracted.get('ref_price_text', '없음')}
+- HS 코드: {extracted.get('hs_code', '미상')}
+- 시장: {market_label}
+- 현재 환율: 1 SGD = {sgd_krw:.2f} KRW (실시간 Yahoo Finance)
+- 경쟁사 가격: {competitor_json}
+- 시장 맥락: {extracted.get('market_context', '정보 없음')}
+
+## 요청
+1. 싱가포르 제약 시장의 특성, 판정 결과, 시장 구분을 종합해 최종 수출 권고가를 산정하세요.
+2. 공식(formula_str)은 어떻게 최종 가격에 도달했는지 수식으로 명확히 서술하세요.
+3. 시나리오는 공격적·평균·보수 3개로 구분하고, 각각의 가격과 이유를 구체적으로 서술하세요.
+4. 산정 이유(rationale)는 3-4문장으로 시장 근거·판정 근거·리스크를 포함해 서술하세요.
+
+아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
+{{
+  "final_price_sgd": 숫자,
+  "formula_str": "산정 공식 (예: SGD 5.20(참조가) × 0.30(공공비율) = SGD 1.56)",
+  "rationale": "산정 이유 3-4문장",
+  "scenarios": [
+    {{"name": "공격적인 시나리오", "price_sgd": 숫자, "reason": "1-2문장 이유"}},
+    {{"name": "평균 시나리오", "price_sgd": 숫자, "reason": "1-2문장 이유"}},
+    {{"name": "보수 시나리오", "price_sgd": 숫자, "reason": "1-2문장 이유"}}
+  ]
+}}
+
+참조가(ref_price_sgd)가 null이라면 시장 데이터·경쟁사·제품 특성을 기반으로 합리적인 가격을 추정하세요."""
+
+        analysis_resp = await asyncio.to_thread(
+            lambda: client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=2048,
+                messages=[{"role": "user", "content": analysis_prompt}],
+            )
+        )
+
+        analysis: dict[str, Any] = {}
+        try:
+            raw_analysis = analysis_resp.content[0].text
+            m_json2 = re.search(r"\{.*\}", raw_analysis, re.S)
+            if m_json2:
+                analysis = json.loads(m_json2.group(0))
+        except Exception:
+            final_est = (ref_price * 0.30) if ref_price else 0
+            analysis = {
+                "final_price_sgd": round(final_est, 2),
+                "formula_str": f"SGD {ref_price:.2f} × 30% = SGD {final_est:.2f}",
+                "rationale": "AI 응답 파싱 중 오류가 발생했습니다. 기본값 30% 비율로 산정합니다.",
+                "scenarios": [
+                    {"name": "공격적인 시나리오", "price_sgd": round(final_est * 0.88, 2), "reason": "경쟁사 대비 저가 진입 전략"},
+                    {"name": "평균 시나리오",    "price_sgd": round(final_est, 2),         "reason": "30% 기준비율 적용 기준가"},
+                    {"name": "보수 시나리오",    "price_sgd": round(final_est * 1.12, 2),  "reason": "리스크 버퍼 포함 보수 가격"},
+                ],
+            }
+
+        _p2_ai_task["analysis"] = analysis
+        await _emit({
+            "phase": "p2_pipeline",
+            "message": f"최종 분석 완료 — SGD {analysis.get('final_price_sgd', 0):.2f}",
+            "level": "success",
+        })
+
+        # ── Step 5: PDF 보고서 생성 ───────────────────────────────────────────
+        _p2_ai_task.update({"step": "report", "step_label": "PDF 생성 중…"})
+        await _emit({"phase": "p2_pipeline", "message": "2공정 PDF 보고서 생성", "level": "info"})
+
+        from datetime import datetime, timezone as _tz_p2ai
+        import re as _re2
+
+        _ts_p2 = datetime.now(_tz_p2ai.utc).strftime("%Y%m%d_%H%M%S")
+        _reports_dir_p2 = ROOT / "reports"
+        _reports_dir_p2.mkdir(parents=True, exist_ok=True)
+
+        _safe = _re2.sub(r"[^\w가-힣]", "_", extracted.get("product_name", "product"))[:30] or "product"
+        _pdf_name_p2 = f"sg_p2_{_safe}_{_ts_p2}.pdf"
+        _pdf_path_p2 = _reports_dir_p2 / _pdf_name_p2
+
+        p2_data = {
+            "product_name": extracted.get("product_name", "미상"),
+            "verdict":      verdict_src,
+            "seg_label":    market_label,
+            "base_price":   analysis.get("final_price_sgd", 0),
+            "formula_str":  analysis.get("formula_str", ""),
+            "mode_label":   "AI 분석 (Claude Haiku)",
+            "scenarios":    analysis.get("scenarios", []),
+            "ai_rationale": [analysis.get("rationale", "")],
+        }
+
+        from report_generator import render_p2_pdf
+        await asyncio.to_thread(render_p2_pdf, p2_data, _pdf_path_p2)
+
+        _p2_ai_task["pdf"] = _pdf_name_p2
+        _p2_ai_task.update({"status": "done", "step": "done", "step_label": "완료"})
+        await _emit({"phase": "p2_pipeline", "message": "P2 파이프라인 완료", "level": "success"})
+
+    except Exception as exc:
+        _p2_ai_task.update({"status": "error", "step": "error", "step_label": str(exc)[:300]})
+        await _emit({"phase": "p2_pipeline", "message": f"P2 오류: {exc}", "level": "error"})
+
+
+@app.post("/api/p2/upload")
+async def upload_p2_pdf(file: UploadFile = File(...)) -> JSONResponse:
+    """P2 파이프라인용 PDF 업로드 (reports/ 에 저장)."""
+    fname = file.filename or ""
+    if not fname.lower().endswith(".pdf"):
+        raise HTTPException(400, "PDF 파일(.pdf)만 업로드 가능합니다.")
+
+    import re as _re_up
+    safe_fname = _re_up.sub(r"[^\w가-힣\-\.]", "_", fname)[:80]
+    _reports_dir = ROOT / "reports"
+    _reports_dir.mkdir(parents=True, exist_ok=True)
+
+    content = await file.read()
+    dest = _reports_dir / f"upload_{safe_fname}"
+    dest.write_bytes(content)
+
+    return JSONResponse({"ok": True, "filename": dest.name})
+
+
+class P2PipelineBody(BaseModel):
+    report_filename: str = ""  # reports/ 내 파일명 (비어 있으면 최신 1공정 PDF 사용)
+    market: str = "public"     # "public" | "private"
+
+
+@app.post("/api/p2/pipeline")
+async def trigger_p2_pipeline(body: P2PipelineBody) -> JSONResponse:
+    """2공정 AI 파이프라인 실행."""
+    global _p2_ai_task
+    if _p2_ai_task.get("status") == "running":
+        raise HTTPException(409, "P2 파이프라인이 이미 실행 중입니다.")
+
+    if body.report_filename:
+        report_path = ROOT / "reports" / Path(body.report_filename).name
+    else:
+        report_path = _latest_report_pdf()
+
+    if not report_path or not Path(report_path).is_file():
+        raise HTTPException(404, f"보고서 파일을 찾을 수 없습니다: {body.report_filename or '(최신 PDF 없음)'}")
+
+    _p2_ai_task = {
+        "status":   "running",
+        "step":     "extract",
+        "step_label": "시작 중…",
+        "extracted": None,
+        "exchange_rates": None,
+        "analysis": None,
+        "pdf":      None,
+    }
+    asyncio.create_task(_run_p2_ai_pipeline(str(report_path), body.market))
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/p2/pipeline/status")
+async def p2_pipeline_status_ai() -> JSONResponse:
+    if not _p2_ai_task:
+        return JSONResponse({"status": "idle"})
+    return JSONResponse({
+        "status":     _p2_ai_task.get("status", "idle"),
+        "step":       _p2_ai_task.get("step", ""),
+        "step_label": _p2_ai_task.get("step_label", ""),
+        "has_result": _p2_ai_task.get("analysis") is not None,
+        "has_pdf":    bool(_p2_ai_task.get("pdf")),
+    })
+
+
+@app.get("/api/p2/pipeline/result")
+async def p2_pipeline_result_ai() -> JSONResponse:
+    if not _p2_ai_task:
+        raise HTTPException(404, "P2 파이프라인 미실행")
+    return JSONResponse({
+        "status":         _p2_ai_task.get("status"),
+        "extracted":      _p2_ai_task.get("extracted"),
+        "exchange_rates": _p2_ai_task.get("exchange_rates"),
+        "analysis":       _p2_ai_task.get("analysis"),
+        "pdf":            _p2_ai_task.get("pdf"),
+    })
 
 
 # ── products 조회 ─────────────────────────────────────────────────────────────

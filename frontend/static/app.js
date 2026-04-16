@@ -534,20 +534,23 @@ function _p2FillBaseFromReport() {
 function _syncP2ReportsOptions() {
   if (!_p2Ready) return;
   const select = document.getElementById('p2-report-select');
-  if (!select) return;
-  const reports = _loadReports();
-  const current = _p2SelectedReportId;
+  if (select) {
+    const reports = _loadReports();
+    const current = _p2SelectedReportId;
 
-  const options = ['<option value="">보고서를 선택하세요</option>']
-    .concat(reports.map(r => (
-      `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`
-    )));
-  select.innerHTML = options.join('');
+    const options = ['<option value="">보고서를 선택하세요</option>']
+      .concat(reports.map(r => (
+        `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`
+      )));
+    select.innerHTML = options.join('');
 
-  const hasCurrent = reports.some(r => String(r.id) === String(current));
-  _p2SelectedReportId = hasCurrent ? current : '';
-  select.value = _p2SelectedReportId;
-  _renderP2ReportBrief();
+    const hasCurrent = reports.some(r => String(r.id) === String(current));
+    _p2SelectedReportId = hasCurrent ? current : '';
+    select.value = _p2SelectedReportId;
+    _renderP2ReportBrief();
+  }
+  // AI 탭 select 도 동기화
+  _syncP2AiReportSelect();
 }
 
 function _getP2SelectedReport() {
@@ -1045,6 +1048,320 @@ async function _generateP2Pdf(mode) {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📄 PDF 생성'; }
   }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §6-B. 2공정 AI 파이프라인 (PDF → Haiku → 결과 표시)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+let _p2AiSeg        = 'public';   // 'public' | 'private'
+let _p2UploadedFile = null;       // 업로드된 파일 객체
+let _p2AiPollTimer  = null;       // 폴링 타이머
+
+const P2_STEP_ORDER = ['extract', 'ai_extract', 'exchange', 'ai_analysis', 'report'];
+
+/* ── 탭 전환 ─────────────────────────────────────────────────────────────── */
+
+function switchP2Tab(tab) {
+  const aiTab     = document.getElementById('p2-ai-tab');
+  const manualTab = document.getElementById('p2-manual-tab');
+  const aiBtn     = document.getElementById('p2-tab-ai');
+  const manualBtn = document.getElementById('p2-tab-manual');
+  const desc      = document.getElementById('p2-tab-desc');
+
+  if (tab === 'ai') {
+    if (aiTab)     aiTab.style.display     = '';
+    if (manualTab) manualTab.style.display = 'none';
+    if (aiBtn)     aiBtn.classList.add('on');
+    if (manualBtn) manualBtn.classList.remove('on');
+    if (desc) desc.textContent = '보고서를 업로드하면 AI가 가격 정보를 자동 추출·분석합니다.';
+  } else {
+    if (aiTab)     aiTab.style.display     = 'none';
+    if (manualTab) manualTab.style.display = '';
+    if (aiBtn)     aiBtn.classList.remove('on');
+    if (manualBtn) manualBtn.classList.add('on');
+    if (desc) desc.textContent = '가격 옵션을 직접 조정해 시나리오를 산정합니다.';
+    _renderP2Manual();
+  }
+}
+
+/* ── 시장 선택 ───────────────────────────────────────────────────────────── */
+
+function setP2AiSeg(seg) {
+  _p2AiSeg = seg;
+  document.getElementById('p2-ai-seg-public') ?.classList.toggle('on',  seg === 'public');
+  document.getElementById('p2-ai-seg-private')?.classList.toggle('on',  seg === 'private');
+  const descEl = document.getElementById('p2-ai-seg-desc');
+  if (descEl) {
+    descEl.textContent = seg === 'public'
+      ? '공공 시장: ALPS 조달청 채널 · 27개 공공기관 통합구매 기준'
+      : '민간 시장: 병원·약국·Guardian·Watsons 등 소매 채널 기준';
+  }
+}
+
+/* ── 파일 선택 핸들러 ─────────────────────────────────────────────────────── */
+
+function handleP2FileSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  _p2UploadedFile = file;
+
+  const textEl = document.getElementById('p2-upload-text');
+  if (textEl) textEl.textContent = `📎 ${file.name}`;
+
+  // AI 보고서 select 초기화 (파일 선택 시 저장 보고서 선택 해제)
+  const aiSel = document.getElementById('p2-ai-report-select');
+  if (aiSel) aiSel.value = '';
+
+  const statusEl = document.getElementById('p2-upload-status');
+  if (statusEl) {
+    statusEl.style.display = '';
+    statusEl.textContent   = `파일 준비 완료: ${(file.size / 1024).toFixed(0)} KB`;
+  }
+}
+
+/* ── P2 AI 파이프라인 실행 ────────────────────────────────────────────────── */
+
+async function runP2AiPipeline() {
+  const btn    = document.getElementById('btn-p2-ai-run');
+  const iconEl = document.getElementById('p2-ai-run-icon');
+  if (btn) { btn.disabled = true; }
+  if (iconEl) iconEl.textContent = '⏳';
+
+  // 결과·진행 초기화
+  document.getElementById('p2-ai-result-section').style.display = 'none';
+  _resetP2AiProgress();
+
+  const progressCard = document.getElementById('p2-ai-progress-card');
+  if (progressCard) progressCard.style.display = '';
+
+  const stepLabelEl = document.getElementById('p2-ai-step-label-text');
+
+  try {
+    let reportFilename = '';
+
+    // 1) 파일 업로드 우선, 없으면 선택된 저장 보고서 사용
+    if (_p2UploadedFile) {
+      if (stepLabelEl) stepLabelEl.textContent = 'PDF 업로드 중…';
+      const fd  = new FormData();
+      fd.append('file', _p2UploadedFile);
+      const upRes = await fetch('/api/p2/upload', { method: 'POST', body: fd });
+      if (!upRes.ok) {
+        const e = await upRes.json().catch(() => ({}));
+        throw new Error(e.detail || `업로드 실패 (HTTP ${upRes.status})`);
+      }
+      const upData   = await upRes.json();
+      reportFilename = upData.filename;
+    } else {
+      const aiSel    = document.getElementById('p2-ai-report-select');
+      const reportId = aiSel?.value || '';
+      if (!reportId) {
+        throw new Error('보고서를 선택하거나 PDF를 업로드해 주세요.');
+      }
+      // localStorage 보고서에서 pdf_name 조회
+      const reps = _loadReports();
+      const rep  = reps.find(r => String(r.id) === String(reportId));
+      if (!rep?.pdf_name) {
+        throw new Error('선택한 보고서에 연결된 PDF 파일이 없습니다. PDF를 직접 업로드해 주세요.');
+      }
+      reportFilename = rep.pdf_name;
+    }
+
+    // 2) 파이프라인 실행
+    if (stepLabelEl) stepLabelEl.textContent = '파이프라인 시작 중…';
+    const res = await fetch('/api/p2/pipeline', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ report_filename: reportFilename, market: _p2AiSeg }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.detail || `실행 실패 (HTTP ${res.status})`);
+    }
+
+    // 3) 폴링
+    if (_p2AiPollTimer) clearInterval(_p2AiPollTimer);
+    _p2AiPollTimer = setInterval(_pollP2AiPipeline, 2500);
+
+  } catch (err) {
+    _setP2AiProgress('extract', 'error');
+    if (stepLabelEl) stepLabelEl.textContent = `오류: ${err.message}`;
+    if (btn)   btn.disabled = false;
+    if (iconEl) iconEl.textContent = '▶';
+  }
+}
+
+/* ── 폴링 ────────────────────────────────────────────────────────────────── */
+
+async function _pollP2AiPipeline() {
+  try {
+    const res = await fetch('/api/p2/pipeline/status');
+    const d   = await res.json();
+    if (d.status === 'idle') return;
+
+    const stepLabelEl = document.getElementById('p2-ai-step-label-text');
+    if (stepLabelEl && d.step_label) stepLabelEl.textContent = d.step_label;
+
+    // 진행 단계 업데이트
+    const stepMap = {
+      extract:     0,
+      ai_extract:  1,
+      exchange:    2,
+      ai_analysis: 3,
+      report:      4,
+    };
+    const idx = stepMap[d.step] ?? -1;
+    if (idx >= 0) {
+      P2_STEP_ORDER.forEach((s, i) => {
+        if      (i < idx)   _setP2AiProgress(s, 'done');
+        else if (i === idx) _setP2AiProgress(s, 'running');
+      });
+    }
+
+    if (d.status === 'done') {
+      clearInterval(_p2AiPollTimer);
+      for (const s of P2_STEP_ORDER) _setP2AiProgress(s, 'done');
+      // 결과 조회 및 렌더링
+      const r2   = await fetch('/api/p2/pipeline/result');
+      const data = await r2.json();
+      _renderP2AiResult(data);
+      const btn    = document.getElementById('btn-p2-ai-run');
+      const iconEl = document.getElementById('p2-ai-run-icon');
+      if (btn)   btn.disabled = false;
+      if (iconEl) iconEl.textContent = '▶';
+    }
+
+    if (d.status === 'error') {
+      clearInterval(_p2AiPollTimer);
+      _setP2AiProgress(P2_STEP_ORDER.includes(d.step) ? d.step : 'extract', 'error');
+      if (stepLabelEl) stepLabelEl.textContent = `오류: ${d.step_label || '알 수 없는 오류'}`;
+      const btn    = document.getElementById('btn-p2-ai-run');
+      const iconEl = document.getElementById('p2-ai-run-icon');
+      if (btn)   btn.disabled = false;
+      if (iconEl) iconEl.textContent = '▶';
+    }
+  } catch (_) { /* 조용히 재시도 */ }
+}
+
+/* ── 결과 렌더링 ─────────────────────────────────────────────────────────── */
+
+function _renderP2AiResult(data) {
+  const ex  = data.extracted  || {};
+  const fx  = data.exchange_rates || {};
+  const an  = data.analysis   || {};
+
+  const resultSec = document.getElementById('p2-ai-result-section');
+  if (resultSec) resultSec.style.display = '';
+
+  // 추출된 가격 정보
+  const _setT = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(val || '—').trim() || '—';
+  };
+  _setT('p2r-product-name',   ex.product_name || '미상');
+  _setT('p2r-ref-price-text', ex.ref_price_text || (ex.ref_price_sgd != null ? `SGD ${Number(ex.ref_price_sgd).toFixed(2)}` : '미확인'));
+  _setT('p2r-verdict',        ex.verdict || '—');
+  _setT('p2r-exchange',       fx.sgd_krw ? `1 SGD = ${fx.sgd_krw.toLocaleString('ko-KR')} KRW (${fx.source || ''})` : '—');
+
+  // 최종 산정가
+  const finalPrice = Number(an.final_price_sgd || 0);
+  const priceEl    = document.getElementById('p2r-final-price');
+  if (priceEl) priceEl.textContent = `SGD ${finalPrice.toFixed(2)}`;
+
+  const formulaEl = document.getElementById('p2r-formula');
+  if (formulaEl) formulaEl.textContent = an.formula_str || '—';
+
+  // 시나리오
+  const scenEl = document.getElementById('p2r-scenarios');
+  if (scenEl) {
+    const scenarios = an.scenarios || [];
+    const clsMap    = { 0: 'agg', 1: 'avg', 2: 'cons' };
+    scenEl.innerHTML = scenarios.map((sc, i) => `
+      <div class="p2-scenario p2-scenario--${clsMap[i] || 'avg'}">
+        <div class="p2-scenario-top">
+          <span class="p2-scenario-name">${_escHtml(sc.name || '')}</span>
+          <span class="p2-scenario-price">SGD ${Number(sc.price_sgd || 0).toFixed(2)}</span>
+        </div>
+        ${sc.reason ? `<div class="p2-scenario-reason">${_escHtml(sc.reason)}</div>` : ''}
+      </div>`).join('');
+  }
+
+  // 산정 이유
+  const ratEl = document.getElementById('p2r-rationale');
+  if (ratEl) ratEl.textContent = an.rationale || '—';
+
+  // PDF 다운로드
+  const dlState = document.getElementById('p2-report-dl-state');
+  const spinner = document.getElementById('p2-dl-spinner');
+  if (spinner) spinner.style.display = 'none';
+  if (dlState) {
+    if (data.pdf) {
+      dlState.innerHTML = `
+        <a class="btn-download"
+           href="/api/report/download?name=${encodeURIComponent(data.pdf)}"
+           target="_blank">
+          📄 PDF 보고서 다운로드
+        </a>`;
+    } else {
+      dlState.innerHTML = '<span style="font-size:13px;color:var(--muted);">PDF 파일이 생성되지 않았습니다.</span>';
+    }
+  }
+
+  // Todo 자동 체크 (2공정 완료)
+  markTodoDone('p2');
+}
+
+/* ── 진행 단계 헬퍼 ──────────────────────────────────────────────────────── */
+
+function _setP2AiProgress(step, status) {
+  const idMap = {
+    extract:     'p2prog-extract',
+    ai_extract:  'p2prog-ai_extract',
+    exchange:    'p2prog-exchange',
+    ai_analysis: 'p2prog-ai_analysis',
+    report:      'p2prog-report',
+  };
+  const el = document.getElementById(idMap[step]);
+  if (!el) return;
+  const dot = el.querySelector('.prog-dot');
+  const idx = P2_STEP_ORDER.indexOf(step);
+
+  if (status === 'error') {
+    el.className = 'prog-step error';
+    if (dot) dot.textContent = '✕';
+  } else if (status === 'done') {
+    el.className = 'prog-step done';
+    if (dot) dot.textContent = '✓';
+  } else if (status === 'running') {
+    el.className = 'prog-step active';
+    if (dot) dot.textContent = idx + 1;
+  } else {
+    el.className = 'prog-step';
+    if (dot) dot.textContent = idx + 1;
+  }
+}
+
+function _resetP2AiProgress() {
+  P2_STEP_ORDER.forEach((s, i) => {
+    const idMap = { extract: 'p2prog-extract', ai_extract: 'p2prog-ai_extract', exchange: 'p2prog-exchange', ai_analysis: 'p2prog-ai_analysis', report: 'p2prog-report' };
+    const el = document.getElementById(idMap[s]);
+    if (!el) return;
+    el.className = 'prog-step';
+    const dot = el.querySelector('.prog-dot');
+    if (dot) dot.textContent = i + 1;
+  });
+}
+
+/* ── AI 탭 보고서 동기화 ─────────────────────────────────────────────────── */
+
+function _syncP2AiReportSelect() {
+  const select = document.getElementById('p2-ai-report-select');
+  if (!select) return;
+  const reports = _loadReports();
+  select.innerHTML = ['<option value="">저장된 1공정 보고서를 선택하세요</option>']
+    .concat(reports.map(r => `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`))
+    .join('');
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1593,9 +1910,10 @@ async function loadNews() {
    §12. 초기화
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-loadKeyStatus();   // §6: API 키 배지
-loadExchange();    // §3: 환율 즉시 로드
-initTodo();        // §4: Todo 상태 복원
-renderReportTab(); // §5: 보고서 탭 초기 렌더
-initP2Strategy();  // §6: 2공정 수출전략 초기화
-loadNews();        // §11: 시장 뉴스 즉시 로드
+loadKeyStatus();        // API 키 배지
+loadExchange();         // 환율 즉시 로드
+initTodo();             // Todo 상태 복원
+renderReportTab();      // 보고서 탭 초기 렌더
+initP2Strategy();       // 2공정 수출전략 수동 입력 초기화
+_syncP2AiReportSelect(); // 2공정 AI 탭 보고서 동기화
+loadNews();             // 시장 뉴스 즉시 로드

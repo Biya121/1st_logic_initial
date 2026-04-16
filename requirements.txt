@@ -8,5 +8,7 @@ reportlab>=4.0
 supabase>=2.0
 anthropic>=0.28
 yfinance>=0.2.36
+pypdf>=4.0
+python-multipart>=0.0.9
 # 선택: Playwright 실크롤 시 필요
 # playwright>=1.44  # 설치 후: playwright install chromium
