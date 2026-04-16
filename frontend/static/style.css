@@ -1083,6 +1083,12 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   font-size: 11.5px; color: var(--muted); line-height: 1.6;
   padding-top: 4px; border-top: 1px solid rgba(23,63,120,.06);
 }
+.p2-scenario-formula {
+  font-size: 11px; font-weight: 700; color: var(--navy);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  background: rgba(23,63,120,.06); border-radius: 6px;
+  padding: 4px 8px; margin-top: 4px; letter-spacing: .01em;
+}
 
 /* ── AI 추론 근거 ────────────────────────────────────────────────────────── */
 .p2-ai-rationale-block {

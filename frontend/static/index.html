@@ -394,15 +394,10 @@
     <div id="p2-wrap" style="max-width:1080px;margin:0 auto;">
 
       <!-- ── 모드 탭 ─────────────────────────────────────────────────────── -->
-      <div class="selector-card" style="margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <div class="p2-tab-row" style="margin-bottom:0;">
-            <button class="p2-tab-btn on" id="p2-tab-ai"     type="button" onclick="switchP2Tab('ai')">AI 파이프라인</button>
-            <button class="p2-tab-btn"    id="p2-tab-manual" type="button" onclick="switchP2Tab('manual')">직접 입력</button>
-          </div>
-          <span id="p2-tab-desc" style="font-size:11.5px;color:var(--muted);flex:1;min-width:160px;">
-            1공정 보고서를 기반으로 AI가 자동으로 가격을 추출·산정합니다.
-          </span>
+      <div style="display:flex;justify-content:center;margin-bottom:14px;">
+        <div class="p2-tab-row">
+          <button class="p2-tab-btn on" id="p2-tab-ai"     type="button" onclick="switchP2Tab('ai')">AI 파이프라인</button>
+          <button class="p2-tab-btn"    id="p2-tab-manual" type="button" onclick="switchP2Tab('manual')">직접 입력</button>
         </div>
       </div>
 
@@ -419,18 +414,6 @@
               <option value="">저장된 1공정 보고서를 선택하세요.</option>
             </select>
           </div>
-
-          <div class="p2-or-divider">또는 PDF 직접 업로드</div>
-
-          <div class="p2-upload-area" id="p2-upload-area">
-            <input type="file" id="p2-pdf-file" accept=".pdf" style="display:none;"
-                   onchange="handleP2FileSelect(this)">
-            <label for="p2-pdf-file" class="p2-upload-label">
-              <span class="p2-upload-icon">📄</span>
-              <span id="p2-upload-text">PDF 파일 선택</span>
-            </label>
-          </div>
-          <div id="p2-upload-status" class="p2-note" style="display:none;"></div>
 
           <div class="selector-label" style="margin-top:16px;">시장 선택 및 분석 실행</div>
           <div class="selector-row" style="flex-wrap:wrap;gap:12px;">
@@ -509,10 +492,6 @@
               </div>
             </div>
 
-            <div class="rs-block">
-              <div class="rs-block-label">산정 공식</div>
-              <div class="p2-formula-text" style="margin-top:6px;" id="p2r-formula">—</div>
-            </div>
           </div>
 
           <!-- 시나리오 3개 -->
@@ -544,7 +523,7 @@
 
         <!-- 보고서 참조 + 시장 선택 통합 -->
         <div class="selector-card">
-          <div class="selector-label">1공정 보고서 참조 (선택)</div>
+          <div class="selector-label">1공정 보고서 참조</div>
           <div class="selector-row">
             <select id="p2-report-select">
               <option value="">보고서를 선택하세요</option>
@@ -568,10 +547,7 @@
           <div id="p2-manual-removed" class="p2-removed"></div>
           <div id="p2-custom-add-section"></div>
 
-          <div class="selector-label" style="margin-top:18px;">산정 공식</div>
-          <div id="p2-formula-preview" class="p2-formula-text">—</div>
-
-          <div class="selector-label" style="margin-top:18px;">시나리오 산정</div>
+          <div class="selector-label" style="margin-top:18px;">가격 시나리오</div>
           <div id="p2-manual-scenarios" class="p2-scenarios"></div>
 
           <div id="p2-manual-pdf-section" class="p2-pdf-section"></div>
