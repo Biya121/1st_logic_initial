@@ -469,7 +469,7 @@ function switchP2Tab(tab) {
       ? '1공정 보고서를 기반으로 AI가 자동으로 가격을 추출·산정합니다.'
       : '필요한 옵션만 남겨 직접 산정 공식을 구성할 수 있습니다.';
   }
-  if (_p2Tab === 'ai') _showP2AiStatus(false, '');
+  if (_p2Tab === 'ai') _showP2AiError('');
 }
 
 function setP2AiSeg(seg) {
@@ -528,24 +528,54 @@ async function handleP2FileSelect(inputEl) {
   }
 }
 
-function _showP2AiStatus(show, text) {
-  const card = document.getElementById('p2-ai-progress-card');
-  const label = document.getElementById('p2-ai-step-label-text');
-  if (card) card.style.display = show ? '' : 'none';
-  if (label && text) label.textContent = text;
+/* 2공정 진행 단계 — 1공정과 동일한 스타일 */
+const P2_STEP_ORDER = ['extract', 'ai_extract', 'ai_analysis', 'report'];
+
+function _setP2Progress(currentStep, status) {
+  const row = document.getElementById('p2-progress-row');
+  if (row) row.classList.add('visible');
+  const idx = P2_STEP_ORDER.indexOf(currentStep);
+
+  for (let i = 0; i < P2_STEP_ORDER.length; i++) {
+    const el = document.getElementById('p2prog-' + P2_STEP_ORDER[i]);
+    if (!el) continue;
+    const dot = el.querySelector('.prog-dot');
+    if (status === 'error' && i === idx) {
+      el.className = 'prog-step error'; dot.textContent = '✕';
+    } else if (i < idx || (i === idx && status === 'done')) {
+      el.className = 'prog-step done'; dot.textContent = '✓';
+    } else if (i === idx) {
+      el.className = 'prog-step active'; dot.textContent = i + 1;
+    } else {
+      el.className = 'prog-step'; dot.textContent = i + 1;
+    }
+  }
+}
+
+function _resetP2Progress() {
+  const row = document.getElementById('p2-progress-row');
+  if (row) row.classList.remove('visible');
+  for (let i = 0; i < P2_STEP_ORDER.length; i++) {
+    const el = document.getElementById('p2prog-' + P2_STEP_ORDER[i]);
+    if (!el) continue;
+    el.className = 'prog-step';
+    el.querySelector('.prog-dot').textContent = i + 1;
+  }
+}
+
+function _showP2AiError(msg) {
+  const el = document.getElementById('p2-ai-error-msg');
+  if (!el) return;
+  if (msg) { el.style.display = ''; el.textContent = msg; }
+  else { el.style.display = 'none'; el.textContent = ''; }
 }
 
 function _resetP2AiResultView() {
   const resultSection = document.getElementById('p2-ai-result-section');
   if (resultSection) resultSection.style.display = 'none';
   const dlState = document.getElementById('p2-report-dl-state');
-  if (dlState) {
-    dlState.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="report-loading-spinner"></span>
-        <span style="font-size:13px;color:var(--muted);">분석 완료 후 보고서가 준비됩니다.</span>
-      </div>`;
-  }
+  if (dlState) dlState.innerHTML = '';
+  _showP2AiError('');
 }
 
 async function runP2AiPipeline() {
@@ -555,13 +585,14 @@ async function runP2AiPipeline() {
   const reportFilename = _p2UploadedReportFilename || (selectedReport ? (selectedReport.pdf_name || '') : '');
 
   if (!reportFilename) {
-    _showP2AiStatus(true, '실행 전 PDF가 있는 보고서를 선택하거나 PDF를 직접 업로드해 주세요.');
+    _showP2AiError('실행 전 PDF가 있는 보고서를 선택하거나 PDF를 직접 업로드해 주세요.');
     return;
   }
 
   if (_p2AiPollTimer) clearInterval(_p2AiPollTimer);
   _resetP2AiResultView();
-  _showP2AiStatus(true, 'AI 가격 파이프라인을 시작합니다…');
+  _resetP2Progress();
+  _setP2Progress('extract', 'running');
 
   if (runBtn) runBtn.disabled = true;
   if (runIcon) runIcon.textContent = '⏳';
@@ -576,7 +607,8 @@ async function runP2AiPipeline() {
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     _p2AiPollTimer = setInterval(_pollP2AiPipeline, 1800);
   } catch (err) {
-    _showP2AiStatus(true, `실행 실패: ${err.message}`);
+    _setP2Progress('extract', 'error');
+    _showP2AiError(`실행 실패: ${err.message}`);
     if (runBtn) runBtn.disabled = false;
     if (runIcon) runIcon.textContent = '▶';
   }
@@ -588,23 +620,32 @@ async function _pollP2AiPipeline() {
     const data = await res.json();
     if (data.status === 'idle') return;
 
-    const label = data.step_label || '분석 중…';
-    _showP2AiStatus(true, label);
+    // 서버 step → 프론트 진행 단계 매핑
+    const stepMap = {
+      extract:     () => _setP2Progress('extract',     'running'),
+      ai_extract:  () => { _setP2Progress('extract', 'done'); _setP2Progress('ai_extract', 'running'); },
+      exchange:    () => { _setP2Progress('ai_extract', 'done'); _setP2Progress('ai_analysis', 'running'); },
+      ai_analysis: () => { _setP2Progress('ai_extract', 'done'); _setP2Progress('ai_analysis', 'running'); },
+      report:      () => { _setP2Progress('ai_analysis', 'done'); _setP2Progress('report', 'running'); },
+    };
+    if (stepMap[data.step]) stepMap[data.step]();
 
     if (data.status === 'done') {
       clearInterval(_p2AiPollTimer);
       _p2AiPollTimer = null;
+      for (const s of P2_STEP_ORDER) _setP2Progress(s, 'done');
       const rr = await fetch('/api/p2/pipeline/result');
       const result = await rr.json();
       _renderP2AiResult(result);
-      _showP2AiStatus(false, '');
       document.getElementById('btn-p2-ai-run')?.removeAttribute('disabled');
       const runIcon = document.getElementById('p2-ai-run-icon');
       if (runIcon) runIcon.textContent = '▶';
     } else if (data.status === 'error') {
       clearInterval(_p2AiPollTimer);
       _p2AiPollTimer = null;
-      _showP2AiStatus(true, `오류: ${data.step_label || '파이프라인 실패'}`);
+      const errStep = P2_STEP_ORDER.includes(data.step) ? data.step : 'extract';
+      _setP2Progress(errStep, 'error');
+      _showP2AiError(`오류: ${data.step_label || '파이프라인 실패'}`);
       document.getElementById('btn-p2-ai-run')?.removeAttribute('disabled');
       const runIcon = document.getElementById('p2-ai-run-icon');
       if (runIcon) runIcon.textContent = '▶';
@@ -622,14 +663,37 @@ function _renderP2AiResult(data) {
   const resultSection = document.getElementById('p2-ai-result-section');
   if (resultSection) resultSection.style.display = '';
 
+  // 제품명
   _setText('p2r-product-name', extracted.product_name || '미상');
-  _setText('p2r-ref-price-text', extracted.ref_price_text || (extracted.ref_price_sgd ? `SGD ${Number(extracted.ref_price_sgd).toFixed(2)}` : '추출값 없음'));
-  _setText('p2r-verdict', extracted.verdict || '미상');
-  _setText('p2r-exchange', rates.sgd_krw ? `1 SGD = ${Number(rates.sgd_krw).toFixed(2)} KRW` : '환율 정보 없음');
-  _setText('p2r-final-price', `SGD ${Number(analysis.final_price_sgd || 0).toFixed(2)}`);
-  _setText('p2r-formula', analysis.formula_str || '산정 공식 없음');
-  _setText('p2r-rationale', analysis.rationale || '산정 이유 없음');
 
+  // 판정 배지 (1공정 스타일)
+  const verdictEl = document.getElementById('p2r-verdict-badge');
+  if (verdictEl) {
+    const v = extracted.verdict || '미상';
+    const vc = v === '적합' ? 'v-ok' : v === '부적합' ? 'v-err' : v !== '미상' ? 'v-warn' : 'v-none';
+    verdictEl.className = `verdict-badge ${vc}`;
+    verdictEl.textContent = v;
+  }
+
+  // 참조 정보
+  _setText('p2r-ref-price-text',
+    extracted.ref_price_text || (extracted.ref_price_sgd != null ? `SGD ${Number(extracted.ref_price_sgd).toFixed(2)}` : '추출값 없음'));
+  const krwRate = rates.sgd_krw;
+  const usdRate = rates.sgd_usd;
+  let rateText = '환율 정보 없음';
+  if (krwRate) {
+    rateText = `1 SGD = ${Number(krwRate).toFixed(2)} KRW`;
+    if (usdRate) rateText += ` / ${Number(usdRate).toFixed(4)} USD`;
+  }
+  _setText('p2r-exchange', rateText);
+
+  // 최종 권고가
+  _setText('p2r-final-price', `SGD ${Number(analysis.final_price_sgd || 0).toFixed(2)}`);
+
+  // 산정 공식
+  _setText('p2r-formula', analysis.formula_str || '산정 공식 없음');
+
+  // 시나리오
   const scenEl = document.getElementById('p2r-scenarios');
   if (scenEl) {
     if (scenarios.length) {
@@ -649,12 +713,20 @@ function _renderP2AiResult(data) {
     }
   }
 
+  // 산정 이유
+  _setText('p2r-rationale', analysis.rationale || '산정 이유 없음');
+
+  // 다운로드
   const dlState = document.getElementById('p2-report-dl-state');
-  if (dlState && data?.pdf) {
-    dlState.innerHTML = `
-      <a class="btn-download"
-         href="/api/report/download?name=${encodeURIComponent(data.pdf)}"
-         target="_blank">PDF 보고서 다운로드</a>`;
+  if (dlState) {
+    if (data?.pdf) {
+      dlState.innerHTML = `
+        <a class="btn-download"
+           href="/api/report/download?name=${encodeURIComponent(data.pdf)}"
+           target="_blank">PDF 보고서 다운로드</a>`;
+    } else {
+      dlState.innerHTML = `<span style="font-size:13px;color:var(--red);">PDF 생성에 실패했습니다.</span>`;
+    }
   }
 }
 
