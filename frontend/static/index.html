@@ -64,20 +64,18 @@
 
   <!-- ════════════════════════════════════════════════════════
     메인 프리뷰
-    ▸ g2: [관세+환율 카드] | [To-Do 카드]
-    ▸ g1: 시장 신호·뉴스 카드 (정적)
+    ▸ g3: [관세+환율 카드] | [시장 신호·뉴스 카드] | [공정 진행 체크리스트]
   ════════════════════════════════════════════════════════ -->
   <div id="main" class="page on">
 
-    <!-- 첫 행: 환율 (넓게) + 체크리스트 -->
-    <div class="g2" style="grid-template-columns:1.4fr 1fr;">
+    <div class="g3">
 
-      <!-- ── 환율 카드 ──────────────────────────────────────────────── -->
+      <!-- ── 관세 + 환율 병합 카드 ─────────────────────────────────── -->
       <article class="card">
         <div class="sec">
           <div>
-            <h3>실시간 환율</h3>
-            <p>Yahoo Finance · yfinance 실시간</p>
+            <h3>관세 · 환율 현황</h3>
+            <p>싱가포르 수출 기준 · AKFTA · yfinance 실시간</p>
           </div>
           <button class="btn-refresh" id="btn-exchange-refresh" onclick="loadExchange()" style="margin-top:0;">
             ↺ 새로고침
@@ -94,67 +92,15 @@
         </div>
 
         <!-- 서브 환율 그리드 -->
-        <div id="exchange-sub" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;"></div>
+        <div id="exchange-sub" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;"></div>
 
-        <div id="exchange-source" style="font-size:10.5px;color:var(--muted);margin-top:10px;">조회 중…</div>
-      </article>
+        <div id="exchange-source" style="font-size:10.5px;color:var(--muted);margin-bottom:16px;">조회 중…</div>
 
-      <!-- ── 공정 체크리스트 카드 ──────────────────────────────────── -->
-      <article class="card">
-        <div class="sec">
-          <div><h3>공정 진행 체크리스트</h3></div>
+        <!-- 관세 구분선 -->
+        <div style="border-top:1px solid var(--border);padding-top:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px;">관세 현황 · AKFTA</div>
         </div>
 
-        <div class="todo-list" id="todo-fixed-list">
-          <div class="todo-item" id="todo-p1" onclick="toggleTodo('p1')">
-            <div class="todo-check" id="todo-check-p1"></div>
-            <span class="todo-label">1공정 · 시장조사 분석</span>
-            <span class="todo-auto-badge">자동</span>
-          </div>
-          <div class="todo-item" id="todo-rep" onclick="toggleTodo('rep')">
-            <div class="todo-check" id="todo-check-rep"></div>
-            <span class="todo-label">보고서 생성</span>
-            <span class="todo-auto-badge">자동</span>
-          </div>
-          <div class="todo-item" id="todo-p2" onclick="toggleTodo('p2')">
-            <div class="todo-check" id="todo-check-p2"></div>
-            <span class="todo-label">2공정 · 수출전략 수립</span>
-            <span class="todo-auto-badge">예정</span>
-          </div>
-          <div class="todo-item" id="todo-p3" onclick="toggleTodo('p3')">
-            <div class="todo-check" id="todo-check-p3"></div>
-            <span class="todo-label">3공정 · 바이어 발굴</span>
-            <span class="todo-auto-badge">예정</span>
-          </div>
-        </div>
-
-        <div id="todo-custom-list"></div>
-
-        <div class="todo-add-row">
-          <input
-            class="todo-input"
-            id="todo-input"
-            type="text"
-            placeholder="항목 추가 후 Enter…"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();addTodoItem(event)}"
-          />
-          <button class="btn-todo-add" onclick="addTodoItem()">+ 추가</button>
-        </div>
-      </article>
-
-    </div><!-- /g2 첫 행 -->
-
-    <!-- 둘째 행: 관세 현황 + 시장 뉴스 -->
-    <div class="g2" style="grid-template-columns:1fr 1.4fr;">
-
-      <!-- ── 관세 현황 카드 ─────────────────────────────────────────── -->
-      <article class="card">
-        <div class="sec">
-          <div>
-            <h3>관세 현황</h3>
-            <p>싱가포르 수출 기준 · AKFTA</p>
-          </div>
-        </div>
         <div class="irow">
           <div class="irow-row">
             <div>
@@ -202,7 +148,50 @@
         </div>
       </article>
 
-    </div><!-- /g2 둘째 행 -->
+      <!-- ── 공정 진행 체크리스트 카드 ─────────────────────────────── -->
+      <article class="card">
+        <div class="sec">
+          <div><h3>공정 진행 체크리스트</h3></div>
+        </div>
+
+        <div class="todo-list" id="todo-fixed-list">
+          <div class="todo-item" id="todo-p1" onclick="toggleTodo('p1')">
+            <div class="todo-check" id="todo-check-p1"></div>
+            <span class="todo-label">1공정 · 시장조사 분석</span>
+            <span class="todo-auto-badge">자동</span>
+          </div>
+          <div class="todo-item" id="todo-rep" onclick="toggleTodo('rep')">
+            <div class="todo-check" id="todo-check-rep"></div>
+            <span class="todo-label">보고서 생성</span>
+            <span class="todo-auto-badge">자동</span>
+          </div>
+          <div class="todo-item" id="todo-p2" onclick="toggleTodo('p2')">
+            <div class="todo-check" id="todo-check-p2"></div>
+            <span class="todo-label">2공정 · 수출전략 수립</span>
+            <span class="todo-auto-badge">예정</span>
+          </div>
+          <div class="todo-item" id="todo-p3" onclick="toggleTodo('p3')">
+            <div class="todo-check" id="todo-check-p3"></div>
+            <span class="todo-label">3공정 · 바이어 발굴</span>
+            <span class="todo-auto-badge">예정</span>
+          </div>
+        </div>
+
+        <div id="todo-custom-list"></div>
+
+        <div class="todo-add-row">
+          <input
+            class="todo-input"
+            id="todo-input"
+            type="text"
+            placeholder="항목 추가 후 Enter…"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addTodoItem(event)}"
+          />
+          <button class="btn-todo-add" onclick="addTodoItem()">+ 추가</button>
+        </div>
+      </article>
+
+    </div><!-- /g3 -->
 
   </div><!-- /main -->
 
