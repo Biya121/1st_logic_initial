@@ -711,8 +711,6 @@ function _renderP2AiResult(data) {
               <span class="p2-scenario-name">${_escHtml(String(s.name || `시나리오 ${idx + 1}`))}</span>
               <span class="p2-scenario-price">SGD ${Number(s.price_sgd || 0).toFixed(2)}</span>
             </div>
-            <div class="p2-scenario-reason">${_escHtml(String(s.reason || ''))}</div>
-            ${s.formula ? `<div class="p2-scenario-formula">${_escHtml(String(s.formula))}</div>` : ''}
           </div>`;
       }).join('');
     } else {
@@ -912,9 +910,9 @@ function _renderP2Manual() {
   const aggFormula  = `KUP SGD ${calc.kup.toFixed(2)} × 0.90 = SGD ${agg.toFixed(2)}`;
   const avgFormula  = `KUP SGD ${avg.toFixed(2)} (기준가 그대로)`;
   const consFormula = `KUP SGD ${calc.kup.toFixed(2)} × 1.10 = SGD ${cons.toFixed(2)}`;
-  scenarioEl.innerHTML = _p2ScenarioHtml(agg, avg, cons, aggReason, avgReason, consReason, aggFormula, avgFormula, consFormula);
+  scenarioEl.innerHTML = _p2ScenarioHtml(agg, avg, cons);
 
-  _p2LastScenarios = { mode: 'manual', seg: _p2ManualSeg, base: calc.kup, agg, avg, cons, formulaStr: calc.formulaStr, aggReason, avgReason, consReason, rationaleLines: [] };
+  _p2LastScenarios = { mode: 'manual', seg: _p2ManualSeg, base: calc.kup, agg, avg, cons, formulaStr: calc.formulaStr, aggReason, avgReason, consReason, aggFormula, avgFormula, consFormula, rationaleLines: [] };
   _renderP2PdfSection();
 }
 
@@ -1029,19 +1027,17 @@ function _p2ManualScenarioReason(type, seg) {
     : '고마진 포지셔닝 — 제품이 민간 시장에 자리잡은 후 마진율을 높여 이익 확대를 노립니다. 브랜드 포지셔닝이 확립된 단계에 적합합니다.';
 }
 
-function _p2ScenarioHtml(agg, avg, cons, aggReason, avgReason, consReason, aggFormula, avgFormula, consFormula) {
-  const card = (name, cls, price, reason, formula) => `
+function _p2ScenarioHtml(agg, avg, cons) {
+  const card = (name, cls, price) => `
     <div class="p2-scenario p2-scenario--${cls}">
       <div class="p2-scenario-top">
         <span class="p2-scenario-name">${_escHtml(name)}</span>
         <span class="p2-scenario-price">SGD ${Number(price).toFixed(2)}</span>
       </div>
-      <div class="p2-scenario-reason">${_escHtml(reason)}</div>
-      ${formula ? `<div class="p2-scenario-formula">${_escHtml(formula)}</div>` : ''}
     </div>`;
-  return card('공격', 'agg',  agg,  aggReason,  aggFormula)
-       + card('평균', 'avg',  avg,  avgReason,  avgFormula)
-       + card('보수', 'cons', cons, consReason, consFormula);
+  return card('공격', 'agg',  agg)
+       + card('평균', 'avg',  avg)
+       + card('보수', 'cons', cons);
 }
 
 function _renderP2PdfSection() {
@@ -1081,9 +1077,9 @@ async function _generateP2Pdf() {
       formula_str: sc.formulaStr,
       mode_label: '직접 입력',
       scenarios: [
-        { name: '공격적인 시나리오', price: sc.agg, reason: sc.aggReason },
-        { name: '평균 시나리오', price: sc.avg, reason: sc.avgReason },
-        { name: '보수 시나리오', price: sc.cons, reason: sc.consReason },
+        { label: '공격', price: sc.agg,  reason: sc.aggReason  || '', formula: sc.aggFormula  || '' },
+        { label: '평균', price: sc.avg,  reason: sc.avgReason  || '', formula: sc.avgFormula  || '' },
+        { label: '보수', price: sc.cons, reason: sc.consReason || '', formula: sc.consFormula || '' },
       ],
       ai_rationale: [],
     };

@@ -959,38 +959,58 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
     # ── 3. 가격 시나리오 ──────────────────────────────────────────────────────
     story.append(Paragraph(_rx("3. 가격 시나리오"), s_section))
 
+    # 시나리오 레이블 정규화 (구버전 "공격적인 시나리오" → "공격" 등 모두 처리)
+    def _sc_key(lbl: str) -> str:
+        lbl = str(lbl or "")
+        if "공격" in lbl: return "공격"
+        if "보수" in lbl: return "보수"
+        return "평균"
+
     _SC_BG: dict[str, Any] = {
-        "공격적": colors.HexColor("#FEF2F2"),
-        "평균":   colors.HexColor("#EFF6FF"),
-        "보수적": colors.HexColor("#F0FDF4"),
+        "공격": colors.HexColor("#FEF2F2"),
+        "평균": colors.HexColor("#EFF6FF"),
+        "보수": colors.HexColor("#F0FDF4"),
     }
     _SC_LC: dict[str, Any] = {
-        "공격적": colors.HexColor("#DC2626"),
-        "평균":   colors.HexColor("#2563EB"),
-        "보수적": colors.HexColor("#16A34A"),
+        "공격": colors.HexColor("#DC2626"),
+        "평균": colors.HexColor("#2563EB"),
+        "보수": colors.HexColor("#16A34A"),
     }
 
     for sc in scenarios:
-        label     = str(sc.get("label", "") or "")
-        price_val = sc.get("price")
+        raw_label = str(sc.get("label", sc.get("name", "")) or "")
+        key       = _sc_key(raw_label)
+        label     = raw_label or key
+        price_val = sc.get("price") if sc.get("price") is not None else sc.get("price_sgd")
         reason    = str(sc.get("reason", "") or "—")
+        formula   = str(sc.get("formula", "") or "").strip()
         price_str = (
-            f"SGD {price_val:,.4f}" if isinstance(price_val, (int, float)) else "—"
+            f"SGD {float(price_val):,.2f}" if isinstance(price_val, (int, float)) else "—"
         )
-        bg = _SC_BG.get(label, C_ALT)
-        lc = _SC_LC.get(label, C_NAVY)
+        bg = _SC_BG.get(key, C_ALT)
+        lc = _SC_LC.get(key, C_NAVY)
 
-        s_sc_label = ps(f"ScL_{label}", fontName=bold_font, fontSize=10,
+        uid = f"{key}_{id(sc)}"
+        s_sc_label = ps(f"ScL_{uid}", fontName=bold_font, fontSize=10,
                         textColor=lc, leading=14, wordWrap="CJK")
-        s_sc_price = ps(f"ScP_{label}", fontName=bold_font, fontSize=12,
+        s_sc_price = ps(f"ScP_{uid}", fontName=bold_font, fontSize=12,
                         textColor=C_NAVY, leading=16, wordWrap="CJK")
+        s_sc_formula = ps(f"ScF_{uid}", fontName=bold_font,
+                          fontSize=8.5, textColor=C_NAVY, leading=12, wordWrap="CJK")
 
-        sc_tbl = Table([
+        rows = [
             [Paragraph(_rx(label),     s_sc_label),
              Paragraph(_rx(price_str), s_sc_price)],
             [Paragraph(_rx("근거"),    s_cell_h),
              Paragraph(_rx(reason),    s_reason)],
-        ], colWidths=[COL1, COL2])
+        ]
+        if formula:
+            rows.append([
+                Paragraph(_rx("계산식"), s_cell_h),
+                Paragraph(_rx(formula),  s_sc_formula),
+            ])
+
+        sc_tbl = Table(rows, colWidths=[COL1, COL2])
         sc_tbl.setStyle(TableStyle([
             ("GRID",          (0, 0), (-1, -1), 0.5, C_BORDER),
             ("VALIGN",        (0, 0), (-1, -1), "TOP"),

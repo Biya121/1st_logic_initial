@@ -871,14 +871,25 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
         _pdf_name_p2 = f"sg_p2_{_safe}_{_ts_p2}.pdf"
         _pdf_path_p2 = _reports_dir_p2 / _pdf_name_p2
 
+        # AI 시나리오 필드명 정규화 (PDF generator는 label/price 사용)
+        raw_scenarios = analysis.get("scenarios", []) or []
+        norm_scenarios = []
+        for sc in raw_scenarios:
+            norm_scenarios.append({
+                "label":   sc.get("name", sc.get("label", "")),
+                "price":   sc.get("price_sgd", sc.get("price", 0)),
+                "reason":  sc.get("reason", ""),
+                "formula": sc.get("formula", ""),
+            })
+
         p2_data = {
             "product_name": extracted.get("product_name", "미상"),
             "verdict":      verdict_src,
             "seg_label":    market_label,
             "base_price":   analysis.get("final_price_sgd", 0),
-            "formula_str":  analysis.get("formula_str", ""),
+            "formula_str":  "",
             "mode_label":   "AI 분석 (Claude Haiku)",
-            "scenarios":    analysis.get("scenarios", []),
+            "scenarios":    norm_scenarios,
             "ai_rationale": [analysis.get("rationale", "")],
         }
 
