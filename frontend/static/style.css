@@ -636,13 +636,21 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 }
 
 .entry-pathway {
-  display: none;
-  padding: 5px 13px;
+  display: block;
+  width: 100%;
+  padding: 9px 11px;
   background: rgba(23,63,120,.08);
   color: var(--navy);
-  border-radius: 20px;
+  border-radius: 10px;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: keep-all;
+}
+.entry-pathway.empty {
+  color: var(--muted);
+  background: rgba(23,63,120,.05);
 }
 
 /* ── 18. 논문 / 보고서 카드 ──────────────────────────────────────────────── */

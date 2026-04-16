@@ -607,6 +607,28 @@ function renderResult(result, refs, pdfName) {
 
   /* ─ 분석 결과 카드 ─ */
   if (result) {
+    if (result.error) {
+      document.getElementById('verdict-badge').className   = 'verdict-badge v-err';
+      document.getElementById('verdict-badge').textContent = '분석 데이터 오류';
+      document.getElementById('verdict-name').textContent  = result.trade_name || result.product_id || '';
+      document.getElementById('verdict-inn').textContent   = INN_MAP[result.product_id] || result.inn || '';
+      _setText('basis-market-medical', String(result.error || '데이터 오류'));
+      _setText('basis-regulatory',     '품목 메타/DB 매핑 확인 필요');
+      _setText('basis-trade',          '재실행 후 동일하면 서버 로그 점검');
+      _setText('basis-pbs-line',       '참고 가격 정보 없음');
+      const pathEl = document.getElementById('entry-pathway');
+      if (pathEl) {
+        pathEl.textContent = '진입 채널 권고 데이터 확인 필요';
+        pathEl.style.display = 'block';
+        pathEl.classList.add('empty');
+      }
+      _setText('price-positioning-pbs', '가격 포지셔닝 데이터를 불러오지 못했습니다.');
+      _setText('risks-conditions', '분석 데이터 소스 확인 후 재시도해 주세요.');
+      document.getElementById('result-card').classList.add('visible');
+      _showReportError();
+      return;
+    }
+
     const verdict = result.verdict;
     const vc      = verdict === '적합'   ? 'v-ok'
                   : verdict === '부적합' ? 'v-err'
@@ -641,12 +663,10 @@ function renderResult(result, refs, pdfName) {
     // S4: 진입 채널
     const pathEl = document.getElementById('entry-pathway');
     if (pathEl) {
-      if (result.entry_pathway) {
-        pathEl.textContent   = result.entry_pathway;
-        pathEl.style.display = 'inline-block';
-      } else {
-        pathEl.style.display = 'none';
-      }
+      const pathText = String(result.entry_pathway || '').trim();
+      pathEl.textContent = pathText || '진입 채널 권고 데이터 확인 필요';
+      pathEl.style.display = 'block';
+      pathEl.classList.toggle('empty', !pathText);
     }
 
     const pbsPos = String(result.price_positioning_pbs || '').trim();

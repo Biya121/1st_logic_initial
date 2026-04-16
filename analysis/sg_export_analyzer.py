@@ -42,6 +42,113 @@ from utils.pbs_pricing import fetch_pbs_pricing
 
 _meta_cache: list[dict[str, Any]] | None = None
 
+_FALLBACK_PRODUCT_META: list[dict[str, str]] = [
+    {
+        "product_id": "SG_sereterol_activair",
+        "trade_name": "Sereterol Activair",
+        "inn": "Fluticasone / Salmeterol",
+        "dosage_form": "Inhaler",
+        "market_segment": "처방전 의약품",
+        "product_type": "일반제",
+    },
+    {
+        "product_id": "SG_omethyl_omega3_2g",
+        "trade_name": "Omethyl Cutielet",
+        "inn": "Omega-3-Acid Ethyl Esters 90 2g",
+        "dosage_form": "Pouch",
+        "market_segment": "처방전 의약품",
+        "product_type": "개량신약",
+    },
+    {
+        "product_id": "SG_hydrine_hydroxyurea_500",
+        "trade_name": "Hydrine",
+        "inn": "Hydroxyurea 500mg",
+        "dosage_form": "Cap",
+        "market_segment": "항암제",
+        "product_type": "항암제",
+    },
+    {
+        "product_id": "SG_gadvoa_gadobutrol_604",
+        "trade_name": "Gadvoa Inj.",
+        "inn": "Gadobutrol 604.72mg",
+        "dosage_form": "PFS",
+        "market_segment": "처방전 의약품",
+        "product_type": "일반제",
+    },
+    {
+        "product_id": "SG_rosumeg_combigel",
+        "trade_name": "Rosumeg Combigel",
+        "inn": "Rosuvastatin + Omega-3",
+        "dosage_form": "Cap",
+        "market_segment": "처방전 의약품",
+        "product_type": "개량신약",
+    },
+    {
+        "product_id": "SG_atmeg_combigel",
+        "trade_name": "Atmeg Combigel",
+        "inn": "Atorvastatin + Omega-3",
+        "dosage_form": "Cap",
+        "market_segment": "처방전 의약품",
+        "product_type": "개량신약",
+    },
+    {
+        "product_id": "SG_ciloduo_cilosta_rosuva",
+        "trade_name": "Ciloduo",
+        "inn": "Cilostazol + Rosuvastatin",
+        "dosage_form": "Tab",
+        "market_segment": "처방전 의약품",
+        "product_type": "개량신약",
+    },
+    {
+        "product_id": "SG_gastiin_cr_mosapride",
+        "trade_name": "Gastiin CR",
+        "inn": "Mosapride Citrate 15mg",
+        "dosage_form": "Tab",
+        "market_segment": "처방전 의약품",
+        "product_type": "개량신약",
+    },
+]
+
+
+def _merge_with_fallback_meta(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Supabase 누락 품목을 기본 메타로 보완해 특정 품목 blank를 방지."""
+    by_pid: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        pid = str(row.get("product_id", "") or "").strip()
+        if pid:
+            by_pid[pid] = row
+
+    for fallback in _FALLBACK_PRODUCT_META:
+        pid = fallback["product_id"]
+        if pid in by_pid:
+            current = by_pid[pid]
+            for key, value in fallback.items():
+                if key == "product_id":
+                    continue
+                if not str(current.get(key, "") or "").strip():
+                    current[key] = value
+            current.setdefault("atc", "")
+            current.setdefault("therapeutic_area", "")
+            current.setdefault("hsa_reg", "")
+            current.setdefault("key_risk", "")
+            current.setdefault("manufacturer", "Korea United Pharm. Inc.")
+            continue
+
+        by_pid[pid] = {
+            "product_id": pid,
+            "trade_name": fallback["trade_name"],
+            "inn": fallback["inn"],
+            "atc": "",
+            "dosage_form": fallback["dosage_form"],
+            "market_segment": fallback["market_segment"],
+            "therapeutic_area": "",
+            "hsa_reg": "",
+            "key_risk": "",
+            "product_type": fallback["product_type"],
+            "manufacturer": "Korea United Pharm. Inc.",
+        }
+    return list(by_pid.values())
+
 
 def _load_product_meta() -> list[dict[str, Any]]:
     """Supabase products 테이블 (SG:kup_pipeline)에서 8품목 메타 로드.
@@ -81,7 +188,7 @@ def _load_product_meta() -> list[dict[str, Any]]:
             "product_type":     cs.get("product_type", "일반제"),
             "manufacturer":     r.get("manufacturer", "Korea United Pharm. Inc."),
         })
-    return result
+    return _merge_with_fallback_meta(result)
 
 
 def _get_product_meta() -> list[dict[str, Any]]:
