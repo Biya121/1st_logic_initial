@@ -521,36 +521,37 @@
       ══════════════════════════════════════════════════════════════ -->
       <div id="p2-manual-tab" class="p2-tab-content" style="display:none;">
 
-        <!-- 보고서 참조 + 시장 선택 통합 -->
+        <!-- 보고서 선택 + 시장 선택 + PDF 생성 -->
         <div class="selector-card">
-          <div class="selector-label">1공정 보고서 참조</div>
+          <div class="selector-label">1공정 보고서 선택</div>
           <div class="selector-row">
             <select id="p2-report-select">
-              <option value="">보고서를 선택하세요</option>
+              <option value="">저장된 1공정 보고서를 선택하세요.</option>
             </select>
           </div>
-          <div id="p2-report-brief" class="p2-brief-wrap">
-            <p class="p2-brief-empty">보고서를 선택하면 가격 정보가 자동으로 반영됩니다.</p>
-          </div>
 
-          <div class="selector-label" style="margin-top:16px;">시장 선택</div>
-          <div class="p2-seg-row">
-            <button class="p2-seg-btn on" data-p2-manual-seg="public"  type="button">공공 시장</button>
-            <button class="p2-seg-btn"    data-p2-manual-seg="private" type="button">민간 시장</button>
+          <div class="selector-label" style="margin-top:16px;">시장 선택 및 가격 산정</div>
+          <div class="selector-row" style="flex-wrap:wrap;gap:12px;">
+            <div class="p2-seg-row" style="margin-bottom:0;flex:1;min-width:200px;">
+              <button class="p2-seg-btn on" data-p2-manual-seg="public"  type="button">공공 시장</button>
+              <button class="p2-seg-btn"    data-p2-manual-seg="private" type="button">민간 시장</button>
+            </div>
+            <button class="btn-analyze" id="p2-pdf-btn-manual" type="button" style="white-space:nowrap;">
+              PDF 보고서 생성
+            </button>
           </div>
+          <div id="p2-manual-seg-desc" class="p2-note" style="margin-top:6px;">
+            공공 시장: ALPS 조달청 채널 · 27개 공공기관 통합구매 기준
+          </div>
+          <div id="p2-pdf-state-manual" class="p2-pdf-state" style="margin-top:6px;"></div>
         </div>
 
-        <!-- 옵션 + 공식 + 시나리오 + PDF 통합 -->
+        <!-- 가격 옵션 -->
         <div class="selector-card">
           <div class="selector-label">가격 옵션</div>
           <div id="p2-manual-options" style="margin-top:4px;"></div>
           <div id="p2-manual-removed" class="p2-removed"></div>
           <div id="p2-custom-add-section"></div>
-
-          <div class="selector-label" style="margin-top:18px;">가격 시나리오</div>
-          <div id="p2-manual-scenarios" class="p2-scenarios"></div>
-
-          <div id="p2-manual-pdf-section" class="p2-pdf-section"></div>
         </div>
 
       </div><!-- /p2-manual-tab -->

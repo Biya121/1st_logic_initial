@@ -418,7 +418,6 @@ function initP2Strategy() {
   if (manualSelect) {
     manualSelect.addEventListener('change', (e) => {
       _p2SelectedReportId = e.target.value || '';
-      _renderP2ReportBrief();
       _p2FillBaseFromReport();
       _resetP2ManualResultView();
       _renderP2Manual();
@@ -437,10 +436,18 @@ function initP2Strategy() {
       _p2ManualSeg = btn.getAttribute('data-p2-manual-seg') || 'public';
       document.querySelectorAll('[data-p2-manual-seg]').forEach((x) => x.classList.remove('on'));
       btn.classList.add('on');
+      const descEl = document.getElementById('p2-manual-seg-desc');
+      if (descEl) {
+        descEl.textContent = _p2ManualSeg === 'public'
+          ? '공공 시장: ALPS 조달청 채널 · 27개 공공기관 통합구매 기준'
+          : '민간 시장: 병원·약국·체인 채널 중심 유통 구조 기준';
+      }
       _resetP2ManualResultView();
       _renderP2Manual();
     });
   });
+
+  document.getElementById('p2-pdf-btn-manual')?.addEventListener('click', _generateP2Pdf);
 
   _syncP2ReportsOptions();
   _p2FillExchangeRate();
@@ -786,7 +793,6 @@ function _syncP2ReportsOptions() {
     aiSelect.value = _p2AiSelectedReportId;
   }
 
-  _renderP2ReportBrief();
 }
 
 function _getP2SelectedReport() {
@@ -804,29 +810,6 @@ function _extractSgdHint(text) {
   const mUsd = src.match(/(?:\$|USD\s+)([0-9]+(?:\.[0-9]+)?)/i);
   if (mUsd) return Number(mUsd[1]);
   return NaN;
-}
-
-function _renderP2ReportBrief() {
-  const el = document.getElementById('p2-report-brief');
-  if (!el) return;
-  const report = _getP2SelectedReport();
-  if (!report) {
-    el.innerHTML = '<p class="p2-brief-empty">보고서를 선택하면 가격 정보가 표시됩니다.</p>';
-    return;
-  }
-  // 1순위: 숫자형 SGD 값, 2순위: 텍스트 파싱
-  const numHint = report.pbs_sgd_hint;
-  const hint = (numHint != null && !Number.isNaN(Number(numHint)) && Number(numHint) > 0)
-    ? Number(numHint)
-    : _extractSgdHint(report.price_hint || '');
-  const priceDisplay = (!Number.isNaN(hint) && hint > 0)
-    ? `SGD ${Number(hint).toFixed(2)}`
-    : '가격 정보 없음';
-  el.innerHTML = `
-    <div class="p2-brief-item" style="margin-top:8px;background:var(--inner);border-radius:10px;padding:10px 12px;">
-      <div class="basis-label">참고 가격</div>
-      <div class="basis-value" style="font-size:18px;font-weight:900;color:var(--navy);margin-top:4px;">${_escHtml(priceDisplay)}</div>
-    </div>`;
 }
 
 function _calcP2Manual() {
@@ -877,10 +860,9 @@ function _calcP2Manual() {
 }
 
 function _renderP2Manual() {
-  const wrapEl     = document.getElementById('p2-manual-options');
-  const removedEl  = document.getElementById('p2-manual-removed');
-  const scenarioEl = document.getElementById('p2-manual-scenarios');
-  if (!wrapEl || !removedEl || !scenarioEl) return;
+  const wrapEl    = document.getElementById('p2-manual-options');
+  const removedEl = document.getElementById('p2-manual-removed');
+  if (!wrapEl || !removedEl) return;
 
   const options = _p2Manual[_p2ManualSeg];
   const active  = options.filter((x) => x.enabled);
@@ -910,10 +892,7 @@ function _renderP2Manual() {
   const aggFormula  = `KUP SGD ${calc.kup.toFixed(2)} × 0.90 = SGD ${agg.toFixed(2)}`;
   const avgFormula  = `KUP SGD ${avg.toFixed(2)} (기준가 그대로)`;
   const consFormula = `KUP SGD ${calc.kup.toFixed(2)} × 1.10 = SGD ${cons.toFixed(2)}`;
-  scenarioEl.innerHTML = _p2ScenarioHtml(agg, avg, cons);
-
   _p2LastScenarios = { mode: 'manual', seg: _p2ManualSeg, base: calc.kup, agg, avg, cons, formulaStr: calc.formulaStr, aggReason, avgReason, consReason, aggFormula, avgFormula, consFormula, rationaleLines: [] };
-  _renderP2PdfSection();
 }
 
 function _p2OptionCardHtml(opt) {
@@ -1025,31 +1004,6 @@ function _p2ManualScenarioReason(type, seg) {
   return seg === 'public'
     ? '고마진 포지셔닝 — 자사 제품이 시장 내 자리를 잡은 이후, 마진율을 높여 이익 확대를 노리는 전략입니다.'
     : '고마진 포지셔닝 — 제품이 민간 시장에 자리잡은 후 마진율을 높여 이익 확대를 노립니다. 브랜드 포지셔닝이 확립된 단계에 적합합니다.';
-}
-
-function _p2ScenarioHtml(agg, avg, cons) {
-  const card = (name, cls, price) => `
-    <div class="p2-scenario p2-scenario--${cls}">
-      <div class="p2-scenario-top">
-        <span class="p2-scenario-name">${_escHtml(name)}</span>
-        <span class="p2-scenario-price">SGD ${Number(price).toFixed(2)}</span>
-      </div>
-    </div>`;
-  return card('공격', 'agg',  agg)
-       + card('평균', 'avg',  avg)
-       + card('보수', 'cons', cons);
-}
-
-function _renderP2PdfSection() {
-  const el = document.getElementById('p2-manual-pdf-section');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="p2-pdf-bar">
-      <span class="p2-pdf-label">2공정 수출가 시나리오 보고서</span>
-      <button class="btn-analyze" id="p2-pdf-btn-manual" type="button" style="font-size:13px;padding:8px 18px;">PDF 생성</button>
-      <div id="p2-pdf-state-manual" class="p2-pdf-state"></div>
-    </div>`;
-  document.getElementById('p2-pdf-btn-manual')?.addEventListener('click', _generateP2Pdf);
 }
 
 async function _generateP2Pdf() {
