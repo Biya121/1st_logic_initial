@@ -256,7 +256,7 @@ async def api_macro() -> JSONResponse:
 # ── 환율 (yfinance SGD/KRW) ───────────────────────────────────────────────────
 
 _exchange_cache: dict[str, Any] = {"data": None, "ts": 0.0}
-_EXCHANGE_TTL_SEC = 5.0
+_EXCHANGE_TTL_SEC = 0.0
 
 
 @app.get("/api/exchange")

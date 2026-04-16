@@ -389,6 +389,7 @@ let _p2UploadedReportFilename = '';
 let _p2AiPollTimer = null;
 let _p2Manual = _makeP2Defaults();
 let _p2LastScenarios = null;
+let _p2ManualCalculated = false;
 
 function _makeP2Defaults() {
   return {
@@ -418,6 +419,7 @@ function initP2Strategy() {
       _p2SelectedReportId = e.target.value || '';
       _renderP2ReportBrief();
       _p2FillBaseFromReport();
+      _resetP2ManualResultView();
       _renderP2Manual();
     });
   }
@@ -439,6 +441,7 @@ function initP2Strategy() {
       _p2ManualSeg = btn.getAttribute('data-p2-manual-seg') || 'public';
       document.querySelectorAll('[data-p2-manual-seg]').forEach((x) => x.classList.remove('on'));
       btn.classList.add('on');
+      _resetP2ManualResultView();
       _renderP2Manual();
     });
   });
@@ -446,6 +449,7 @@ function initP2Strategy() {
   _syncP2ReportsOptions();
   _p2FillExchangeRate();
   switchP2Tab('ai');
+  _resetP2ManualResultView();
   _renderP2Manual();
 }
 
@@ -576,6 +580,21 @@ function _resetP2AiResultView() {
   const dlState = document.getElementById('p2-report-dl-state');
   if (dlState) dlState.innerHTML = '';
   _showP2AiError('');
+}
+
+function _resetP2ManualResultView() {
+  _p2ManualCalculated = false;
+  _p2LastScenarios = null;
+  const card = document.getElementById('p2-manual-result-card');
+  if (card) card.style.display = 'none';
+}
+
+function runP2ManualCalculation() {
+  const icon = document.getElementById('p2-manual-calc-icon');
+  if (icon) icon.textContent = '⏳';
+  _p2ManualCalculated = true;
+  _renderP2Manual();
+  if (icon) icon.textContent = '▶';
 }
 
 async function runP2AiPipeline() {
@@ -890,12 +909,19 @@ function _renderP2Manual() {
       const item = options.find((x) => x.key === btn.getAttribute('data-key'));
       if (item) {
         item.enabled = true;
+        _resetP2ManualResultView();
         _renderP2Manual();
       }
     });
   });
 
   _renderP2CustomAddSection();
+  const card = document.getElementById('p2-manual-result-card');
+  if (!_p2ManualCalculated) {
+    if (card) card.style.display = 'none';
+    return;
+  }
+
   const calc = _calcP2Manual();
   formulaEl.textContent = calc.formulaStr;
 
@@ -907,6 +933,7 @@ function _renderP2Manual() {
   const consReason = _p2ManualScenarioReason('conservative', _p2ManualSeg);
   scenarioEl.innerHTML = _p2ScenarioHtml(agg, avg, cons, aggReason, avgReason, consReason);
 
+  if (card) card.style.display = '';
   _p2LastScenarios = { mode: 'manual', seg: _p2ManualSeg, base: calc.kup, agg, avg, cons, formulaStr: calc.formulaStr, aggReason, avgReason, consReason, rationaleLines: [] };
   _renderP2PdfSection();
 }
@@ -963,22 +990,26 @@ function _bindP2OptionEvents(wrap, options) {
       el.addEventListener('click', () => {
         item.enabled = false;
         item.expanded = false;
+        _resetP2ManualResultView();
         _renderP2Manual();
       });
     } else if (op === 'inc') {
       el.addEventListener('click', () => {
         item.value = Math.min(item.max, Number((Number(item.value) + item.step).toFixed(4)));
+        _resetP2ManualResultView();
         _renderP2Manual();
       });
     } else if (op === 'dec') {
       el.addEventListener('click', () => {
         item.value = Math.max(item.min, Number((Number(item.value) - item.step).toFixed(4)));
+        _resetP2ManualResultView();
         _renderP2Manual();
       });
     } else if (op === 'input') {
       el.addEventListener('change', () => {
         const v = parseFloat(el.value);
         if (!Number.isNaN(v)) item.value = Math.max(item.min, Math.min(item.max, v));
+        _resetP2ManualResultView();
         _renderP2Manual();
       });
     }
@@ -1019,6 +1050,7 @@ function _renderP2CustomAddSection() {
       hint: '사용자 추가 옵션',
       rationale: '',
     });
+    _resetP2ManualResultView();
     _renderP2Manual();
   });
 }
@@ -1662,7 +1694,7 @@ async function loadNews() {
 
 loadKeyStatus();        // API 키 배지
 loadExchange();         // 환율 즉시 로드
-setInterval(() => { loadExchange(); }, 20000); // yfinance 준실시간 반영
+setInterval(() => { loadExchange(); }, 10000); // yfinance 실시간 반영 강화
 initTodo();             // Todo 상태 복원
 renderReportTab();      // 보고서 탭 초기 렌더
 initP2Strategy();       // 2공정 수출전략 수동 입력 초기화
