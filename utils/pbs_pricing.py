@@ -27,7 +27,7 @@ _MAX_FALLBACK_PAGES = 5  # rate limit(5/min) 고려해 제한
 PBS_METHODOLOGY_LABEL_KO: Final[str] = "(PBS, 방법론적 추산)"
 _DEFAULT_AUD_SGD: Final[float] = 0.87
 # API 호출 간 대기(초). 환경변수 PBS_API_SLEEP_SEC 으로 조정 가능.
-_API_SLEEP_SEC: float = float(os.environ.get("PBS_API_SLEEP_SEC", "13"))
+_API_SLEEP_SEC: float = float(os.environ.get("PBS_API_SLEEP_SEC", "3"))
 
 # 전역 Lock: asyncio.gather로 병렬 실행될 때 PBS API 호출을 직렬화
 # rate limit = 5회/분 → 12초 간격이면 안전

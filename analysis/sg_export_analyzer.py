@@ -654,6 +654,7 @@ async def _haiku_price_estimate(meta: dict[str, Any], api_key: str) -> str | Non
             resp = client.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=64,
+                timeout=30.0,
                 messages=[
                     {
                         "role": "user",
@@ -711,7 +712,7 @@ async def _claude_analyze(
 
     def _sync_call() -> tuple[dict[str, Any] | None, str | None]:
         try:
-            client = anthropic.Anthropic(api_key=api_key)
+            client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
             response = client.messages.create(
                 model=resolved_model,
                 max_tokens=4096,
@@ -728,7 +729,7 @@ async def _claude_analyze(
         except Exception as e:
             return None, f"{type(e).__name__}: {e}"[:400]
 
-    return await asyncio.to_thread(_sync_call)
+    return await asyncio.wait_for(asyncio.to_thread(_sync_call), timeout=90.0)
 
 
 # ── 단일 품목 분석 ─────────────────────────────────────────────────────────────
