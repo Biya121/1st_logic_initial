@@ -102,8 +102,9 @@
           <div class="irow-row">
             <div>
               <div class="tit">싱가포르 의약품 관세 기본 주의사항</div>
-              <div class="sub">FTA 0%여도 HS 코드 분류, 원산지 증빙, HSA 품목 허가 여부를 선확인해야</div>통관 지연을 줄일 수 있습니다.</div>
+              <div class="sub">FTA 0%여도 HS 코드 분류, 원산지 증빙, HSA 품목 허가 여부를 선확인해야 통관 지연을 줄일 수 있습니다.</div>
             </div>
+            <span style="font-size:12px;font-weight:800;color:var(--navy);">주의</span>
           </div>
         </div>
 
@@ -370,7 +371,7 @@
       <!-- 생성 완료 -->
       <div id="report-state-ok" style="display:none">
         <a class="btn-download" href="/api/report/download" target="_blank">
-          📄 PDF 보고서 다운로드
+          PDF 보고서 다운로드
         </a>
         <div class="pdf-preview-wrap">
           <iframe
@@ -391,14 +392,59 @@
   </div><!-- /p1 -->
 
   <!-- ════════════════════════════════════════════════════════
-    2공정 · 수출전략  (준비 중)
+    2공정 · 수출전략
   ════════════════════════════════════════════════════════ -->
   <div id="p2" class="page">
-    <div class="empty-page">
-      <div class="ep-icon">🚧</div>
-      <div class="ep-msg">2공정 · 수출전략은 준비 중입니다</div>
-      <div class="ep-sub">추후 업데이트 예정</div>
-    </div>
+    <article class="selector-card p2-card">
+      <div class="sec">
+        <div>
+          <h3>2공정 · 수출전략 산정</h3>
+          <p>1공정 보고서 선택 후 직접 입력 또는 AI 분석으로 가격 시나리오 산정</p>
+        </div>
+      </div>
+
+      <div class="p2-grid">
+        <div>
+          <div class="selector-label">1공정 보고서 선택</div>
+          <select id="p2-report-select">
+            <option value="">보고서를 선택하세요</option>
+          </select>
+          <div id="p2-report-brief" class="p2-brief">보고서를 선택하면 가격/근거 요약이 표시됩니다.</div>
+        </div>
+
+        <div>
+          <div class="selector-label">산정 방식</div>
+          <div class="p2-mode-row">
+            <button id="p2-mode-manual" class="btn-analyze" type="button">직접 가격 입력</button>
+            <button id="p2-mode-ai" class="btn-analyze p2-btn-alt" type="button">AI 가격 분석</button>
+          </div>
+        </div>
+
+        <div id="p2-manual-box" class="p2-mode-box on">
+          <div class="selector-label">직접 입력 · 시장 선택</div>
+          <div class="p2-seg-row">
+            <button class="p2-seg-btn on" data-p2-manual-seg="public" type="button">공공 가격</button>
+            <button class="p2-seg-btn" data-p2-manual-seg="private" type="button">민간 가격</button>
+          </div>
+
+          <div id="p2-manual-options"></div>
+          <div id="p2-manual-removed" class="p2-removed"></div>
+
+          <div id="p2-manual-scenarios" class="p2-scenarios"></div>
+        </div>
+
+        <div id="p2-ai-box" class="p2-mode-box">
+          <div class="selector-label">AI 분석 · 시장 선택</div>
+          <div class="p2-seg-row">
+            <button class="p2-seg-btn on" data-p2-ai-seg="public" type="button">공공 가격</button>
+            <button class="p2-seg-btn" data-p2-ai-seg="private" type="button">민간 가격</button>
+            <button id="p2-ai-run" class="btn-analyze" type="button">AI 자체 분석 실행</button>
+          </div>
+          <div id="p2-ai-note" class="p2-note">보고서를 선택한 뒤 AI 분석을 실행하세요.</div>
+          <div id="p2-ai-scenarios" class="p2-scenarios"></div>
+        </div>
+      </div>
+    </article>
   </div>
 
   <!-- ════════════════════════════════════════════════════════

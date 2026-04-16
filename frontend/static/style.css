@@ -783,7 +783,99 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   line-height: 1.8;
 }
 
-/* ── 21. 빈 페이지 (2·3공정) ─────────────────────────────────────────────── */
+/* ── 21. 2공정 수출전략 ─────────────────────────────────────────────────── */
+.p2-card { max-width: 1040px; margin: 0 auto 14px; }
+.p2-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.p2-mode-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.p2-btn-alt { background: rgba(23,63,120,.15); color: var(--navy); }
+.p2-mode-box { display: none; }
+.p2-mode-box.on { display: block; }
+.p2-seg-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.p2-seg-btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgba(23,63,120,.08);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .15s;
+  font-family: inherit;
+}
+.p2-seg-btn.on { background: var(--navy); color: #fff; }
+.p2-brief {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(23,63,120,.06);
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.p2-opt-item {
+  display: grid;
+  grid-template-columns: 1.3fr 90px 34px 34px 34px;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: var(--inner);
+  margin-bottom: 7px;
+}
+.p2-opt-label { font-size: 12px; color: var(--navy); font-weight: 700; }
+.p2-opt-val { text-align: right; font-size: 12px; color: var(--text); font-weight: 800; }
+.p2-step-btn, .p2-del-btn, .p2-add-btn {
+  height: 34px;
+  border-radius: 8px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.p2-step-btn {
+  width: 34px;
+  background: #fff;
+  color: var(--navy);
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow: var(--sh2);
+}
+.p2-del-btn {
+  width: 34px;
+  background: rgba(200,86,77,.1);
+  color: var(--red);
+  font-size: 16px;
+  font-weight: 800;
+}
+.p2-removed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.p2-add-btn {
+  padding: 0 10px;
+  background: rgba(23,63,120,.08);
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 700;
+}
+.p2-scenarios { margin-top: 10px; }
+.p2-scenario {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--inner);
+  margin-bottom: 7px;
+}
+.p2-scenario-name { font-size: 12px; font-weight: 800; color: var(--navy); }
+.p2-scenario-price { font-size: 16px; font-weight: 900; color: var(--text); }
+.p2-note { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+/* ── 22. 빈 페이지 (3공정) ─────────────────────────────────────────────── */
 .empty-page {
   display: flex;
   flex-direction: column;
@@ -797,7 +889,7 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .empty-page .ep-msg  { font-size: 15px; font-weight: 800; color: var(--navy); opacity: .55; }
 .empty-page .ep-sub  { font-size: 12px; }
 
-/* ── 22. 보고서 로딩 스피너 (border 없이 conic-gradient + mask) ────────────── */
+/* ── 23. 보고서 로딩 스피너 (border 없이 conic-gradient + mask) ────────────── */
 .report-loading-spinner {
   display: inline-block;
   width: 16px; height: 16px;
@@ -812,7 +904,7 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 }
 @keyframes spin { to { transform: rotate(1turn); } }
 
-/* ── 23. 반응형 ──────────────────────────────────────────────────────────── */
+/* ── 24. 반응형 ──────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .g3 { grid-template-columns: 1fr 1fr; }
 }
@@ -820,6 +912,7 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   .g2 { grid-template-columns: 1fr; }
   .g3 { grid-template-columns: 1fr; }
   .rs-strategy-grid { grid-template-columns: 1fr; }
+  .p2-opt-item { grid-template-columns: 1fr 90px 34px 34px 34px; }
 }
 @media (max-width: 720px) {
   .main { padding: 12px 16px 20px; }
@@ -834,9 +927,11 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   .pdf-preview-frame { height: 300px; }
   .selector-row   { flex-direction: column; }
   .btn-analyze    { width: 100%; justify-content: center; }
+  .p2-opt-item { grid-template-columns: 1fr 80px 30px 30px 30px; gap: 6px; }
+  .p2-step-btn, .p2-del-btn { width: 30px; height: 30px; }
 }
 
-/* ── 24. 스크롤바 ────────────────────────────────────────────────────────── */
+/* ── 25. 스크롤바 ────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(23,63,120,.15); border-radius: 2px; }

@@ -287,9 +287,13 @@ function _addReportEntry(result, pdfName) {
   const entry   = {
     id:        Date.now(),
     product:   productName,
+    stage_label: '1공정',
     report_title: `1공정 보고서 - ${productName}`,
     inn:       result ? (INN_MAP[result.product_id] || result.inn || '') : '',
     verdict:   result ? (result.verdict || '—') : '—',
+    price_hint: result ? String(result.price_positioning_pbs || '').trim() : '',
+    basis_trade: result ? String(result.basis_trade || '').trim() : '',
+    risks_conditions: result ? String(result.risks_conditions || '').trim() : '',
     timestamp: new Date().toLocaleString('ko-KR', {
       month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit',
@@ -301,17 +305,20 @@ function _addReportEntry(result, pdfName) {
   reports.unshift(entry);
   localStorage.setItem(REPORTS_LS_KEY, JSON.stringify(reports.slice(0, 30)));
   renderReportTab();
+  _syncP2ReportsOptions();
 }
 
 function clearAllReports() {
   localStorage.setItem(REPORTS_LS_KEY, JSON.stringify([]));
   renderReportTab();
+  _syncP2ReportsOptions();
 }
 
 function deleteReportEntry(id) {
   const reports = _loadReports().filter(r => r.id !== id);
   localStorage.setItem(REPORTS_LS_KEY, JSON.stringify(reports));
   renderReportTab();
+  _syncP2ReportsOptions();
 }
 
 /** 보고서 탭 DOM 갱신 */
@@ -358,10 +365,242 @@ function renderReportTab() {
         ${delBtn}
       </div>`;
   }).join('');
+  _syncP2ReportsOptions();
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   §6. API 키 상태 (U1) — GET /api/keys/status
+   §6. 2공정 수출전략 (P2)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+let _p2Ready = false;
+let _p2Mode = 'manual';
+let _p2ManualSeg = 'public';
+let _p2AiSeg = 'public';
+let _p2SelectedReportId = '';
+let _p2Manual = _makeP2Defaults();
+
+function _makeP2Defaults() {
+  return {
+    public: [
+      { key: 'public_adj',   label: '공공 시장 조정률', value: 0,  step: 1, type: 'pct', min: -40, max: 80, enabled: true },
+      { key: 'logistics',    label: '물류/유통 가산률', value: 12, step: 1, type: 'pct', min: 0,   max: 80, enabled: true },
+      { key: 'partner',      label: '파트너 마진률',   value: 18, step: 1, type: 'pct', min: 0,   max: 80, enabled: true },
+      { key: 'risk_premium', label: '리스크 프리미엄', value: 0.1, step: 0.1, type: 'abs', min: 0, max: 50, enabled: true },
+    ],
+    private: [
+      { key: 'gst',         label: 'GST 공제율',       value: 9,  step: 1, type: 'pct', min: 0, max: 20, enabled: true },
+      { key: 'retail',      label: '소매 마진율',      value: 30, step: 1, type: 'pct', min: 0, max: 70, enabled: true },
+      { key: 'partner',     label: '파트너 마진율',    value: 20, step: 1, type: 'pct', min: 0, max: 70, enabled: true },
+      { key: 'distribution',label: '도매/유통 마진율', value: 15, step: 1, type: 'pct', min: 0, max: 70, enabled: true },
+    ],
+  };
+}
+
+function initP2Strategy() {
+  const select = document.getElementById('p2-report-select');
+  if (!select) return;
+  _p2Ready = true;
+
+  document.getElementById('p2-mode-manual')?.addEventListener('click', () => _setP2Mode('manual'));
+  document.getElementById('p2-mode-ai')?.addEventListener('click', () => _setP2Mode('ai'));
+  document.getElementById('p2-ai-run')?.addEventListener('click', _runP2AiAnalysis);
+
+  select.addEventListener('change', (e) => {
+    _p2SelectedReportId = e.target.value || '';
+    _renderP2ReportBrief();
+    _renderP2Manual();
+  });
+
+  document.querySelectorAll('[data-p2-manual-seg]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      _p2ManualSeg = btn.getAttribute('data-p2-manual-seg') || 'public';
+      document.querySelectorAll('[data-p2-manual-seg]').forEach((x) => x.classList.remove('on'));
+      btn.classList.add('on');
+      _renderP2Manual();
+    });
+  });
+
+  document.querySelectorAll('[data-p2-ai-seg]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      _p2AiSeg = btn.getAttribute('data-p2-ai-seg') || 'public';
+      document.querySelectorAll('[data-p2-ai-seg]').forEach((x) => x.classList.remove('on'));
+      btn.classList.add('on');
+    });
+  });
+
+  _syncP2ReportsOptions();
+  _setP2Mode('manual');
+  _renderP2Manual();
+}
+
+function _syncP2ReportsOptions() {
+  if (!_p2Ready) return;
+  const select = document.getElementById('p2-report-select');
+  if (!select) return;
+  const reports = _loadReports();
+  const current = _p2SelectedReportId;
+
+  const options = ['<option value="">보고서를 선택하세요</option>']
+    .concat(reports.map(r => (
+      `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`
+    )));
+  select.innerHTML = options.join('');
+
+  const hasCurrent = reports.some(r => String(r.id) === String(current));
+  _p2SelectedReportId = hasCurrent ? current : '';
+  select.value = _p2SelectedReportId;
+  _renderP2ReportBrief();
+}
+
+function _setP2Mode(mode) {
+  _p2Mode = mode === 'ai' ? 'ai' : 'manual';
+  document.getElementById('p2-manual-box')?.classList.toggle('on', _p2Mode === 'manual');
+  document.getElementById('p2-ai-box')?.classList.toggle('on', _p2Mode === 'ai');
+
+  const manualBtn = document.getElementById('p2-mode-manual');
+  const aiBtn = document.getElementById('p2-mode-ai');
+  if (manualBtn && aiBtn) {
+    manualBtn.classList.toggle('p2-btn-alt', _p2Mode !== 'manual');
+    aiBtn.classList.toggle('p2-btn-alt', _p2Mode !== 'ai');
+  }
+}
+
+function _getP2SelectedReport() {
+  if (!_p2SelectedReportId) return null;
+  const reports = _loadReports();
+  return reports.find(r => String(r.id) === String(_p2SelectedReportId)) || null;
+}
+
+function _extractSgdHint(text) {
+  const src = String(text || '');
+  const mRange = src.match(/SGD\s*([0-9]+(?:\.[0-9]+)?)\s*[~\-–]\s*([0-9]+(?:\.[0-9]+)?)/i);
+  if (mRange) return (Number(mRange[1]) + Number(mRange[2])) / 2;
+  const mSingle = src.match(/SGD\s*([0-9]+(?:\.[0-9]+)?)/i);
+  if (mSingle) return Number(mSingle[1]);
+  const mAny = src.match(/([0-9]+(?:\.[0-9]+)?)/);
+  if (mAny) return Number(mAny[1]);
+  return NaN;
+}
+
+function _p2BasePrice() {
+  const report = _getP2SelectedReport();
+  if (!report) return 1.0;
+  const fromHint = _extractSgdHint(report.price_hint || '');
+  if (!Number.isNaN(fromHint) && fromHint > 0) return fromHint;
+  return 1.0;
+}
+
+function _renderP2ReportBrief() {
+  const el = document.getElementById('p2-report-brief');
+  if (!el) return;
+  const report = _getP2SelectedReport();
+  if (!report) {
+    el.textContent = '보고서를 선택하면 가격/근거 요약이 표시됩니다.';
+    return;
+  }
+  const lines = [
+    `${report.report_title || report.product || '보고서'}`,
+    `판정: ${report.verdict || '—'}`,
+    `가격 힌트: ${report.price_hint || '보고서에 명시된 가격 힌트 없음'}`,
+    `무역 근거: ${report.basis_trade || '근거 없음'}`,
+  ];
+  el.textContent = lines.join('\n');
+}
+
+function _renderP2Manual() {
+  const wrap = document.getElementById('p2-manual-options');
+  const removed = document.getElementById('p2-manual-removed');
+  const scenario = document.getElementById('p2-manual-scenarios');
+  if (!wrap || !removed || !scenario) return;
+
+  const options = _p2Manual[_p2ManualSeg];
+  const active = options.filter(x => x.enabled);
+  const inactive = options.filter(x => !x.enabled);
+
+  wrap.innerHTML = active.map((opt) => `
+    <div class="p2-opt-item">
+      <div class="p2-opt-label">${_escHtml(opt.label)}</div>
+      <div class="p2-opt-val">${opt.type === 'pct' ? `${Number(opt.value).toFixed(1)}%` : `SGD ${Number(opt.value).toFixed(2)}`}</div>
+      <button class="p2-step-btn" data-p2-op="dec" data-key="${opt.key}" type="button">-</button>
+      <button class="p2-step-btn" data-p2-op="inc" data-key="${opt.key}" type="button">+</button>
+      <button class="p2-del-btn" data-p2-op="del" data-key="${opt.key}" type="button">×</button>
+    </div>
+  `).join('');
+
+  removed.innerHTML = inactive.map((opt) => (
+    `<button class="p2-add-btn" data-p2-op="add" data-key="${opt.key}" type="button">+ ${_escHtml(opt.label)}</button>`
+  )).join('');
+
+  const bindEls = wrap.querySelectorAll('button[data-p2-op], .p2-add-btn');
+  bindEls.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const op = btn.getAttribute('data-p2-op');
+      const key = btn.getAttribute('data-key');
+      if (!key) return;
+      const item = options.find(x => x.key === key);
+      if (!item) return;
+      if (op === 'del') item.enabled = false;
+      if (op === 'add') item.enabled = true;
+      if (op === 'inc') item.value = Math.min(item.max, Number((item.value + item.step).toFixed(2)));
+      if (op === 'dec') item.value = Math.max(item.min, Number((item.value - item.step).toFixed(2)));
+      _renderP2Manual();
+    });
+  });
+
+  const base = _p2BasePrice();
+  let avg = base;
+  for (const opt of active) {
+    if (opt.type === 'pct') avg *= (1 + opt.value / 100);
+    else avg += opt.value;
+  }
+  avg = Math.max(0, avg);
+  const aggressive = avg * 0.92;
+  const conservative = avg * 1.10;
+  scenario.innerHTML = _p2ScenarioHtml(aggressive, avg, conservative);
+}
+
+function _p2ScenarioHtml(aggressive, avg, conservative) {
+  return `
+    <div class="p2-scenario">
+      <span class="p2-scenario-name">공격적인 시나리오</span>
+      <span class="p2-scenario-price">SGD ${Number(aggressive).toFixed(2)}</span>
+    </div>
+    <div class="p2-scenario">
+      <span class="p2-scenario-name">평균 시나리오</span>
+      <span class="p2-scenario-price">SGD ${Number(avg).toFixed(2)}</span>
+    </div>
+    <div class="p2-scenario">
+      <span class="p2-scenario-name">보수 시나리오</span>
+      <span class="p2-scenario-price">SGD ${Number(conservative).toFixed(2)}</span>
+    </div>`;
+}
+
+function _runP2AiAnalysis() {
+  const report = _getP2SelectedReport();
+  const note = document.getElementById('p2-ai-note');
+  const out = document.getElementById('p2-ai-scenarios');
+  if (!note || !out) return;
+  if (!report) {
+    note.textContent = '먼저 1공정 보고서를 선택해 주세요.';
+    out.innerHTML = '';
+    return;
+  }
+
+  const base = _p2BasePrice();
+  const verdict = String(report.verdict || '—');
+  const verdictFactor = verdict === '적합' ? 1.04 : verdict === '조건부' ? 0.98 : 0.93;
+  const segFactor = _p2AiSeg === 'public' ? 0.95 : 1.06;
+  const riskFactor = (String(report.risks_conditions || '').trim()) ? 0.98 : 1.0;
+  const avg = Math.max(0, base * verdictFactor * segFactor * riskFactor);
+  const aggressive = avg * 0.90;
+  const conservative = avg * 1.12;
+
+  note.textContent = `AI 추정 기준: ${verdict} 판정, ${_p2AiSeg === 'public' ? '공공' : '민간'} 시장 가중치, 보고서 리스크 문구 반영`;
+  out.innerHTML = _p2ScenarioHtml(aggressive, avg, conservative);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §7. API 키 상태 (U1) — GET /api/keys/status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 async function loadKeyStatus() {
@@ -910,4 +1149,5 @@ loadKeyStatus();   // §6: API 키 배지
 loadExchange();    // §3: 환율 즉시 로드
 initTodo();        // §4: Todo 상태 복원
 renderReportTab(); // §5: 보고서 탭 초기 렌더
+initP2Strategy();  // §6: 2공정 수출전략 초기화
 loadNews();        // §11: 시장 뉴스 즉시 로드

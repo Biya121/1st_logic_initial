@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>2공정 수출전략 더미</title>
+  <link rel="stylesheet" href="style.css?v=2" />
+  <style>
+    .dummy-wrap { max-width: 980px; margin: 0 auto; padding: 20px 0 28px; }
+    .dummy-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .dummy-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .dummy-select { min-width: 320px; max-width: 520px; }
+    .mode-btn { min-width: 136px; }
+    .seg-btn {
+      height: 34px; padding: 0 12px; border-radius: 10px; font-size: 12px; font-weight: 800;
+      background: rgba(23,63,120,.08); color: var(--navy); cursor: pointer; font-family: inherit;
+    }
+    .seg-btn.on { background: var(--navy); color: #fff; }
+    .mode-box { display: none; margin-top: 10px; }
+    .mode-box.on { display: block; }
+    .price-item {
+      display: grid; grid-template-columns: 1.1fr 90px 34px 34px; gap: 8px; align-items: center;
+      background: var(--inner); border-radius: 10px; padding: 9px 10px; margin-bottom: 8px;
+    }
+    .price-lbl { font-size: 12px; font-weight: 700; color: var(--navy); }
+    .price-val { text-align: right; font-size: 12px; color: var(--text); font-weight: 700; }
+    .step-btn {
+      width: 34px; height: 34px; border-radius: 8px; background: #fff; color: var(--navy);
+      font-size: 18px; font-weight: 900; cursor: pointer; box-shadow: var(--sh2);
+    }
+    .sum-box {
+      margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(23,63,120,.06);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .sum-lbl { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .sum-val { font-size: 17px; color: var(--navy); font-weight: 900; }
+    .ai-out { margin-top: 10px; }
+    .scenario {
+      background: var(--inner); border-radius: 11px; padding: 10px 12px; margin-bottom: 8px;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .scenario-name { font-size: 12px; font-weight: 800; color: var(--navy); }
+    .scenario-price { font-size: 15px; font-weight: 900; color: var(--text); }
+    .dummy-note { font-size: 11.5px; color: var(--muted); line-height: 1.55; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <img src="images/logo.png" class="brand-logo" alt="로고" />
+      <div class="brand-text">
+        <h1>2공정 · 수출전략 더미 페이지</h1>
+      </div>
+    </div>
+    <div class="topbar-r">
+      <div class="pill"><span>Dummy</span></div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="dummy-wrap">
+      <article class="card">
+        <div class="sec">
+          <div>
+            <h3>2공정 · 가격 전략 시뮬레이션 (Dummy)</h3>
+            <p>기존 페이지와 연결되지 않는 단독 더미 화면</p>
+          </div>
+          <span class="tag">P2</span>
+        </div>
+
+        <div class="dummy-grid">
+          <div>
+            <div class="selector-label">PDF 선택</div>
+            <div class="dummy-row">
+              <select class="dummy-select" id="pdf-select">
+                <option value="">보고서 PDF 선택...</option>
+                <option value="1">1공정 보고서 - Sereterol Activair</option>
+                <option value="2">1공정 보고서 - Omethyl Cutielet</option>
+                <option value="3">1공정 보고서 - Ciloduo</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div class="selector-label">가격 산정 방식</div>
+            <div class="dummy-row">
+              <button class="btn-analyze mode-btn" id="btn-manual" type="button">직접 가격 입력</button>
+              <button class="btn-analyze mode-btn" id="btn-ai" type="button" style="background:rgba(23,63,120,.2);color:var(--navy);">AI 가격 분석</button>
+            </div>
+          </div>
+
+          <div id="manual-box" class="mode-box on">
+            <div class="selector-label">직접 가격 입력 · 채널 선택</div>
+            <div class="dummy-row" style="margin-bottom:8px;">
+              <button type="button" class="seg-btn on" data-manual-seg="public">공공 가격</button>
+              <button type="button" class="seg-btn" data-manual-seg="private">민간 가격</button>
+            </div>
+
+            <div id="manual-items"></div>
+            <div class="sum-box">
+              <span class="sum-lbl">직접 산정 총 단가 (SGD)</span>
+              <span class="sum-val" id="manual-total">0.00</span>
+            </div>
+          </div>
+
+          <div id="ai-box" class="mode-box">
+            <div class="selector-label">AI 가격 분석 · 채널 선택</div>
+            <div class="dummy-row" style="margin-bottom:8px;">
+              <button type="button" class="seg-btn on" data-ai-seg="public">공공 가격</button>
+              <button type="button" class="seg-btn" data-ai-seg="private">민간 가격</button>
+              <button type="button" class="btn-analyze" id="btn-run-ai">AI 자체 분석 실행</button>
+            </div>
+
+            <div class="ai-out" id="ai-out">
+              <div class="scenario">
+                <span class="scenario-name">공격적인 시나리오</span>
+                <span class="scenario-price">-</span>
+              </div>
+              <div class="scenario">
+                <span class="scenario-name">평균 시나리오</span>
+                <span class="scenario-price">-</span>
+              </div>
+              <div class="scenario">
+                <span class="scenario-name">보수 시나리오</span>
+                <span class="scenario-price">-</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="dummy-note">
+            본 화면은 2공정 UI 더미입니다. 백엔드 저장/실행 연결 없이 입력·버튼 동작만 시뮬레이션합니다.
+          </p>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>
+
+<script>
+  "use strict";
+
+  const manualData = {
+    public: { base: 2.10, logistics: 0.20, margin: 0.35 },
+    private: { base: 2.25, logistics: 0.28, margin: 0.50 }
+  };
+  let manualSeg = "public";
+  let aiSeg = "public";
+
+  function fmt(n) { return Number(n).toFixed(2); }
+
+  function renderManualItems() {
+    const wrap = document.getElementById("manual-items");
+    const d = manualData[manualSeg];
+    wrap.innerHTML = `
+      <div class="price-item">
+        <span class="price-lbl">기준 단가</span>
+        <span class="price-val">${fmt(d.base)}</span>
+        <button class="step-btn" data-key="base" data-step="-0.05" type="button">-</button>
+        <button class="step-btn" data-key="base" data-step="0.05" type="button">+</button>
+      </div>
+      <div class="price-item">
+        <span class="price-lbl">물류/유통 가산</span>
+        <span class="price-val">${fmt(d.logistics)}</span>
+        <button class="step-btn" data-key="logistics" data-step="-0.02" type="button">-</button>
+        <button class="step-btn" data-key="logistics" data-step="0.02" type="button">+</button>
+      </div>
+      <div class="price-item">
+        <span class="price-lbl">마진 가산</span>
+        <span class="price-val">${fmt(d.margin)}</span>
+        <button class="step-btn" data-key="margin" data-step="-0.03" type="button">-</button>
+        <button class="step-btn" data-key="margin" data-step="0.03" type="button">+</button>
+      </div>
+    `;
+
+    wrap.querySelectorAll(".step-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-key");
+        const step = Number(btn.getAttribute("data-step"));
+        const next = Math.max(0, Number((manualData[manualSeg][key] + step).toFixed(2)));
+        manualData[manualSeg][key] = next;
+        renderManualItems();
+      });
+    });
+    updateManualTotal();
+  }
+
+  function updateManualTotal() {
+    const d = manualData[manualSeg];
+    const total = d.base + d.logistics + d.margin;
+    document.getElementById("manual-total").textContent = fmt(total);
+  }
+
+  function switchMode(mode) {
+    const isManual = mode === "manual";
+    document.getElementById("manual-box").classList.toggle("on", isManual);
+    document.getElementById("ai-box").classList.toggle("on", !isManual);
+    document.getElementById("btn-manual").style.background = isManual ? "var(--navy)" : "rgba(23,63,120,.2)";
+    document.getElementById("btn-manual").style.color = isManual ? "#fff" : "var(--navy)";
+    document.getElementById("btn-ai").style.background = isManual ? "rgba(23,63,120,.2)" : "var(--navy)";
+    document.getElementById("btn-ai").style.color = isManual ? "var(--navy)" : "#fff";
+  }
+
+  function renderAiScenario() {
+    const out = document.getElementById("ai-out");
+    const baseTotal = manualData[aiSeg].base + manualData[aiSeg].logistics + manualData[aiSeg].margin;
+    const isPublic = aiSeg === "public";
+    const avg = isPublic ? baseTotal * 0.98 : baseTotal * 1.05;
+    const aggr = avg * 0.92;
+    const cons = avg * 1.10;
+    out.innerHTML = `
+      <div class="scenario">
+        <span class="scenario-name">공격적인 시나리오 (${isPublic ? "공공" : "민간"})</span>
+        <span class="scenario-price">SGD ${fmt(aggr)}</span>
+      </div>
+      <div class="scenario">
+        <span class="scenario-name">평균 시나리오 (${isPublic ? "공공" : "민간"})</span>
+        <span class="scenario-price">SGD ${fmt(avg)}</span>
+      </div>
+      <div class="scenario">
+        <span class="scenario-name">보수 시나리오 (${isPublic ? "공공" : "민간"})</span>
+        <span class="scenario-price">SGD ${fmt(cons)}</span>
+      </div>
+    `;
+  }
+
+  document.getElementById("btn-manual").addEventListener("click", () => switchMode("manual"));
+  document.getElementById("btn-ai").addEventListener("click", () => switchMode("ai"));
+  document.querySelectorAll("[data-manual-seg]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      manualSeg = btn.getAttribute("data-manual-seg");
+      document.querySelectorAll("[data-manual-seg]").forEach((x) => x.classList.remove("on"));
+      btn.classList.add("on");
+      renderManualItems();
+    });
+  });
+  document.querySelectorAll("[data-ai-seg]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      aiSeg = btn.getAttribute("data-ai-seg");
+      document.querySelectorAll("[data-ai-seg]").forEach((x) => x.classList.remove("on"));
+      btn.classList.add("on");
+    });
+  });
+  document.getElementById("btn-run-ai").addEventListener("click", renderAiScenario);
+
+  renderManualItems();
+</script>
+</body>
+</html>
