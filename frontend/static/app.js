@@ -283,9 +283,11 @@ function _loadReports() {
  */
 function _addReportEntry(result, pdfName) {
   const reports = _loadReports();
+  const productName = result ? (result.trade_name || result.product_id || '알 수 없음') : '알 수 없음';
   const entry   = {
     id:        Date.now(),
-    product:   result ? (result.trade_name || result.product_id || '알 수 없음') : '알 수 없음',
+    product:   productName,
+    report_title: `1공정 보고서 - ${productName}`,
     inn:       result ? (INN_MAP[result.product_id] || result.inn || '') : '',
     verdict:   result ? (result.verdict || '—') : '—',
     timestamp: new Date().toLocaleString('ko-KR', {
@@ -293,10 +295,22 @@ function _addReportEntry(result, pdfName) {
       hour: '2-digit', minute: '2-digit',
     }),
     hasPdf: !!pdfName,
+    pdf_name: pdfName || '',
   };
 
   reports.unshift(entry);
   localStorage.setItem(REPORTS_LS_KEY, JSON.stringify(reports.slice(0, 30)));
+  renderReportTab();
+}
+
+function clearAllReports() {
+  localStorage.setItem(REPORTS_LS_KEY, JSON.stringify([]));
+  renderReportTab();
+}
+
+function deleteReportEntry(id) {
+  const reports = _loadReports().filter(r => r.id !== id);
+  localStorage.setItem(REPORTS_LS_KEY, JSON.stringify(reports));
   renderReportTab();
 }
 
@@ -325,21 +339,23 @@ function renderReportTab() {
       : '';
     const dlBtn = r.hasPdf
       ? `<a class="btn-download"
-            href="/api/report/download"
+            href="/api/report/download${r.pdf_name ? `?name=${encodeURIComponent(r.pdf_name)}` : ''}"
             target="_blank"
             style="padding:7px 14px;font-size:12px;flex-shrink:0;">📄 PDF</a>`
       : '';
+    const delBtn = `<button class="btn-report-del" onclick="deleteReportEntry(${r.id})" title="보고서 삭제">×</button>`;
 
     return `
       <div class="rep-item">
         <div class="rep-item-info">
-          <div class="rep-item-product">${_escHtml(r.product)}${innSpan}</div>
+          <div class="rep-item-product">${_escHtml(r.report_title || r.product)}${innSpan}</div>
           <div class="rep-item-meta">${_escHtml(r.timestamp)}</div>
         </div>
         <div class="rep-item-verdict">
           <span class="bdg ${vc}">${_escHtml(r.verdict)}</span>
         </div>
         ${dlBtn}
+        ${delBtn}
       </div>`;
   }).join('');
 }

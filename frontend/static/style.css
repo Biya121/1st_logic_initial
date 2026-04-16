@@ -760,6 +760,21 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .rep-item-product  { font-size: 14px; font-weight: 800; color: var(--navy); }
 .rep-item-meta     { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 .rep-item-verdict  { flex-shrink: 0; }
+.btn-report-del {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(23,63,120,.08);
+  color: var(--navy);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s;
+  font-family: inherit;
+}
+.btn-report-del:hover { background: rgba(23,63,120,.16); }
 .rep-empty {
   font-size: 13px;
   color: var(--muted);
