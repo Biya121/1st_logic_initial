@@ -64,83 +64,83 @@
 
   <!-- ════════════════════════════════════════════════════════
     메인 프리뷰
-    ▸ g3: [관세+환율 카드] | [시장 신호·뉴스 카드] | [To-Do 카드]
+    ▸ g3: [관세+환율 카드] | [시장 신호·뉴스 카드] | [공정 진행 체크리스트]
   ════════════════════════════════════════════════════════ -->
   <div id="main" class="page on">
 
     <div class="g3">
 
-      <!-- ── 관세 + 환율 병합 카드 ──────────────────────────────── -->
+      <!-- ── 관세 + 환율 병합 카드 ─────────────────────────────────── -->
       <article class="card">
         <div class="sec">
           <div>
             <h3>관세 · 환율 현황</h3>
+            <p>싱가포르 수출 기준 · AKFTA · yfinance 실시간</p>
           </div>
-        </div>
-
-        <!-- 관세 (정적 데이터 — 싱가포르 수출 기준) -->
-        <div class="irow">
-          <div class="irow-row">
-            <div>
-              <div class="tit">HS 3004.90 — 개량신약 · 일반제 (세레테롤 등)</div>
-              <div class="sub">AKFTA(한-아세안 FTA) · MFN 동일 0% 적용</div>
-            </div>
-            <span style="font-size:20px;font-weight:900;color:var(--green);">0%</span>
-          </div>
-        </div>
-        <div class="irow">
-          <div class="irow-row">
-            <div>
-              <div class="tit">HS 3006.30 — 가도바주 (조영제, Gadobutrol 604.72mg)</div>
-              <div class="sub">AKFTA(한-아세안 FTA) · MFN 동일 0% 적용</div>
-            </div>
-            <span style="font-size:20px;font-weight:900;color:var(--green);">0%</span>
-          </div>
-        </div>
-        <div class="irow">
-          <div class="irow-row">
-            <div>
-              <div class="tit">싱가포르 의약품 관세 기본 주의사항</div>
-              <div class="sub">FTA 0%여도 HS 코드 분류, 원산지 증빙, HSA 품목 허가 여부를 선확인해야 통관 지연을 줄일 수 있습니다.</div>
-            </div>
-            <span style="font-size:12px;font-weight:800;color:var(--navy);">주의</span>
-          </div>
-        </div>
-
-        <!-- 환율 (동적 — loadExchange() 가 채움) -->
-        <div class="exchange-section">
-          <div id="exchange-content">
-            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">KRW / SGD</div>
-            <div id="exchange-main-rate"
-                 style="font-size:28px;font-weight:900;color:var(--navy);letter-spacing:-.04em;line-height:1;">
-              —<span style="font-size:14px;margin-left:4px;color:var(--muted);font-weight:700;">원</span>
-            </div>
-            <div id="exchange-sub"
-                 style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
-            </div>
-            <div id="exchange-source"
-                 style="font-size:10.5px;color:var(--muted);margin-top:8px;">
-              조회 중…
-            </div>
-          </div>
-          <button class="btn-refresh" id="btn-exchange-refresh" onclick="loadExchange()">
-            ↺ 환율 새로고침
+          <button class="btn-refresh" id="btn-exchange-refresh" onclick="loadExchange()" style="margin-top:0;">
+            ↺ 새로고침
           </button>
+        </div>
+
+        <!-- 메인 환율 -->
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;">1 SGD =</div>
+          <div id="exchange-main-rate"
+               style="font-size:34px;font-weight:900;color:var(--navy);letter-spacing:-.04em;line-height:1;">
+            —<span style="font-size:15px;margin-left:4px;color:var(--muted);font-weight:700;">원</span>
+          </div>
+        </div>
+
+        <!-- 서브 환율 그리드 -->
+        <div id="exchange-sub" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;"></div>
+
+        <div id="exchange-source" style="font-size:10.5px;color:var(--muted);margin-bottom:16px;">조회 중…</div>
+
+        <!-- 관세 구분선 -->
+        <div style="border-top:1px solid var(--border);padding-top:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px;">관세 현황 · AKFTA</div>
+        </div>
+
+        <div class="irow">
+          <div class="irow-row">
+            <div>
+              <div class="tit">HS 3004.90 — 개량신약 · 일반제</div>
+              <div class="sub">AKFTA(한-아세안 FTA) · MFN 동일 0%</div>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:var(--green);">0%</span>
+          </div>
+        </div>
+        <div class="irow">
+          <div class="irow-row">
+            <div>
+              <div class="tit">HS 3006.30 — 조영제 (Gadobutrol)</div>
+              <div class="sub">AKFTA(한-아세안 FTA) · MFN 동일 0%</div>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:var(--green);">0%</span>
+          </div>
+        </div>
+        <div class="irow">
+          <div class="irow-row">
+            <div>
+              <div class="tit">주의사항</div>
+              <div class="sub">FTA 0%여도 HS 코드 분류, 원산지 증빙, HSA 허가 선확인 필요</div>
+            </div>
+            <span style="font-size:11px;font-weight:800;color:var(--warn);">주의</span>
+          </div>
         </div>
       </article>
 
-      <!-- ── 시장 신호 · 뉴스 카드 (Perplexity 동적) ──────────────────── -->
+      <!-- ── 시장 신호 · 뉴스 카드 ─────────────────────────────────── -->
       <article class="card">
         <div class="sec">
           <div>
             <h3>시장 신호 · 뉴스</h3>
-            <p>싱가포르 의약품 시장 주요 동향 · 실시간</p>
+            <p>싱가포르 의약품 시장 주요 동향</p>
           </div>
           <button class="btn-refresh" id="btn-news-refresh" onclick="loadNews()" style="margin-top:0;">
             ↺ 새로고침
           </button>
         </div>
-        <!-- loadNews() 가 채움 -->
         <div id="news-list">
           <div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0;">
             뉴스 로드 중…
@@ -148,15 +148,12 @@
         </div>
       </article>
 
-      <!-- ── To-Do 체크리스트 카드 ─────────────────────────────── -->
+      <!-- ── 공정 진행 체크리스트 카드 ─────────────────────────────── -->
       <article class="card">
         <div class="sec">
-          <div>
-            <h3>공정 진행 체크리스트</h3>
-          </div>
+          <div><h3>공정 진행 체크리스트</h3></div>
         </div>
 
-        <!-- 고정 항목 (일부 자동 체크) -->
         <div class="todo-list" id="todo-fixed-list">
           <div class="todo-item" id="todo-p1" onclick="toggleTodo('p1')">
             <div class="todo-check" id="todo-check-p1"></div>
@@ -180,10 +177,8 @@
           </div>
         </div>
 
-        <!-- 사용자 추가 항목 -->
         <div id="todo-custom-list"></div>
 
-        <!-- 추가 입력 -->
         <div class="todo-add-row">
           <input
             class="todo-input"
