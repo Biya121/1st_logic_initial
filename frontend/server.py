@@ -132,52 +132,112 @@ async def analyze_status() -> dict[str, Any]:
     }
 
 
-# ── 시장 신호 · 뉴스 (SerpAPI Google News) ───────────────────────────────────
+# ── 시장 신호 · 뉴스 (Perplexity) ─────────────────────────────────────────────
 
 _news_cache: dict[str, Any] = {"data": None, "ts": 0.0}
 _NEWS_TTL = 1800  # 30분 캐시
 
 
+def _parse_perplexity_news_items(raw_text: str) -> list[dict[str, str]]:
+    """Perplexity 텍스트 응답에서 뉴스 배열(JSON) 파싱."""
+    import re
+
+    text = (raw_text or "").strip()
+    if not text:
+        return []
+
+    candidates: list[str] = [text]
+    m = re.search(r"\[\s*\{.*\}\s*\]", text, flags=re.S)
+    if m:
+        candidates.append(m.group(0))
+
+    for cand in candidates:
+        try:
+            parsed = json.loads(cand)
+        except Exception:
+            continue
+        if not isinstance(parsed, list):
+            continue
+        items: list[dict[str, str]] = []
+        for row in parsed[:6]:
+            if not isinstance(row, dict):
+                continue
+            title = str(row.get("title", "") or "").strip()
+            if not title:
+                continue
+            items.append(
+                {
+                    "title": title,
+                    "source": str(row.get("source", "") or "").strip(),
+                    "date": str(row.get("date", "") or "").strip(),
+                    "link": str(row.get("link", "") or "").strip(),
+                }
+            )
+        if items:
+            return items
+    return []
+
+
 @app.get("/api/news")
 async def api_news() -> JSONResponse:
-    """SerpAPI Google News — 싱가포르 제약 시장 뉴스 (30분 캐시)."""
+    """Perplexity 기반 싱가포르 제약 시장 뉴스 (30분 캐시)."""
     import time as _time
     import os
+    import httpx
 
     if _news_cache["data"] and _time.time() - _news_cache["ts"] < _NEWS_TTL:
         return JSONResponse(_news_cache["data"])
 
-    serp_key = os.environ.get("SERP_API_KEY", "")
-    if not serp_key:
-        return JSONResponse({"ok": False, "error": "SERP_API_KEY 미설정", "items": []})
-
-    def _fetch() -> dict[str, Any]:
-        import urllib.request, urllib.parse, json as _json
-
-        params = urllib.parse.urlencode({
-            "engine":  "google_news",
-            "q":       "Singapore pharmaceutical drug HSA export",
-            "hl":      "en",
-            "gl":      "sg",
-            "api_key": serp_key,
-        })
-        url = f"https://serpapi.com/search.json?{params}"
-        with urllib.request.urlopen(url, timeout=10) as r:
-            raw = _json.loads(r.read())
-
-        items = []
-        for n in raw.get("news_results", [])[:6]:
-            items.append({
-                "title":  n.get("title", ""),
-                "source": n.get("source", {}).get("name", "") if isinstance(n.get("source"), dict) else str(n.get("source", "")),
-                "date":   n.get("date", ""),
-                "link":   n.get("link", ""),
-            })
-        return {"ok": True, "items": items}
+    px_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()
+    if not px_key:
+        return JSONResponse({"ok": False, "error": "PERPLEXITY_API_KEY 미설정", "items": []})
 
     try:
-        loop = asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, _fetch)
+        payload = {
+            "model": "sonar-pro",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a Singapore pharmaceutical market analyst. "
+                        "Return ONLY JSON array with up to 6 recent news items."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Find latest Singapore pharmaceutical market/regulatory news. "
+                        "Return strict JSON array. Each item must have keys: "
+                        "title, source, date, link."
+                    ),
+                },
+            ],
+            "max_tokens": 900,
+            "temperature": 0.2,
+        }
+        headers = {
+            "Authorization": f"Bearer {px_key}",
+            "Content-Type": "application/json",
+        }
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                "https://api.perplexity.ai/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            resp.raise_for_status()
+            raw = resp.json()
+
+        content = str(
+            raw.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+        )
+        items = _parse_perplexity_news_items(content)
+        if not items:
+            return JSONResponse({"ok": False, "error": "Perplexity 응답 파싱 실패", "items": []})
+
+        data = {"ok": True, "items": items}
         _news_cache["data"] = data
         _news_cache["ts"]   = _time.time()
         return JSONResponse(data)

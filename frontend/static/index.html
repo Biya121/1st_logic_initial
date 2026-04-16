@@ -129,6 +129,25 @@
         </div>
       </article>
 
+      <!-- ── 시장 신호 · 뉴스 카드 (Perplexity 동적) ──────────────────── -->
+      <article class="card">
+        <div class="sec">
+          <div>
+            <h3>시장 신호 · 뉴스</h3>
+            <p>싱가포르 의약품 시장 주요 동향 · 실시간</p>
+          </div>
+          <button class="btn-refresh" id="btn-news-refresh" onclick="loadNews()" style="margin-top:0;">
+            ↺ 새로고침
+          </button>
+        </div>
+        <!-- loadNews() 가 채움 -->
+        <div id="news-list">
+          <div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0;">
+            뉴스 로드 중…
+          </div>
+        </div>
+      </article>
+
       <!-- ── To-Do 체크리스트 카드 ─────────────────────────────── -->
       <article class="card">
         <div class="sec">
@@ -174,25 +193,6 @@
             onkeydown="if(event.key==='Enter'){event.preventDefault();addTodoItem(event)}"
           />
           <button class="btn-todo-add" onclick="addTodoItem()">+ 추가</button>
-        </div>
-      </article>
-
-      <!-- ── 시장 신호 · 뉴스 카드 (SerpAPI 동적) ──────────────────── -->
-      <article class="card">
-        <div class="sec">
-          <div>
-            <h3>시장 신호 · 뉴스</h3>
-            <p>싱가포르 의약품 시장 주요 동향 · 실시간</p>
-          </div>
-          <button class="btn-refresh" id="btn-news-refresh" onclick="loadNews()" style="margin-top:0;">
-            ↺ 새로고침
-          </button>
-        </div>
-        <!-- loadNews() 가 채움 -->
-        <div id="news-list">
-          <div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0;">
-            뉴스 로드 중…
-          </div>
         </div>
       </article>
 
