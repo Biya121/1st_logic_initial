@@ -1264,20 +1264,12 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   50%      { r: 16; opacity: .4; }
 }
 
-/* ── SVG 지구본 컨테이너 ─────────────────────────────────────────────────── */
-.sg-globe-wrap {
+/* ── Leaflet 지도 컨테이너 ────────────────────────────────────────────────── */
+.sg-leaflet-map {
+  height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 0 4px;
-}
-.sg-globe-svg {
-  width: 100%;
-  max-width: 280px;
-  height: auto;
-  display: block;
-  margin: 0 auto;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

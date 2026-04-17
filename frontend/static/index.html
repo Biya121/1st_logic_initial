@@ -4,7 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>싱가포르 수출 적합성 분석 — UPharma Export AI</title>
-  <link rel="stylesheet" href="/static/style.css?v=4"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="/static/style.css?v=5"/>
 </head>
 <body>
 <div class="app">
@@ -65,93 +66,7 @@
         <div class="sec" style="margin-bottom:10px;">
           <h3>싱가포르 위치</h3>
         </div>
-        <div class="sg-globe-wrap">
-          <svg class="sg-globe-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <radialGradient id="oceanGrad" cx="38%" cy="32%" r="68%">
-                <stop offset="0%" stop-color="#bbd8ed"/>
-                <stop offset="100%" stop-color="#3f81ad"/>
-              </radialGradient>
-              <radialGradient id="shadeGrad" cx="72%" cy="70%" r="62%">
-                <stop offset="0%" stop-color="rgba(0,10,50,0)"/>
-                <stop offset="100%" stop-color="rgba(0,10,50,0.24)"/>
-              </radialGradient>
-              <radialGradient id="glowGrad" cx="33%" cy="27%" r="46%">
-                <stop offset="0%" stop-color="rgba(255,255,255,0.42)"/>
-                <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-              </radialGradient>
-              <clipPath id="gc"><circle cx="200" cy="200" r="170"/></clipPath>
-            </defs>
-
-            <!-- Ocean -->
-            <circle cx="200" cy="200" r="170" fill="url(#oceanGrad)"/>
-
-            <!-- Grid lines -->
-            <g clip-path="url(#gc)" fill="none" stroke="rgba(255,255,255,0.30)" stroke-width="0.6">
-              <ellipse cx="200" cy="200" rx="170" ry="4"/>
-              <ellipse cx="200" cy="159" rx="164" ry="3.8"/>
-              <ellipse cx="200" cy="118" rx="147" ry="3.4"/>
-              <ellipse cx="200" cy="80"  rx="120" ry="2.8"/>
-              <ellipse cx="200" cy="241" rx="164" ry="3.8"/>
-              <ellipse cx="200" cy="281" rx="147" ry="3.4"/>
-              <ellipse cx="200" cy="200" rx="3.8" ry="170"/>
-              <ellipse cx="200" cy="200" rx="44"  ry="170"/>
-              <ellipse cx="200" cy="200" rx="84"  ry="170"/>
-              <ellipse cx="200" cy="200" rx="120" ry="170"/>
-              <ellipse cx="200" cy="200" rx="148" ry="170"/>
-            </g>
-
-            <!-- Landmasses — orthographic projection centered on Singapore (1.35°N 103.82°E) -->
-            <g clip-path="url(#gc)" fill="#82b07e" stroke="#6e9a6a" stroke-width="0.7" stroke-linejoin="round">
-              <!-- Malay Peninsula -->
-              <path d="M200,161 C198,164 195,170 193,177 L191,185 L191,193 L193,200 L197,207 L200,210 L203,207 L207,200 L207,192 L206,184 L204,176 L202,169 Z"/>
-              <!-- Sumatra -->
-              <path d="M174,184 C172,189 169,196 168,204 L168,213 L171,221 L175,226 L180,228 L184,224 L185,216 L183,207 L180,199 L177,192 Z"/>
-              <!-- Borneo -->
-              <path d="M215,181 C219,174 226,170 234,170 L241,173 L245,181 L245,190 L242,200 L238,209 L230,214 L221,213 L215,207 L213,198 L213,189 Z"/>
-              <!-- Java -->
-              <path d="M195,221 L200,217 L209,215 L219,217 L228,221 L232,226 L228,230 L216,231 L204,229 L196,226 Z"/>
-              <!-- Sulawesi -->
-              <path d="M252,188 C256,183 262,182 266,186 L265,195 L260,202 L258,210 L261,215 L257,217 L252,212 L252,203 L254,196 Z"/>
-              <!-- Philippines -->
-              <ellipse cx="241" cy="154" rx="7" ry="14" transform="rotate(-8,241,154)"/>
-              <ellipse cx="253" cy="139" rx="5" ry="10" transform="rotate(-5,253,139)"/>
-              <ellipse cx="234" cy="169" rx="4" ry="8"/>
-              <!-- Indochina / Thailand -->
-              <path d="M176,130 C182,121 191,116 199,115 L208,117 L215,123 L218,131 L215,141 L208,147 L200,149 L192,147 L184,141 L178,135 Z"/>
-              <!-- Vietnam coast -->
-              <path d="M220,141 C225,132 232,127 239,126 L243,131 L241,141 L235,149 L227,155 L221,152 Z"/>
-              <!-- South China -->
-              <path d="M238,93 C248,85 260,83 268,88 L272,97 L269,108 L260,116 L249,118 L241,115 L237,106 Z"/>
-              <!-- Korea/Japan (partial) -->
-              <path d="M274,98 C279,92 285,91 288,96 L286,106 L279,111 L274,107 Z"/>
-              <!-- India (partial) -->
-              <path d="M115,163 C121,153 129,148 138,148 L144,154 L144,165 L140,176 L133,184 L125,186 L118,181 Z"/>
-              <!-- Sri Lanka -->
-              <ellipse cx="133" cy="198" rx="5" ry="8"/>
-              <!-- Myanmar / Bangladesh -->
-              <path d="M146,136 C153,128 161,125 168,128 L169,138 L164,147 L156,153 L148,152 Z"/>
-              <!-- Australia (partial) -->
-              <path d="M284,269 C294,258 308,255 318,261 L319,272 L311,280 L297,281 L285,275 Z"/>
-            </g>
-
-            <!-- 3D shading -->
-            <circle cx="200" cy="200" r="170" fill="url(#shadeGrad)"/>
-            <circle cx="200" cy="200" r="170" fill="url(#glowGrad)"/>
-            <!-- Globe rim -->
-            <circle cx="200" cy="200" r="170" fill="none" stroke="rgba(23,63,120,0.18)" stroke-width="1.5"/>
-
-            <!-- Singapore pulse ring -->
-            <circle cx="200" cy="200" fill="rgba(200,86,77,0.50)">
-              <animate attributeName="r" values="6;20;6" dur="2.4s" repeatCount="indefinite" calcMode="spline" keySplines="0.42,0,0.58,1;0.42,0,0.58,1"/>
-              <animate attributeName="opacity" values="0.55;0;0.55" dur="2.4s" repeatCount="indefinite" calcMode="spline" keySplines="0.42,0,0.58,1;0.42,0,0.58,1"/>
-            </circle>
-            <!-- Singapore dot -->
-            <circle cx="200" cy="200" r="5.5" fill="#c8564d" stroke="#fff" stroke-width="2"/>
-            <!-- Label -->
-            <text x="208" y="195" font-size="10" font-weight="800" fill="#173f78" font-family="Pretendard,Noto Sans KR,sans-serif" letter-spacing=".03em">SG</text>
-          </svg>
-        </div>
+        <div id="sg-map" class="sg-leaflet-map"></div>
       </article>
 
       <article class="card">
@@ -471,6 +386,7 @@
 </main>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/static/app.js?v=5"></script>
 </body>
 </html>
