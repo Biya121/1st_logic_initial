@@ -114,7 +114,11 @@ body {
 .flag-emoji { font-size: 22px; line-height: 1; }
 
 /* ── 4. 내비게이션 탭 ────────────────────────────────────────────────────── */
-.main { padding: 18px 32px 32px; }
+.main {
+  padding: 16px 28px 28px;
+  max-width: 1080px;
+  margin-inline: auto;
+}
 
 .nav {
   display: flex;
@@ -200,10 +204,10 @@ body {
 }
 
 /* ── 7. 그리드 레이아웃 ──────────────────────────────────────────────────── */
-.g2 { display: grid; grid-template-columns: 1.05fr 1fr; gap: 14px; margin-bottom: 14px; }
-.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; align-items: stretch; }
-.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 14px; }
-.g1 { margin-bottom: 14px; }
+.g2 { display: grid; grid-template-columns: 1.05fr 1fr; gap: 10px; margin-bottom: 10px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: stretch; }
+.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 10px; }
+.g1 { margin-bottom: 10px; }
 
 /* 관세 카드 — 환율 섹션을 하단 고정 */
 #main .g3 .card:first-child {
@@ -1186,8 +1190,8 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .macro-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 .macro-card {
   background: var(--card);
@@ -1221,8 +1225,8 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .map-news-grid {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 .map-card-wrap {
   display: flex;
@@ -1260,12 +1264,20 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   50%      { r: 16; opacity: .4; }
 }
 
-/* ── Leaflet 지도 컨테이너 ────────────────────────────────────────────────── */
-.sg-leaflet-map {
-  height: 300px;
-  border-radius: 12px;
-  overflow: hidden;
+/* ── SVG 지구본 컨테이너 ─────────────────────────────────────────────────── */
+.sg-globe-wrap {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+.sg-globe-svg {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1355,8 +1367,8 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 }
 .p2-col {
   background: var(--card);
-  border-radius: 16px;
-  padding: 18px 18px 16px;
+  border-radius: 14px;
+  padding: 12px 14px;
   box-shadow: var(--sh2);
   border-top: 3px solid transparent;
 }
@@ -1389,10 +1401,10 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   margin-bottom: 10px;
 }
 .p2-col-price {
-  font-size: 34px;
+  font-size: 22px;
   font-weight: 900;
   color: var(--navy);
-  letter-spacing: -.05em;
+  letter-spacing: -.04em;
   line-height: 1;
 }
 .p2-col-currency {

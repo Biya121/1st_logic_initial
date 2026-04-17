@@ -1756,45 +1756,6 @@ function _escHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   §10-b. Leaflet 지도 초기화
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-function initMap() {
-  const mapEl = document.getElementById('sg-map');
-  if (!mapEl || !window.L) return;
-
-  const map = L.map('sg-map', {
-    center:           [1.3521, 103.8198],
-    zoom:             12,
-    zoomControl:      true,
-    scrollWheelZoom:  true,
-    attributionControl: true,
-  });
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 18,
-  }).addTo(map);
-
-  const sgIcon = L.divIcon({
-    className: '',
-    html: `<div style="
-      width:14px;height:14px;
-      background:var(--red);
-      border-radius:50%;
-      border:2px solid #fff;
-      box-shadow:0 0 0 7px rgba(200,86,77,.22),0 2px 6px rgba(0,0,0,.3);
-    "></div>`,
-    iconSize:   [14, 14],
-    iconAnchor: [7, 7],
-  });
-
-  L.marker([1.3521, 103.8198], { icon: sgIcon })
-    .addTo(map)
-    .bindPopup('<b>Singapore</b>')
-    .openPopup();
-}
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    §11. 시장 신호 · 뉴스 (Perplexity)
@@ -1846,4 +1807,3 @@ loadMacro();            // 거시 지표 로드
 renderReportTab();      // 보고서 탭 초기 렌더
 initP2Strategy();       // 2공정 수출전략 초기화
 loadNews();             // 시장 뉴스 즉시 로드
-initMap();              // Leaflet 지도 초기화
