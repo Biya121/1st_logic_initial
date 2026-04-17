@@ -62,6 +62,13 @@ let _currentKey = null;   // 현재 선택된 product_key
 // P2 3열 시나리오용 원본 데이터
 let _p2ScenarioRaw = { agg: 0, avg: 0, cons: 0, sgd_usd: 0, sgd_krw: 0 };
 
+// P2 컬럼별 커스텀 옵션 데이터
+let _p2ColData = {
+  agg:  { opts: [] },
+  avg:  { opts: [] },
+  cons: { opts: [] },
+};
+
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    §2. 탭 전환 (N1)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
@@ -696,19 +703,95 @@ function toggleP2ColDetail(col) {
   if (btn) btn.textContent = (open ? '▾' : '▸') + ' 단계별 역산 보기';
 }
 
-/* P2 3열 카드: 수수료/운임 변경 시 가격 재계산 */
+/* P2 3열 카드: 기준가/수수료/운임/커스텀옵션 변경 시 가격 재계산 */
 function recalcP2Col(col) {
-  const base    = _p2ScenarioRaw[col] || 0;
+  const base    = parseFloat(document.getElementById('p2ci-base-' + col)?.value || 0);
   const fee     = parseFloat(document.getElementById('p2ci-fee-' + col)?.value || 0);
   const freight = parseFloat(document.getElementById('p2ci-freight-' + col)?.value || 1);
-  const adj     = base * (1 - fee / 100) * freight;
-  const usd     = _p2ScenarioRaw.sgd_usd > 0 ? adj / _p2ScenarioRaw.sgd_usd : 0;
-  const krw     = _p2ScenarioRaw.sgd_krw > 0 ? adj * _p2ScenarioRaw.sgd_krw : 0;
+
+  let price = base * (1 - fee / 100) * freight;
+
+  const opts = _p2ColData[col]?.opts || [];
+  for (const opt of opts) {
+    if (opt.type === 'pct_add')   price *= (1 + opt.value / 100);
+    else if (opt.type === 'pct_deduct') price *= (1 - opt.value / 100);
+    else if (opt.type === 'abs_add')    price += opt.value;
+  }
+  price = Math.max(0, price);
+
+  const usd = _p2ScenarioRaw.sgd_usd > 0 ? (price / _p2ScenarioRaw.sgd_usd).toFixed(2) : '—';
+  const krw = _p2ScenarioRaw.sgd_krw > 0 ? Math.round(price * _p2ScenarioRaw.sgd_krw).toLocaleString('ko-KR') : '—';
 
   const priceEl = document.getElementById('p2c-price-' + col);
   const subEl   = document.getElementById('p2c-sub-' + col);
-  if (priceEl) priceEl.textContent = adj.toFixed(2);
-  if (subEl)   subEl.textContent   = `${usd.toFixed(2)} USD · ${Math.round(krw).toLocaleString('ko-KR')} KRW`;
+  if (priceEl) priceEl.textContent = price.toFixed(2);
+  if (subEl)   subEl.textContent   = `${usd} USD · ${krw} KRW`;
+}
+
+/* P2 컬럼 커스텀 옵션 렌더링 */
+function renderP2ColOptions(col, showAddForm) {
+  const container = document.getElementById('p2co-' + col);
+  if (!container) return;
+  const opts = (_p2ColData[col] || { opts: [] }).opts;
+
+  const typeLabel = { pct_add: '% 가산', pct_deduct: '% 차감', abs_add: 'SGD 가산' };
+
+  let html = opts.map(opt => `
+    <div class="p2c-opt-row">
+      <span class="p2c-opt-name">${_escHtml(opt.name)}</span>
+      <span class="p2c-opt-type-label">${typeLabel[opt.type] || opt.type}</span>
+      <input class="p2c-opt-val" type="number" value="${opt.value}" step="0.1" min="0"
+        onchange="updateP2ColOption('${col}','${_escHtml(opt.id)}',this.value)">
+      <button class="p2c-opt-del" onclick="removeP2ColOption('${col}','${_escHtml(opt.id)}')">×</button>
+    </div>`).join('');
+
+  if (showAddForm) {
+    html += `
+      <div class="p2c-opt-row p2c-add-row">
+        <input class="p2c-opt-name-input" type="text" placeholder="옵션명" id="p2c-newname-${col}" maxlength="20">
+        <select class="p2c-opt-type-select" id="p2c-newtype-${col}">
+          <option value="pct_deduct">% 차감</option>
+          <option value="pct_add">% 가산</option>
+          <option value="abs_add">SGD 가산</option>
+        </select>
+        <input class="p2c-opt-val" type="number" placeholder="값" id="p2c-newval-${col}" step="0.1" min="0">
+        <button class="p2c-confirm-btn" onclick="confirmP2ColOption('${col}')">✓</button>
+      </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+/* 옵션 추가 (버튼 클릭) */
+function addP2ColOption(col) {
+  renderP2ColOptions(col, true);
+}
+
+/* 입력 확정 */
+function confirmP2ColOption(col) {
+  const name = (document.getElementById('p2c-newname-' + col)?.value || '').trim();
+  const type = document.getElementById('p2c-newtype-' + col)?.value || 'pct_deduct';
+  const val  = parseFloat(document.getElementById('p2c-newval-' + col)?.value || '0');
+  if (!name || Number.isNaN(val) || val < 0) return;
+  _p2ColData[col] = _p2ColData[col] || { opts: [] };
+  _p2ColData[col].opts.push({ id: 'o' + Date.now(), name, type, value: val });
+  renderP2ColOptions(col, false);
+  recalcP2Col(col);
+}
+
+/* 옵션 삭제 */
+function removeP2ColOption(col, optId) {
+  if (!_p2ColData[col]) return;
+  _p2ColData[col].opts = _p2ColData[col].opts.filter(o => o.id !== optId);
+  renderP2ColOptions(col, false);
+  recalcP2Col(col);
+}
+
+/* 옵션 값 수정 */
+function updateP2ColOption(col, optId, newVal) {
+  if (!_p2ColData[col]) return;
+  const opt = _p2ColData[col].opts.find(o => o.id === optId);
+  if (opt) { opt.value = parseFloat(newVal) || 0; recalcP2Col(col); }
 }
 
 function _renderP2AiResult(data) {
@@ -802,14 +885,19 @@ function _renderP2AiResult(data) {
     const priceEl = document.getElementById('p2c-price-' + col);
     const subEl   = document.getElementById('p2c-sub-' + col);
     const refEl   = document.getElementById('p2c-ref-' + col);
+    const baseInput = document.getElementById('p2ci-base-' + col);
 
-    if (refEl)   refEl.textContent   = refLabel;
-    if (priceEl) priceEl.textContent = priceSgd.toFixed(2);
+    if (refEl)     refEl.textContent   = refLabel;
+    if (priceEl)   priceEl.textContent = priceSgd.toFixed(2);
+    if (baseInput) baseInput.value     = priceSgd.toFixed(2);
     if (subEl) {
       const usd = sgdUsd > 0 ? (priceSgd / sgdUsd).toFixed(2) : '—';
       const krw = sgdKrw > 0 ? Math.round(priceSgd * sgdKrw).toLocaleString('ko-KR') : '—';
       subEl.textContent = `${usd} USD · ${krw} KRW`;
     }
+    // Reset custom options for each column on new AI result
+    _p2ColData[col] = { opts: [] };
+    renderP2ColOptions(col, false);
   });
 
   // 경쟁가 분포
@@ -1669,6 +1757,46 @@ function _escHtml(s) {
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §10-b. Leaflet 지도 초기화
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+function initMap() {
+  const mapEl = document.getElementById('sg-map');
+  if (!mapEl || !window.L) return;
+
+  const map = L.map('sg-map', {
+    center:           [1.3521, 103.8198],
+    zoom:             12,
+    zoomControl:      true,
+    scrollWheelZoom:  true,
+    attributionControl: true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18,
+  }).addTo(map);
+
+  const sgIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px;height:14px;
+      background:var(--red);
+      border-radius:50%;
+      border:2px solid #fff;
+      box-shadow:0 0 0 7px rgba(200,86,77,.22),0 2px 6px rgba(0,0,0,.3);
+    "></div>`,
+    iconSize:   [14, 14],
+    iconAnchor: [7, 7],
+  });
+
+  L.marker([1.3521, 103.8198], { icon: sgIcon })
+    .addTo(map)
+    .bindPopup('<b>Singapore</b>')
+    .openPopup();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    §11. 시장 신호 · 뉴스 (Perplexity)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
@@ -1718,3 +1846,4 @@ loadMacro();            // 거시 지표 로드
 renderReportTab();      // 보고서 탭 초기 렌더
 initP2Strategy();       // 2공정 수출전략 초기화
 loadNews();             // 시장 뉴스 즉시 로드
+initMap();              // Leaflet 지도 초기화

@@ -200,15 +200,18 @@ async def api_news() -> JSONResponse:
                     "role": "system",
                     "content": (
                         "You are a Singapore pharmaceutical market analyst. "
-                        "Return ONLY JSON array with up to 6 recent news items."
+                        "Return ONLY a JSON array with up to 6 recent news items. "
+                        "All 'title' values MUST be written in Korean (한국어). "
+                        "Translate any English titles into natural Korean."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
-                        "Find latest Singapore pharmaceutical market/regulatory news. "
-                        "Return strict JSON array. Each item must have keys: "
-                        "title, source, date, link."
+                        "Find the latest Singapore pharmaceutical market and regulatory news. "
+                        "Return a strict JSON array. Each item must have keys: "
+                        "title (Korean translation required), source, date, link. "
+                        "Translate all titles to Korean. Do not use English titles."
                     ),
                 },
             ],

@@ -4,7 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>싱가포르 수출 적합성 분석 — UPharma Export AI</title>
-  <link rel="stylesheet" href="/static/style.css?v=3"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="/static/style.css?v=4"/>
 </head>
 <body>
 <div class="app">
@@ -58,99 +59,27 @@
       </div>
     </div>
 
-    <!-- SECTION B: 세계지도 + 시장신호·뉴스 -->
+    <!-- SECTION B: Leaflet 지도 + 뉴스 -->
     <div class="map-news-grid">
 
       <article class="card map-card-wrap">
-        <div class="sec" style="margin-bottom:12px;">
-          <div>
-            <h3>싱가포르 위치</h3>
-            <p>1.3521° N, 103.8198° E · 수도: 싱가포르市</p>
-          </div>
+        <div class="sec" style="margin-bottom:10px;">
+          <h3>싱가포르 위치</h3>
         </div>
-        <div class="world-map-container">
-          <svg class="world-map-svg" viewBox="0 0 900 440" xmlns="http://www.w3.org/2000/svg">
-            <!-- Ocean background -->
-            <rect width="900" height="440" class="map-ocean"/>
-            <!-- Grid lines -->
-            <line x1="0" y1="220" x2="900" y2="220" class="map-grid"/>
-            <line x1="0" y1="110" x2="900" y2="110" class="map-grid"/>
-            <line x1="0" y1="330" x2="900" y2="330" class="map-grid"/>
-            <line x1="450" y1="0" x2="450" y2="440" class="map-grid"/>
-            <line x1="225" y1="0" x2="225" y2="440" class="map-grid"/>
-            <line x1="675" y1="0" x2="675" y2="440" class="map-grid"/>
-            <!-- Grid labels -->
-            <text x="453" y="218" class="map-gl">EQ</text>
-            <text x="453" y="108" class="map-gl">45°N</text>
-            <text x="453" y="334" class="map-gl">45°S</text>
-            <text x="677" y="218" class="map-gl">90°E</text>
-            <!-- Greenland -->
-            <polygon points="297,31 405,31 405,59 325,66 297,47" class="map-land"/>
-            <!-- North America -->
-            <polygon points="30,42 100,42 250,47 312,95 275,117 250,160 225,180 162,147 137,90 60,66" class="map-land"/>
-            <!-- South America -->
-            <polygon points="232,172 262,172 362,207 362,230 350,272 322,307 267,318 232,280 220,230" class="map-land"/>
-            <!-- UK / Ireland -->
-            <polygon points="427,72 445,66 455,72 450,84 435,88 427,80" class="map-land"/>
-            <!-- Europe -->
-            <polygon points="435,88 455,84 525,66 550,72 545,88 525,99 500,110 487,121 455,121 435,110" class="map-land"/>
-            <!-- Africa -->
-            <polygon points="405,121 580,121 580,172 557,227 537,242 495,284 455,307 405,284 400,172" class="map-land"/>
-            <!-- Arabia / Middle East -->
-            <polygon points="537,110 600,110 612,154 590,172 557,172 545,121" class="map-land"/>
-            <!-- Russia / N Asia -->
-            <polygon points="515,47 900,47 900,88 812,110 780,99 762,110 680,99 600,88 550,110 515,77" class="map-land"/>
-            <!-- Asia mainland -->
-            <polygon points="550,99 612,99 650,121 700,121 775,110 812,121 812,154 775,198 700,207 650,198 612,149 550,132" class="map-land"/>
-            <!-- Indian subcontinent -->
-            <polygon points="600,121 650,121 655,154 650,198 612,198 600,154" class="map-land"/>
-            <!-- SE Asia / Indochina -->
-            <polygon points="680,137 737,137 725,176 712,198 700,196 687,170" class="map-land"/>
-            <!-- Malay Peninsula (near Singapore) -->
-            <polygon points="700,196 712,196 714,215 706,220 700,212" class="map-land"/>
-            <!-- Japan -->
-            <polygon points="775,99 805,99 800,127 780,127 775,110" class="map-land"/>
-            <!-- Korea -->
-            <polygon points="758,110 775,110 775,127 758,121" class="map-land"/>
-            <!-- Philippines -->
-            <polygon points="750,154 762,154 762,176 750,172" class="map-land"/>
-            <!-- Indonesia (Sumatra/Java rough) -->
-            <polygon points="687,220 737,220 760,232 737,242 700,235" class="map-land"/>
-            <!-- Madagascar -->
-            <polygon points="560,232 577,232 577,261 560,249" class="map-land"/>
-            <!-- Australia -->
-            <polygon points="735,264 835,264 835,313 800,306 762,298 735,280" class="map-land"/>
-            <!-- New Zealand -->
-            <polygon points="862,295 877,295 877,320 862,320" class="map-land"/>
-
-            <!-- Singapore pin -->
-            <circle cx="710" cy="218" r="12" class="sg-pin-ring"/>
-            <circle cx="710" cy="218" r="5"  class="sg-pin"/>
-            <line x1="710" y1="206" x2="710" y2="196" class="sg-pin-line"/>
-            <text x="718" y="212" class="sg-label">싱가포르</text>
-            <text x="718" y="223" class="sg-coord">1.35°N 103.82°E</text>
-          </svg>
-        </div>
+        <div id="sg-map" class="sg-leaflet-map"></div>
       </article>
 
       <article class="card">
         <div class="sec">
-          <div>
-            <h3>시장 신호 · 뉴스</h3>
-            <p>싱가포르 의약품 시장 주요 동향</p>
-          </div>
-          <button class="btn-refresh" id="btn-news-refresh" onclick="loadNews()" style="margin-top:0;">
-            ↺ 새로고침
-          </button>
+          <h3>싱가포르 의약품 시장 주요 동향</h3>
+          <button class="btn-refresh" id="btn-news-refresh" onclick="loadNews()" style="margin-top:0;">↺</button>
         </div>
         <div id="news-list">
-          <div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0;">
-            뉴스 로드 중…
-          </div>
+          <div class="irow" style="color:var(--muted);font-size:12px;text-align:center;padding:16px 0;">뉴스 로드 중…</div>
         </div>
       </article>
 
-    </div><!-- /map-news-grid -->
+    </div>
 
     <!-- ════ 공정 섹션 ════ -->
 
@@ -172,14 +101,14 @@
           <div class="selector-label">품목 선택</div>
           <div class="selector-row">
             <select id="product-select">
-              <option value="SG_sereterol_activair">[일반제] Sereterol Activair · fluticasone+salmeterol · Inhaler</option>
-              <option value="SG_omethyl_omega3_2g">[개량신약] Omethyl Cutielet · omega-3 ethyl esters 2g · Pouch</option>
-              <option value="SG_hydrine_hydroxyurea_500">[항암제] Hydrine · hydroxyurea 500mg · Cap</option>
-              <option value="SG_gadvoa_gadobutrol_604">[일반제] Gadvoa Inj. · gadobutrol 604.72mg · PFS</option>
-              <option value="SG_rosumeg_combigel">[개량신약] Rosumeg Combigel · rosuvastatin+omega-3 · Cap</option>
-              <option value="SG_atmeg_combigel">[개량신약] Atmeg Combigel · atorvastatin+omega-3 · Cap</option>
-              <option value="SG_ciloduo_cilosta_rosuva">[개량신약] Ciloduo · cilostazol+rosuvastatin · Tab</option>
-              <option value="SG_gastiin_cr_mosapride">[개량신약] Gastiin CR · mosapride citrate 15mg · Tab</option>
+              <option value="SG_sereterol_activair">[일반제] Sereterol Activair · fluticasone+salmeterol</option>
+              <option value="SG_omethyl_omega3_2g">[개량신약] Omethyl Cutielet · omega-3 ethyl esters 2g</option>
+              <option value="SG_hydrine_hydroxyurea_500">[항암제] Hydrine · hydroxyurea 500mg</option>
+              <option value="SG_gadvoa_gadobutrol_604">[일반제] Gadvoa Inj. · gadobutrol 604.72mg</option>
+              <option value="SG_rosumeg_combigel">[개량신약] Rosumeg Combigel · rosuvastatin+omega-3</option>
+              <option value="SG_atmeg_combigel">[개량신약] Atmeg Combigel · atorvastatin+omega-3</option>
+              <option value="SG_ciloduo_cilosta_rosuva">[개량신약] Ciloduo · cilostazol+rosuvastatin</option>
+              <option value="SG_gastiin_cr_mosapride">[개량신약] Gastiin CR · mosapride citrate 15mg</option>
             </select>
             <button class="btn-analyze" id="btn-analyze" onclick="runPipeline()">
               <span id="btn-icon">▶</span> 분석 실행
@@ -211,12 +140,11 @@
           </div>
         </div>
 
-        <!-- PDF 다운로드 카드 (완료 시 표시) -->
         <div class="report-card" id="report-card">
           <div class="card-title"><div class="card-title-dot"></div> PDF 보고서</div>
           <div id="report-state-loading" style="display:none;align-items:center;gap:8px;">
             <span class="report-loading-spinner"></span>
-            <span style="font-size:13px;color:var(--muted)">PDF 생성 중…</span>
+            <span style="font-size:12px;color:var(--muted)">PDF 생성 중…</span>
           </div>
           <div id="report-state-ok" style="display:none">
             <a class="btn-download" href="/api/report/download" target="_blank">📄 PDF 보고서 다운로드</a>
@@ -226,33 +154,25 @@
           </div>
         </div>
 
-        <!-- 숨김 DOM: renderResult() 내부 로직용 (화면에 표시 안 함) -->
         <div style="display:none;" aria-hidden="true">
           <div class="result-card" id="result-card">
-            <div id="verdict-name"></div>
-            <div id="verdict-inn"></div>
+            <div id="verdict-name"></div><div id="verdict-inn"></div>
             <div id="verdict-badge" class="verdict-badge v-none"></div>
             <div class="traffic-light">
               <div class="tl-lamp tl-red"    id="tl-red"></div>
               <div class="tl-lamp tl-yellow" id="tl-yellow"></div>
               <div class="tl-lamp tl-green"  id="tl-green"></div>
             </div>
-            <div id="basis-market-medical"></div>
-            <div id="basis-regulatory"></div>
-            <div id="basis-trade"></div>
-            <div id="basis-pbs-line"></div>
-            <div id="entry-pathway"></div>
-            <div id="price-positioning-pbs"></div>
+            <div id="basis-market-medical"></div><div id="basis-regulatory"></div>
+            <div id="basis-trade"></div><div id="basis-pbs-line"></div>
+            <div id="entry-pathway"></div><div id="price-positioning-pbs"></div>
             <div id="risks-conditions"></div>
             <button id="btn-reanalyze"></button>
           </div>
-          <div class="papers-card" id="papers-card">
-            <div id="papers-list"></div>
-          </div>
-          <!-- iframe 제거 — pdf-preview-frame은 JS에서 null-safe 처리 -->
+          <div class="papers-card" id="papers-card"><div id="papers-list"></div></div>
         </div>
 
-      </div><!-- /pb-p1 -->
+      </div>
     </div>
 
     <!-- 2공정 -->
@@ -262,7 +182,7 @@
           <span class="process-num">02</span>
           <div>
             <div class="process-title">2공정 · 수출가격 전략</div>
-            <div class="process-sub">AI 가격 분석 · 3가지 시나리오 · PDF 보고서</div>
+            <div class="process-sub">AI 가격 분석 · 3가지 시나리오 · 커스텀 옵션 · PDF 보고서</div>
           </div>
         </div>
         <span class="process-arrow" id="pa-p2">▾</span>
@@ -277,9 +197,9 @@
                 <option value="">저장된 1공정 보고서를 선택하세요.</option>
               </select>
             </div>
-            <div class="selector-label" style="margin-top:16px;">시장 선택 및 분석 실행</div>
-            <div class="selector-row" style="flex-wrap:wrap;gap:12px;">
-              <div class="p2-seg-row" style="margin-bottom:0;flex:1;min-width:200px;">
+            <div class="selector-label" style="margin-top:12px;">시장 선택 및 분석 실행</div>
+            <div class="selector-row" style="flex-wrap:wrap;gap:10px;">
+              <div class="p2-seg-row" style="margin-bottom:0;flex:1;min-width:180px;">
                 <button class="p2-seg-btn on" id="p2-ai-seg-public"  type="button" onclick="setP2AiSeg('public')">공공 시장</button>
                 <button class="p2-seg-btn"    id="p2-ai-seg-private" type="button" onclick="setP2AiSeg('private')">민간 시장</button>
               </div>
@@ -287,7 +207,7 @@
                 <span id="p2-ai-run-icon">▶</span> AI 가격 분석 실행
               </button>
             </div>
-            <div id="p2-ai-seg-desc" class="p2-note" style="margin-top:6px;">공공 시장: ALPS 조달청 채널 · 27개 공공기관 통합구매 기준</div>
+            <div id="p2-ai-seg-desc" class="p2-note" style="margin-top:5px;">공공 시장: ALPS 조달청 채널 · 27개 공공기관 통합구매 기준</div>
             <div class="progress-row" id="p2-progress-row">
               <div class="prog-step" id="p2prog-extract"><div class="prog-dot">1</div><div class="prog-label">PDF 추출</div></div>
               <div class="prog-step" id="p2prog-ai_extract"><div class="prog-dot">2</div><div class="prog-label">가격 추출</div></div>
@@ -299,7 +219,6 @@
 
           <!-- 3열 시나리오 결과 -->
           <div id="p2-ai-result-section" style="display:none;">
-
             <div class="p2-three-col">
 
               <!-- 공격적 (1위) -->
@@ -308,14 +227,17 @@
                   <span class="p2-col-label">공격적 (1위)</span>
                   <span class="p2-rank-badge">RANK 1</span>
                 </div>
-                <div class="p2-col-ref" id="p2c-ref-agg">Retail base: — SGD</div>
                 <div class="p2-col-price" id="p2c-price-agg">—</div>
                 <div class="p2-col-currency">SGD</div>
                 <div class="p2-col-sub" id="p2c-sub-agg">— USD · — KRW</div>
                 <div class="p2-col-expand-row">
-                  <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('agg')">▸ 단계별 역산 보기</button>
+                  <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('agg')">▸ 역산 · 옵션 편집</button>
                 </div>
                 <div class="p2-col-detail" id="p2cd-agg" style="display:none;">
+                  <div class="p2-col-input-row">
+                    <label class="p2-col-input-label">기준가 (SGD)</label>
+                    <input class="p2-col-input" type="number" id="p2ci-base-agg" value="0" step="0.1" min="0" oninput="recalcP2Col('agg')">
+                  </div>
                   <div class="p2-col-input-row">
                     <label class="p2-col-input-label">에이전트 수수료(%)</label>
                     <input class="p2-col-input" type="number" id="p2ci-fee-agg" value="3.0" step="0.5" min="0" max="50" oninput="recalcP2Col('agg')">
@@ -324,7 +246,8 @@
                     <label class="p2-col-input-label">운임 배수</label>
                     <input class="p2-col-input" type="number" id="p2ci-freight-agg" value="0.85" step="0.05" min="0.1" max="5" oninput="recalcP2Col('agg')">
                   </div>
-                  <div class="p2-col-foot-note" id="p2cf-agg">port fee: 2.50 SGD · freight base: 8.50 SGD</div>
+                  <div id="p2co-agg" class="p2-custom-opts"></div>
+                  <button class="p2c-add-btn" onclick="addP2ColOption('agg')">+ 옵션 추가</button>
                 </div>
               </div>
 
@@ -334,14 +257,17 @@
                   <span class="p2-col-label">평균 (2위)</span>
                   <span class="p2-rank-badge">RANK 2</span>
                 </div>
-                <div class="p2-col-ref" id="p2c-ref-avg">Retail base: — SGD</div>
                 <div class="p2-col-price" id="p2c-price-avg">—</div>
                 <div class="p2-col-currency">SGD</div>
                 <div class="p2-col-sub" id="p2c-sub-avg">— USD · — KRW</div>
                 <div class="p2-col-expand-row">
-                  <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('avg')">▸ 단계별 역산 보기</button>
+                  <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('avg')">▸ 역산 · 옵션 편집</button>
                 </div>
                 <div class="p2-col-detail" id="p2cd-avg" style="display:none;">
+                  <div class="p2-col-input-row">
+                    <label class="p2-col-input-label">기준가 (SGD)</label>
+                    <input class="p2-col-input" type="number" id="p2ci-base-avg" value="0" step="0.1" min="0" oninput="recalcP2Col('avg')">
+                  </div>
                   <div class="p2-col-input-row">
                     <label class="p2-col-input-label">에이전트 수수료(%)</label>
                     <input class="p2-col-input" type="number" id="p2ci-fee-avg" value="5.0" step="0.5" min="0" max="50" oninput="recalcP2Col('avg')">
@@ -350,7 +276,8 @@
                     <label class="p2-col-input-label">운임 배수</label>
                     <input class="p2-col-input" type="number" id="p2ci-freight-avg" value="1.00" step="0.05" min="0.1" max="5" oninput="recalcP2Col('avg')">
                   </div>
-                  <div class="p2-col-foot-note" id="p2cf-avg">port fee: 2.50 SGD · freight base: 8.50 SGD</div>
+                  <div id="p2co-avg" class="p2-custom-opts"></div>
+                  <button class="p2c-add-btn" onclick="addP2ColOption('avg')">+ 옵션 추가</button>
                 </div>
               </div>
 
@@ -360,14 +287,17 @@
                   <span class="p2-col-label">보수적 (3위)</span>
                   <span class="p2-rank-badge">RANK 3</span>
                 </div>
-                <div class="p2-col-ref" id="p2c-ref-cons">Retail base: — SGD</div>
                 <div class="p2-col-price" id="p2c-price-cons">—</div>
                 <div class="p2-col-currency">SGD</div>
                 <div class="p2-col-sub" id="p2c-sub-cons">— USD · — KRW</div>
                 <div class="p2-col-expand-row">
-                  <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('cons')">▸ 단계별 역산 보기</button>
+                  <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('cons')">▸ 역산 · 옵션 편집</button>
                 </div>
                 <div class="p2-col-detail" id="p2cd-cons" style="display:none;">
+                  <div class="p2-col-input-row">
+                    <label class="p2-col-input-label">기준가 (SGD)</label>
+                    <input class="p2-col-input" type="number" id="p2ci-base-cons" value="0" step="0.1" min="0" oninput="recalcP2Col('cons')">
+                  </div>
                   <div class="p2-col-input-row">
                     <label class="p2-col-input-label">에이전트 수수료(%)</label>
                     <input class="p2-col-input" type="number" id="p2ci-fee-cons" value="10.0" step="0.5" min="0" max="50" oninput="recalcP2Col('cons')">
@@ -376,40 +306,21 @@
                     <label class="p2-col-input-label">운임 배수</label>
                     <input class="p2-col-input" type="number" id="p2ci-freight-cons" value="1.20" step="0.05" min="0.1" max="5" oninput="recalcP2Col('cons')">
                   </div>
-                  <div class="p2-col-foot-note" id="p2cf-cons">port fee: 2.50 SGD · freight base: 8.50 SGD</div>
+                  <div id="p2co-cons" class="p2-custom-opts"></div>
+                  <button class="p2c-add-btn" onclick="addP2ColOption('cons')">+ 옵션 추가</button>
                 </div>
               </div>
 
             </div><!-- /p2-three-col -->
 
-            <!-- 경쟁가 분포 + 제품 목록 + 다운로드 -->
-            <div class="selector-card" style="margin-top:14px;">
-              <div class="p2-dist-title">경쟁가 분포 · quartile</div>
-              <div class="p2-dist-row">
-                <div class="p2-dist-item">
-                  <div class="p2-dist-label">P25</div>
-                  <div class="p2-dist-val" id="p2-dist-p25">— SGD</div>
-                </div>
-                <div class="p2-dist-bar">
-                  <div class="p2-dist-line"></div>
-                  <div class="p2-dist-mid-wrap">
-                    <div class="p2-dist-mid">MEDIAN</div>
-                    <div class="p2-dist-mid-val" id="p2-dist-med">— SGD</div>
-                  </div>
-                </div>
-                <div class="p2-dist-item p2-dist-item--r">
-                  <div class="p2-dist-label">P75</div>
-                  <div class="p2-dist-val" id="p2-dist-p75">— SGD</div>
-                </div>
-              </div>
-
+            <!-- 제품 목록 + 다운로드 (경쟁가 분포 삭제됨) -->
+            <div class="selector-card" style="margin-top:12px;">
               <div id="p2-product-list"></div>
-              <div id="p2-report-dl-state" style="margin-top:16px;"></div>
+              <div id="p2-report-dl-state" style="margin-top:12px;"></div>
             </div>
 
           </div><!-- /p2-ai-result-section -->
 
-          <!-- 숨김 DOM: 기존 P2 로직 호환용 -->
           <div style="display:none;" aria-hidden="true">
             <div id="p2r-product-name"></div>
             <div id="p2r-verdict-badge" class="verdict-badge v-none"></div>
@@ -420,8 +331,8 @@
             <div id="p2r-rationale"></div>
           </div>
 
-        </div><!-- /p2-wrap -->
-      </div><!-- /pb-p2 -->
+        </div>
+      </div>
     </div>
 
     <!-- 3공정 -->
@@ -438,30 +349,20 @@
       </div>
       <div class="process-body" id="pb-p3">
         <div class="selector-card">
-          <div class="p3-stub-note" id="p3-stub-note">
-            1공정 · 2공정 완료 후 바이어 분석이 활성화됩니다. 현재 데이터 준비 중입니다.
-          </div>
+          <div class="p3-stub-note">1공정 · 2공정 완료 후 바이어 분석이 활성화됩니다. 현재 데이터 준비 중입니다.</div>
           <div class="p3-buyer-table">
             <table class="p3-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>바이어명</th>
-                  <th>국가</th>
-                  <th>점수</th>
-                  <th>채널</th>
-                </tr>
-              </thead>
+              <thead><tr><th>#</th><th>바이어명</th><th>국가</th><th>점수</th><th>채널</th></tr></thead>
               <tbody id="p3-buyer-tbody">
                 <tr><td colspan="5" class="p3-empty-cell">바이어 데이터 준비 중</td></tr>
               </tbody>
             </table>
           </div>
-          <div style="margin-top:16px;">
+          <div style="margin-top:12px;">
             <button class="btn-download p3-dl-disabled" id="p3-dl-btn" disabled>📄 바이어 보고서 다운로드</button>
           </div>
         </div>
-      </div><!-- /pb-p3 -->
+      </div>
     </div>
 
   </div><!-- /main -->
@@ -477,10 +378,7 @@
         <button class="btn-refresh" onclick="clearAllReports()" style="margin-top:0;">모두 지우기</button>
       </div>
       <div id="report-tab-list">
-        <div class="rep-empty">
-          아직 생성된 보고서가 없습니다.<br>
-          1공정 분석을 실행하면 여기에 자동으로 등록됩니다.
-        </div>
+        <div class="rep-empty">아직 생성된 보고서가 없습니다.<br>1공정 분석을 실행하면 여기에 자동으로 등록됩니다.</div>
       </div>
     </article>
   </div>
@@ -488,6 +386,7 @@
 </main>
 </div>
 
-<script src="/static/app.js?v=3"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/app.js?v=4"></script>
 </body>
 </html>
