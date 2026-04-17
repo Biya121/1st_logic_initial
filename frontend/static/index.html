@@ -89,7 +89,7 @@
         <div class="process-header-l">
           <span class="process-num">01</span>
           <div>
-            <div class="process-title">1공정 · 시장조사</div>
+            <div class="process-title">시장조사</div>
             <div class="process-sub">제품 분석 · Claude AI · PDF 보고서 자동 생성</div>
           </div>
         </div>
@@ -181,7 +181,7 @@
         <div class="process-header-l">
           <span class="process-num">02</span>
           <div>
-            <div class="process-title">2공정 · 수출가격 전략</div>
+            <div class="process-title">수출가격 전략</div>
             <div class="process-sub">AI 가격 분석 · 3가지 시나리오 · 커스텀 옵션 · PDF 보고서</div>
           </div>
         </div>
@@ -341,7 +341,7 @@
         <div class="process-header-l">
           <span class="process-num">03</span>
           <div>
-            <div class="process-title">3공정 · 바이어 발굴</div>
+            <div class="process-title">바이어 발굴</div>
             <div class="process-sub">Top 10 바이어 리스트 · 1·2공정 완료 후 활성화</div>
           </div>
         </div>
@@ -410,6 +410,7 @@
     .addTo(map)
     .bindPopup('<b>Singapore</b>')
     .openPopup();
+  setTimeout(function() { map.invalidateSize(); }, 100);
 })();
 </script>
 </body>
