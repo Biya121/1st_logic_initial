@@ -337,7 +337,7 @@ function _loadReports() {
 }
 
 /**
- * 1공정 완료 후 renderResult()가 호출 → 보고서 탭에 항목 추가.
+ * 시장조사 완료 후 renderResult()가 호출 → 보고서 탭에 항목 추가.
  * @param {object|null} result  분석 결과
  * @param {string|null} pdfName PDF 파일명
  */
@@ -347,8 +347,8 @@ function _addReportEntry(result, pdfName) {
   const entry   = {
     id:        Date.now(),
     product:   productName,
-    stage_label: '1공정',
-    report_title: `1공정 보고서 - ${productName}`,
+    stage_label: '시장조사',
+    report_title: `시장조사 보고서 - ${productName}`,
     inn:       result ? (INN_MAP[result.product_id] || result.inn || '') : '',
     verdict:   result ? (result.verdict || '—') : '—',
     price_hint: result ? String(result.price_positioning_pbs || '').trim() : '',
@@ -392,7 +392,7 @@ function renderReportTab() {
     container.innerHTML = `
       <div class="rep-empty">
         아직 생성된 보고서가 없습니다.<br>
-        1공정 분석을 실행하면 여기에 자동으로 등록됩니다.
+        시장조사를 실행하면 여기에 자동으로 등록됩니다.
       </div>`;
     return;
   }
@@ -430,7 +430,7 @@ function renderReportTab() {
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   §6. 2공정 수출전략 (P2)
+   §6. 수출 가격 전략 (P2)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 let _p2Ready = false;
@@ -551,7 +551,7 @@ async function handleP2FileSelect(inputEl) {
   }
 }
 
-/* 2공정 진행 단계 — 1공정과 동일한 스타일 */
+/* 수출 가격 전략 진행 단계 — 시장조사와 동일한 스타일 */
 const P2_STEP_ORDER = ['extract', 'ai_extract', 'ai_analysis', 'report'];
 
 function _setP2Progress(currentStep, status) {
@@ -805,7 +805,7 @@ function _renderP2AiResult(data) {
   // 제품명
   _setText('p2r-product-name', extracted.product_name || '미상');
 
-  // 판정 배지 (1공정 스타일)
+  // 판정 배지 (시장조사 스타일)
   const verdictEl = document.getElementById('p2r-verdict-badge');
   if (verdictEl) {
     const v = extracted.verdict || '미상';
@@ -858,7 +858,7 @@ function _renderP2AiResult(data) {
       dlState.innerHTML = `
         <a class="btn-download"
            href="/api/report/download?name=${encodeURIComponent(data.pdf)}"
-           target="_blank">📄 2공정 보고서 다운로드</a>`;
+           target="_blank">📄 수출가격전략 보고서 다운로드</a>`;
     } else {
       dlState.innerHTML = `<span style="font-size:13px;color:var(--red);">PDF 생성에 실패했습니다.</span>`;
     }
@@ -1621,12 +1621,12 @@ function renderResult(result, refs, pdfName) {
   }
 
   /* ─ U4: PDF 보고서 카드 ─ */
+  // N4: 보고서 탭에 자동 등록 (PDF 성공 여부 무관)
+  _addReportEntry(result, pdfName);
   if (pdfName) {
     _showReportOk(pdfName);
     // N3: 보고서 완료 → Todo 자동 체크
     markTodoDone('rep');
-    // N4: 보고서 탭에 자동 등록
-    _addReportEntry(result, pdfName);
   } else {
     _showReportError();
   }
@@ -1733,7 +1733,7 @@ function _pbsLineFromApi(result) {
   return '참고 가격 정보 없음';
 }
 
-/** 1공정 완료/오류 노트 표시 */
+/** 시장조사 완료/오류 노트 표시 */
 function _showP1Note(msg, isErr) {
   const el = document.getElementById('p1-result-note');
   if (!el) return;
@@ -1806,5 +1806,5 @@ loadExchange();         // 환율 즉시 로드
 setInterval(() => { loadExchange(); }, 10000); // yfinance 실시간 반영 강화
 loadMacro();            // 거시 지표 로드
 renderReportTab();      // 보고서 탭 초기 렌더
-initP2Strategy();       // 2공정 수출전략 초기화
+initP2Strategy();       // 수출 가격 전략 초기화
 loadNews();             // 시장 뉴스 즉시 로드

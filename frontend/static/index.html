@@ -83,7 +83,7 @@
 
     <!-- ════ 공정 섹션 ════ -->
 
-    <!-- 1공정 -->
+    <!-- 시장조사 -->
     <div class="process-section">
       <div class="process-header" onclick="toggleProcess('p1')">
         <div class="process-header-l">
@@ -175,7 +175,7 @@
       </div>
     </div>
 
-    <!-- 2공정 -->
+    <!-- 수출 가격 전략 -->
     <div class="process-section">
       <div class="process-header" onclick="toggleProcess('p2')">
         <div class="process-header-l">
@@ -191,10 +191,10 @@
         <div id="p2-wrap">
 
           <div class="selector-card">
-            <div class="selector-label">1공정 보고서 선택</div>
+            <div class="selector-label">분석 보고서 선택</div>
             <div class="selector-row">
               <select id="p2-ai-report-select" style="flex:1;">
-                <option value="">저장된 1공정 보고서를 선택하세요.</option>
+                <option value="">저장된 분석 보고서를 선택하세요.</option>
               </select>
             </div>
             <div class="selector-label" style="margin-top:12px;">시장 선택 및 분석 실행</div>
@@ -335,21 +335,21 @@
       </div>
     </div>
 
-    <!-- 3공정 -->
+    <!-- 바이어 발굴 -->
     <div class="process-section">
       <div class="process-header" onclick="toggleProcess('p3')">
         <div class="process-header-l">
           <span class="process-num">03</span>
           <div>
             <div class="process-title">바이어 발굴</div>
-            <div class="process-sub">Top 10 바이어 리스트 · 1·2공정 완료 후 활성화</div>
+            <div class="process-sub">Top 10 바이어 리스트 · 시장조사·수출가격전략 완료 후 활성화</div>
           </div>
         </div>
         <span class="process-arrow" id="pa-p3">▾</span>
       </div>
       <div class="process-body" id="pb-p3">
         <div class="selector-card">
-          <div class="p3-stub-note">1공정 · 2공정 완료 후 바이어 분석이 활성화됩니다. 현재 데이터 준비 중입니다.</div>
+          <div class="p3-stub-note">시장조사 · 수출가격전략 완료 후 바이어 분석이 활성화됩니다. 현재 데이터 준비 중입니다.</div>
           <div class="p3-buyer-table">
             <table class="p3-table">
               <thead><tr><th>#</th><th>바이어명</th><th>국가</th><th>점수</th><th>채널</th></tr></thead>
@@ -373,12 +373,12 @@
       <div class="sec">
         <div>
           <h3>생성된 보고서</h3>
-          <p>1공정 분석 완료 시 자동 등록 · PDF 다운로드 가능</p>
+          <p>시장조사 완료 시 자동 등록 · PDF 다운로드 가능</p>
         </div>
         <button class="btn-refresh" onclick="clearAllReports()" style="margin-top:0;">모두 지우기</button>
       </div>
       <div id="report-tab-list">
-        <div class="rep-empty">아직 생성된 보고서가 없습니다.<br>1공정 분석을 실행하면 여기에 자동으로 등록됩니다.</div>
+        <div class="rep-empty">아직 생성된 보고서가 없습니다.<br>시장조사를 실행하면 여기에 자동으로 등록됩니다.</div>
       </div>
     </article>
   </div>
