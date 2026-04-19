@@ -1174,7 +1174,7 @@ async def _run_buyer_pipeline(
         _buyer_task.update({"step": "crawl", "step_label": "CPHI 크롤링 중…"})
         await _log(f"바이어 발굴 시작 — 품목: {product_label} / 타깃: {target_country} ({target_region})")
 
-        from utils.cphi_crawler import crawl as cphi_crawl
+        from utils.cphi_crawler import crawl as cphi_crawl, PRODUCT_SEARCH_MAP
         companies = await cphi_crawl(
             product_key=product_key,
             candidate_pool=20,
@@ -1182,6 +1182,19 @@ async def _run_buyer_pipeline(
         )
         _buyer_task["crawl_count"] = len(companies)
         await _log(f"1차 수집 완료 — {len(companies)}개 후보", "success")
+
+        # CPHI 결과가 없을 경우 Perplexity로 직접 탐색
+        if not companies:
+            await _log("CPHI 후보 없음 — Perplexity 직접 탐색으로 fallback")
+            mapping = PRODUCT_SEARCH_MAP.get(product_key, {})
+            ingredient  = ", ".join(mapping.get("ingredients", [])[:2]) or product_label
+            therapeutic = ", ".join(mapping.get("therapeutic", [])[:2]) or "pharmaceutical"
+            from utils.buyer_enricher import discover_companies_via_perplexity
+            companies = await discover_companies_via_perplexity(
+                ingredient, therapeutic, target_country, target_region, emit=_log,
+            )
+            _buyer_task["crawl_count"] = len(companies)
+            await _log(f"Perplexity fallback — {len(companies)}개 후보", "success")
 
         # ── Step 2: 심층조사 (CPHI 전체 텍스트 → Claude Haiku) ───────────
         _buyer_task.update({"step": "enrich", "step_label": "심층조사 중…"})
@@ -1318,14 +1331,6 @@ async def index() -> FileResponse:
     if not index_path.is_file():
         raise HTTPException(status_code=404, detail="index.html 없음")
     return FileResponse(index_path)
-
-
-@app.get("/frontend3")
-async def frontend3() -> FileResponse:
-    path = STATIC / "frontend3.html"
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="frontend3.html 없음")
-    return FileResponse(path)
 
 
 app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")

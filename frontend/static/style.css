@@ -1889,3 +1889,27 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .bm-match   { font-size: 12px; color: #555; padding: 4px 0; }
 .bm-sources { display: flex; flex-direction: column; gap: 4px; }
 .bm-link    { font-size: 11px; color: var(--navy); word-break: break-all; }
+
+/* ── P3 로그박스 ── */
+.log-box {
+  background: #1a2332; color: #b6cde8; font-family: monospace;
+  font-size: 12px; padding: 14px 16px; border-radius: 10px;
+  height: 200px; overflow-y: auto; margin-top: 16px;
+}
+.log-box .log-line    { margin: 2px 0; }
+.log-box .log-success { color: #5dd88a; }
+.log-box .log-error   { color: #f07070; }
+.log-box .log-warn    { color: #f0c060; }
+.log-box .log-info    { color: #b6cde8; }
+
+/* ── 바이어 모달 — 기업 개요·추천 이유 ── */
+.bm-num     { font-size: 22px; }
+.bm-overview { font-size: 13px; line-height: 1.7; color: #334; margin-bottom: 4px; }
+.bm-reason  {
+  font-size: 13px; line-height: 1.7; color: #223;
+  background: #eef4ff; border-radius: 8px; padding: 10px 14px;
+}
+.p3-card-reason {
+  font-size: 12px; color: #334; line-height: 1.5;
+  background: #eef4ff; border-radius: 6px; padding: 7px 9px; margin: 6px 0 8px;
+}

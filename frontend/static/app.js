@@ -1802,75 +1802,87 @@ async function loadNews() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 let _p3PollTimer = null;
-let _p3Buyers    = [];   // 현재 랭킹된 바이어 전체 (재랭킹용)
+let _p3Buyers    = [];
 let _p3PdfName   = null;
 
-// P1 product_key → 표시 레이블 (P3 연동용)
-const P3_PRODUCT_LABELS = {
-  SG_sereterol_activair:        'Sereterol Activair · Fluticasone / Salmeterol',
-  SG_omethyl_omega3_2g:         'Omethyl Cutielet · Omega-3 EE 2g',
-  SG_hydrine_hydroxyurea_500:   'Hydrine · Hydroxyurea 500mg',
-  SG_gadvoa_gadobutrol_604:     'Gadvoa Inj. · Gadobutrol 604.72mg',
-  SG_rosumeg_combigel:          'Rosumeg Combigel · Rosuvastatin + Omega-3',
-  SG_atmeg_combigel:            'Atmeg Combigel · Atorvastatin + Omega-3',
-  SG_ciloduo_cilosta_rosuva:    'Ciloduo · Cilostazol + Rosuvastatin',
-  SG_gastiin_cr_mosapride:      'Gastiin CR · Mosapride Citrate 15mg',
-};
-
-/** P1 품목 선택 변경 시 P3 연동 레이블 갱신 */
-function _syncP3ProductLabel() {
-  const p1Select = document.getElementById('product-select');
-  const labelEl  = document.getElementById('p3-product-label');
-  if (!labelEl) return;
-  const key = p1Select?.value || '';
-  labelEl.textContent = P3_PRODUCT_LABELS[key] || '1공정 시장조사를 먼저 실행해 주세요.';
-  labelEl.classList.toggle('p3-product-label--ready', !!P3_PRODUCT_LABELS[key]);
+function _p3Log(msg, level = 'info') {
+  const box = document.getElementById('p3-log-box');
+  if (!box) return;
+  if (box.querySelector('.log-line.log-info')?.textContent === '— 로그 대기 중 —') box.innerHTML = '';
+  const line = document.createElement('div');
+  line.className = `log-line log-${level}`;
+  const now = new Date().toLocaleTimeString('ko-KR');
+  line.textContent = `[${now}] ${msg}`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
 }
 
-const P3_STEP_MAP = {
-  crawl:  'crawl',
-  enrich: 'enrich',
-  rank:   'rank',
-  report: 'report',
-};
-
 function _setP3Progress(stepId, state) {
-  const el = document.getElementById('p3prog-' + stepId);
+  const el  = document.getElementById('p3prog-' + stepId);
+  const dot = el?.querySelector('.prog-dot');
   if (!el) return;
-  el.classList.remove('running', 'done', 'error');
-  if (state) el.classList.add(state);
+  const labels = { crawl: '1', enrich: '2', rank: '3', report: '4' };
+  const num = labels[stepId] || '?';
+  if (state === 'done')  { el.className = 'prog-step done';  if (dot) dot.textContent = '✓'; }
+  else if (state === 'active') { el.className = 'prog-step active'; if (dot) dot.textContent = num; }
+  else if (state === 'error')  { el.className = 'prog-step error';  if (dot) dot.textContent = '✕'; }
+  else                         { el.className = 'prog-step';        if (dot) dot.textContent = num; }
+}
+
+function _showP3Progress() {
+  const row = document.getElementById('p3-progress-row');
+  if (row) row.classList.add('visible');
 }
 
 function _resetP3Progress() {
+  const row = document.getElementById('p3-progress-row');
+  if (row) row.classList.remove('visible');
   for (const s of ['crawl', 'enrich', 'rank', 'report']) _setP3Progress(s, '');
 }
+
+/* SSE 실시간 로그 수신 */
+(function _startP3SSE() {
+  const es = new EventSource('/api/stream');
+  es.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.phase === 'buyer') _p3Log(d.message, d.level || 'info');
+    } catch (_) {}
+  };
+  es.onerror = () => {};
+})();
 
 async function runP3Pipeline() {
   const btn     = document.getElementById('btn-p3-run');
   const icon    = document.getElementById('p3-run-icon');
   const errEl   = document.getElementById('p3-error-msg');
   const product = document.getElementById('product-select')?.value || 'SG_sereterol_activair';
+  const targetCountry = document.getElementById('inp-target-country')?.value.trim() || 'Singapore';
+  const targetRegion  = document.getElementById('inp-target-region')?.value.trim()  || 'Asia';
 
   if (btn) btn.disabled = true;
   if (icon) icon.textContent = '…';
   if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  document.getElementById('p3-result-section').style.display = 'none';
   _resetP3Progress();
-  _setP3Progress('crawl', 'running');
+  _showP3Progress();
+  _setP3Progress('crawl', 'active');
 
   try {
-    const checked = [...document.querySelectorAll('.p3-cb:checked')].map(cb => cb.value);
     const res = await fetch('/api/buyers/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        product_key: product,
-        active_criteria: checked.length ? checked : null,
+        product_key:    product,
+        target_country: targetCountry,
+        target_region:  targetRegion,
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    // 409 = 이미 실행 중 → 폴링만 시작
+    if (res.status !== 409 && !res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     if (_p3PollTimer) clearInterval(_p3PollTimer);
-    _p3PollTimer = setInterval(_pollP3, 2000);
+    _p3PollTimer = setInterval(_pollP3, 2500);
   } catch (e) {
     if (errEl) { errEl.style.display = ''; errEl.textContent = `오류: ${e.message}`; }
     if (btn) btn.disabled = false;
@@ -1879,70 +1891,83 @@ async function runP3Pipeline() {
   }
 }
 
+/* 페이지 로드 시 실행 중인 파이프라인 자동 감지 */
+(async function _p3AutoResume() {
+  try {
+    const res  = await fetch('/api/buyers/status');
+    const data = await res.json();
+    if (data.status === 'running') {
+      const btn  = document.getElementById('btn-p3-run');
+      const icon = document.getElementById('p3-run-icon');
+      if (btn)  btn.disabled = true;
+      if (icon) icon.textContent = '…';
+      _showP3Progress();
+      _setP3Progress(data.step, 'active');
+      if (_p3PollTimer) clearInterval(_p3PollTimer);
+      _p3PollTimer = setInterval(_pollP3, 2500);
+    } else if (data.status === 'done') {
+      const rr     = await fetch('/api/buyers/result');
+      const result = await rr.json();
+      _p3Buyers  = result.buyers || [];
+      _p3PdfName = result.pdf   || null;
+      if (_p3Buyers.length) {
+        _renderP3Cards(_p3Buyers);
+        document.getElementById('p3-result-section').style.display = '';
+        const dlBtn = document.getElementById('p3-dl-btn');
+        if (dlBtn && _p3PdfName) dlBtn.disabled = false;
+        for (const s of ['crawl','enrich','rank','report']) _setP3Progress(s, 'done');
+      }
+    }
+  } catch (_) {}
+})();
+
 async function _pollP3() {
   try {
     const res  = await fetch('/api/buyers/status');
     const data = await res.json();
 
-    // 진행 단계 반영
     const stepOrder = ['crawl', 'enrich', 'rank', 'report'];
     const idx = stepOrder.indexOf(data.step);
     if (idx >= 0) {
-      for (let i = 0; i < idx; i++)    _setP3Progress(stepOrder[i], 'done');
-      _setP3Progress(stepOrder[idx], 'running');
+      _showP3Progress();
+      for (let i = 0; i < idx; i++) _setP3Progress(stepOrder[i], 'done');
+      _setP3Progress(stepOrder[idx], 'active');
     }
 
     if (data.status === 'done') {
-      clearInterval(_p3PollTimer);
-      _p3PollTimer = null;
+      clearInterval(_p3PollTimer); _p3PollTimer = null;
       for (const s of stepOrder) _setP3Progress(s, 'done');
+      _p3Log('파이프라인 완료 — 결과 불러오는 중…', 'success');
 
-      const rr = await fetch('/api/buyers/result');
+      const rr     = await fetch('/api/buyers/result');
       const result = await rr.json();
       _p3Buyers  = result.buyers || [];
-      _p3PdfName = result.pdf || null;
+      _p3PdfName = result.pdf   || null;
+      _p3Log(`Top ${_p3Buyers.length}개 바이어 선정`, 'success');
+
       _renderP3Cards(_p3Buyers);
       document.getElementById('p3-result-section').style.display = '';
       const dlBtn = document.getElementById('p3-dl-btn');
       if (dlBtn && _p3PdfName) dlBtn.disabled = false;
-
       const btn  = document.getElementById('btn-p3-run');
       const icon = document.getElementById('p3-run-icon');
       if (btn)  btn.disabled = false;
       if (icon) icon.textContent = '▶';
 
     } else if (data.status === 'error') {
-      clearInterval(_p3PollTimer);
-      _p3PollTimer = null;
+      clearInterval(_p3PollTimer); _p3PollTimer = null;
       const errEl = document.getElementById('p3-error-msg');
       if (errEl) { errEl.style.display = ''; errEl.textContent = `오류: ${data.step_label || '파이프라인 실패'}`; }
-      if (data.step && P3_STEP_MAP[data.step]) _setP3Progress(P3_STEP_MAP[data.step], 'error');
+      if (data.step) _setP3Progress(data.step, 'error');
+      _p3Log(`오류: ${data.step_label || '파이프라인 실패'}`, 'error');
       const btn  = document.getElementById('btn-p3-run');
       const icon = document.getElementById('p3-run-icon');
       if (btn)  btn.disabled = false;
       if (icon) icon.textContent = '▶';
     }
-  } catch (_) { /* retry */ }
+  } catch (_) {}
 }
 
-/** 체크박스 변경 → 서버에 재랭킹 요청 */
-async function p3ReRank() {
-  if (!_p3Buyers.length) return;
-  const checked = [...document.querySelectorAll('.p3-cb:checked')].map(cb => cb.value);
-  try {
-    const res = await fetch('/api/buyers/rerank', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ criteria: checked.length ? checked : null }),
-    });
-    const data = await res.json();
-    _p3Buyers = data.buyers || _p3Buyers;
-    _renderP3Cards(_p3Buyers);
-  } catch (_) {
-    // 폴백: 클라이언트사이드 정렬
-    _renderP3Cards(_p3Buyers);
-  }
-}
 
 /** Top 10 카드 렌더링 */
 function _renderP3Cards(buyers) {
@@ -1961,11 +1986,14 @@ function _renderP3Cards(buyers) {
     const priLabel  = pri === 1 ? '성분 일치' : 'Singapore';
     const priClass  = pri === 1 ? 'p3-tag-p1' : 'p3-tag-p2';
     const matched   = (b.matched_ingredients || []).join(' · ') || '';
-    const score     = b.composite_score ?? 0;
     const country   = b.country || '-';
     const email     = b.email   || '-';
     const phone     = b.phone   || '-';
     const category  = b.category|| '-';
+    const _reason   = (b.enriched?.recommendation_reason || '').trim();
+    const reasonPreview = (_reason && _reason !== '-')
+      ? _reason.split(/[.。!?！？]\s+/).slice(0,2).join('. ').slice(0,120) + (_reason.length > 120 ? '…' : '')
+      : '';
 
     // 유효한 태그만 표시
     const tags = [];
@@ -1982,10 +2010,10 @@ function _renderP3Cards(buyers) {
         <div class="p3-card-top">
           <span class="p3-card-rank">${rankEmoji[i] || (i+1)+'위'}</span>
           <span class="p3-tag ${priClass}">${priLabel}</span>
-          <span class="p3-card-score">${score.toFixed(1)}점</span>
         </div>
         <div class="p3-card-name">${_escHtml(b.company_name || '-')}</div>
         <div class="p3-card-country">${_escHtml(country)} · ${_escHtml(category)}</div>
+        ${reasonPreview ? `<div class="p3-card-reason">${_escHtml(reasonPreview)}</div>` : ''}
         ${matched ? `<div class="p3-card-match">🧪 ${_escHtml(matched)}</div>` : ''}
         <div class="p3-card-contact">
           ${email !== '-' ? `<div>✉ ${_escHtml(email)}</div>` : ''}
@@ -2015,70 +2043,64 @@ function showBuyerDetail(idx) {
     if (!val || val === '-' || val === null || val === undefined) return '';
     return `<tr><th>${label}</th><td>${_escHtml(String(val))}</td></tr>`;
   }
-  function yn(val) {
-    if (val === true)  return '<span class="bm-yes">✓ 있음</span>';
-    if (val === false) return '<span class="bm-no">✗ 없음</span>';
-    return '-';
+  function ynRow(label, val) {
+    if (val === true)  return `<tr><th>${label}</th><td><span class="bm-yes">✓ 있음</span></td></tr>`;
+    if (val === false) return `<tr><th>${label}</th><td><span class="bm-no">✗ 없음</span></td></tr>`;
+    return '';
   }
 
-  const sources = (e.source_urls || []).map(u =>
-    `<a href="${_escHtml(u)}" target="_blank" rel="noopener" class="bm-link">${_escHtml(u)}</a>`
-  ).join('');
-
-  const matched = (b.matched_ingredients || []).join(' · ');
+  const hasSource = (e.source_urls || []).length > 0 || !!b.perplexity_text;
+  const matched    = (b.matched_ingredients || []).join(' · ');
   const territories = (e.territories || []).join(', ');
+
+  const metaParts = [b.country, b.category].filter(v => v && v !== '-').map(v => _escHtml(v)).join(' · ');
+
+  const contactRows = [
+    row('주소', b.address), row('전화', b.phone), row('팩스', b.fax),
+    row('이메일', b.email), row('웹사이트', b.website), row('부스', b.booth),
+  ].join('');
+
+  const sizeRows = [
+    row('연 매출', e.revenue), row('임직원 수', e.employees), row('설립연도', e.founded),
+    territories ? `<tr><th>사업 지역</th><td>${_escHtml(territories)}</td></tr>` : '',
+  ].join('');
+
+  const capRows = [
+    ynRow('GMP 인증', e.has_gmp),
+    ynRow('수입 이력', e.import_history),
+    ynRow('공공조달 이력', e.procurement_history),
+  ].join('');
+
+  const channelRows = [
+    ynRow('공공 채널', e.public_channel), ynRow('민간 채널', e.private_channel),
+    ynRow('약국 체인', e.has_pharmacy_chain), ynRow('MAH 대행', e.mah_capable),
+    row('한국 거래 경험', e.korea_experience),
+  ].join('');
+
+  const overview   = (e.company_overview_kr    || '').trim();
+  const reason     = (e.recommendation_reason  || '').trim();
 
   document.getElementById('buyer-modal-body').innerHTML = `
     <div class="bm-header">
       <div class="bm-rank">${rankEmoji[idx] || (idx+1)+'위'}</div>
       <div class="bm-title">
         <div class="bm-name">${_escHtml(b.company_name || '-')}</div>
-        <div class="bm-meta">${_escHtml(b.country || '-')} · ${_escHtml(b.category || '-')}
+        <div class="bm-meta">${metaParts}
           <span class="p3-tag ${priClass}" style="margin-left:6px;">${priLabel}</span>
-          <span class="bm-score">${(b.composite_score||0).toFixed(1)}점</span>
         </div>
       </div>
     </div>
 
-    ${e.summary && e.summary !== '-' ? `<div class="bm-summary">${_escHtml(e.summary)}</div>` : ''}
+    ${overview && overview !== '-' ? `<div class="bm-section">기업 개요</div><div class="bm-summary">${_escHtml(overview)}</div>` : ''}
+    ${reason  && reason  !== '-' ? `<div class="bm-section">채택 이유</div><div class="bm-summary">${_escHtml(reason)}</div>`  : ''}
 
-    <div class="bm-section">연락처</div>
-    <table class="bm-table">
-      ${row('주소', b.address)}
-      ${row('전화', b.phone)}
-      ${row('팩스', b.fax)}
-      ${row('이메일', b.email)}
-      ${row('웹사이트', b.website)}
-      ${row('부스', b.booth)}
-    </table>
+    ${contactRows ? `<div class="bm-section">연락처</div><table class="bm-table">${contactRows}</table>` : ''}
+    ${sizeRows    ? `<div class="bm-section">기업 규모</div><table class="bm-table">${sizeRows}</table>` : ''}
+    ${capRows     ? `<div class="bm-section">역량 · 실적</div><table class="bm-table">${capRows}</table>` : ''}
+    ${channelRows ? `<div class="bm-section">채널 · 파트너 적합성</div><table class="bm-table">${channelRows}</table>` : ''}
 
-    <div class="bm-section">기업 규모</div>
-    <table class="bm-table">
-      ${row('연 매출', e.revenue)}
-      ${row('임직원 수', e.employees)}
-      ${row('설립연도', e.founded)}
-      ${territories ? `<tr><th>사업 지역</th><td>${_escHtml(territories)}</td></tr>` : ''}
-    </table>
-
-    <div class="bm-section">역량 · 실적</div>
-    <table class="bm-table">
-      <tr><th>GMP 인증</th><td>${yn(e.has_gmp)}</td></tr>
-      <tr><th>수입 이력</th><td>${yn(e.import_history)}</td></tr>
-      <tr><th>공공조달 이력</th><td>${yn(e.procurement_history)}</td></tr>
-    </table>
-
-    <div class="bm-section">채널 · 파트너 적합성</div>
-    <table class="bm-table">
-      <tr><th>공공 채널</th><td>${yn(e.public_channel)}</td></tr>
-      <tr><th>민간 채널</th><td>${yn(e.private_channel)}</td></tr>
-      <tr><th>약국 체인</th><td>${yn(e.has_pharmacy_chain)}</td></tr>
-      <tr><th>MAH 대행</th><td>${yn(e.mah_capable)}</td></tr>
-      ${row('한국 거래 경험', e.korea_experience)}
-    </table>
-
-    ${matched ? `<div class="bm-section">성분 매칭</div><div class="bm-match">🧪 ${_escHtml(matched)}</div>` : ''}
-
-    ${sources ? `<div class="bm-section">출처</div><div class="bm-sources">${sources}</div>` : ''}
+    ${matched   ? `<div class="bm-section">성분 매칭</div><div class="bm-match">🧪 ${_escHtml(matched)}</div>` : ''}
+    ${hasSource ? `<div class="bm-section">출처</div><div class="bm-sources">Perplexity 분석</div>` : ''}
   `;
 
   const overlay = document.getElementById('buyer-modal-overlay');
@@ -2110,11 +2132,28 @@ loadMacro();            // 거시 지표 로드
 renderReportTab();      // 보고서 탭 초기 렌더
 initP2Strategy();       // 수출 가격 전략 초기화
 
-// P1 품목 선택 → P3 레이블 자동 연동
+// P1 품목 선택 → P3 레이블 + 타깃 국가 자동 연동
+const _PRODUCT_COUNTRY_MAP = {
+  SG_hydrine_hydroxyurea_500:  'Singapore',
+  SG_gadvoa_gadobutrol_604:    'Singapore',
+  SG_sereterol_activair:       'Singapore',
+  SG_omethyl_omega3_2g:        'Singapore',
+  SG_rosumeg_combigel:         'Singapore',
+  SG_atmeg_combigel:           'Singapore',
+  SG_ciloduo_cilosta_rosuva:   'Singapore',
+  SG_gastiin_cr_mosapride:     'Singapore',
+};
 (function () {
   const p1Select = document.getElementById('product-select');
   if (p1Select) {
-    p1Select.addEventListener('change', _syncP3ProductLabel);
+    p1Select.addEventListener('change', function() {
+      _syncP3ProductLabel();
+      const countryEl = document.getElementById('inp-target-country');
+      if (countryEl) {
+        const mapped = _PRODUCT_COUNTRY_MAP[p1Select.value];
+        if (mapped) countryEl.value = mapped;
+      }
+    });
   }
   _syncP3ProductLabel(); // 초기 레이블 설정
 })();

@@ -195,85 +195,99 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
         elems.append(Paragraph(reason, styles["reason"]))
         elems.append(Spacer(1, 3*mm))
 
-    # ── 기본 정보 ─────────────────────────────────────────────────────────
-    elems.append(Paragraph("기본 정보", styles["section"]))
+    # ── 기본 정보 (값 있는 항목만) ──────────────────────────────────────────
+    def _info_row(l1, v1, l2, v2):
+        if v1 == "-" and v2 == "-":
+            return None
+        return [Paragraph(l1 if v1 != "-" else "", styles["small"]),
+                Paragraph(v1, styles["body"]),
+                Paragraph(l2 if v2 != "-" else "", styles["small"]),
+                Paragraph(v2, styles["body"])]
 
     website_val = _dash(c.get("website"))
-    if website_val != "-":
-        website_cell = Paragraph(
-            f'<a href="{website_val}"><u>{website_val}</u></a>',
-            styles["link"],
-        )
-    else:
-        website_cell = Paragraph("-", styles["body"])
+    website_cell = (
+        Paragraph(f'<a href="{website_val}"><u>{website_val}</u></a>', styles["link"])
+        if website_val != "-" else None
+    )
 
-    info_rows = [
-        [Paragraph("주소",     styles["small"]), Paragraph(_dash(c.get("address")),  styles["body"]),
-         Paragraph("부스",     styles["small"]), Paragraph(_dash(c.get("booth")),    styles["body"])],
-        [Paragraph("전화",     styles["small"]), Paragraph(_dash(c.get("phone")),    styles["body"]),
-         Paragraph("팩스",     styles["small"]), Paragraph(_dash(c.get("fax")),      styles["body"])],
-        [Paragraph("이메일",   styles["small"]), Paragraph(_dash(c.get("email")),    styles["body"]),
-         Paragraph("설립연도", styles["small"]), Paragraph(_dash(e.get("founded")), styles["body"])],
-        [Paragraph("웹사이트", styles["small"]), website_cell,
-         Paragraph("",         styles["small"]), Paragraph("",                       styles["body"])],
+    info_candidates = [
+        _info_row("주소",   _dash(c.get("address")), "전화",    _dash(c.get("phone"))),
+        _info_row("팩스",   _dash(c.get("fax")),     "이메일",  _dash(c.get("email"))),
+        _info_row("설립연도", _dash(e.get("founded")), "",       ""),
     ]
-    info_tbl = Table(info_rows, colWidths=[22*mm, 68*mm, 22*mm, 68*mm])
-    info_tbl.setStyle(TableStyle([
-        ("FONTSIZE",      (0, 0), (-1, -1), 8),
-        ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
-        ("GRID",          (0, 0), (-1, -1), 0.2, _MUTED),
-        ("TOPPADDING",    (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-    ]))
-    elems += [info_tbl, Spacer(1, 3*mm)]
+    if website_cell:
+        info_candidates.append([Paragraph("웹사이트", styles["small"]), website_cell,
+                                 Paragraph("", styles["small"]), Paragraph("", styles["body"])])
+    info_rows = [r for r in info_candidates if r is not None]
+    if info_rows:
+        elems.append(Paragraph("기본 정보", styles["section"]))
+        info_tbl = Table(info_rows, colWidths=[22*mm, 68*mm, 22*mm, 68*mm])
+        info_tbl.setStyle(TableStyle([
+            ("FONTSIZE",      (0, 0), (-1, -1), 8),
+            ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
+            ("GRID",          (0, 0), (-1, -1), 0.2, _MUTED),
+            ("TOPPADDING",    (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ]))
+        elems += [info_tbl, Spacer(1, 3*mm)]
 
-    # ── 기업 규모 ─────────────────────────────────────────────────────────
-    territories = ", ".join(e.get("territories", [])) or "-"
-    elems.append(Paragraph("기업 규모", styles["section"]))
-    size_rows = [
-        [Paragraph("연 매출",   styles["small"]), Paragraph(_dash(e.get("revenue")),   styles["body"]),
-         Paragraph("임직원 수", styles["small"]), Paragraph(_dash(e.get("employees")), styles["body"])],
-        [Paragraph("사업 지역", styles["small"]), Paragraph(territories,               styles["body"]),
-         Paragraph("",          styles["small"]), Paragraph("",                         styles["body"])],
+    # ── 기업 규모 (값 있는 항목만) ──────────────────────────────────────────
+    territories = ", ".join(e.get("territories", []))
+    sz_revenue   = _dash(e.get("revenue"))
+    sz_employees = _dash(e.get("employees"))
+    size_candidates = [
+        _info_row("연 매출", sz_revenue, "임직원 수", sz_employees),
+        _info_row("사업 지역", territories or "-", "", "") if territories else None,
     ]
-    size_tbl = Table(size_rows, colWidths=[22*mm, 68*mm, 22*mm, 68*mm])
-    size_tbl.setStyle(TableStyle([
-        ("FONTSIZE",      (0, 0), (-1, -1), 8),
-        ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
-        ("GRID",          (0, 0), (-1, -1), 0.2, _MUTED),
-        ("TOPPADDING",    (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-    ]))
-    elems += [size_tbl, Spacer(1, 3*mm)]
+    size_rows = [r for r in size_candidates if r is not None]
+    if size_rows:
+        elems.append(Paragraph("기업 규모", styles["section"]))
+        size_tbl = Table(size_rows, colWidths=[22*mm, 68*mm, 22*mm, 68*mm])
+        size_tbl.setStyle(TableStyle([
+            ("FONTSIZE",      (0, 0), (-1, -1), 8),
+            ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
+            ("GRID",          (0, 0), (-1, -1), 0.2, _MUTED),
+            ("TOPPADDING",    (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ]))
+        elems += [size_tbl, Spacer(1, 3*mm)]
 
-    # ── 역량 · 실적 / 채널 · 파트너십 ────────────────────────────────────
-    elems.append(Paragraph("역량 · 실적 · 채널", styles["section"]))
-    cap_rows = [
-        ["GMP 인증",     _yn(e.get("has_gmp")),
-         "수입 이력",    _yn(e.get("import_history"))],
-        ["공공조달 이력", _yn(e.get("procurement_history")),
-         "공공 채널",    _yn(e.get("public_channel"))],
-        ["민간 채널",    _yn(e.get("private_channel")),
-         "약국 체인",    _yn(e.get("has_pharmacy_chain"))],
-        ["MAH 대행",     _yn(e.get("mah_capable")),
-         "한국 거래 경험", _dash(e.get("korea_experience"))],
+    # ── 역량 · 실적 · 채널 (true/false 있는 항목만) ──────────────────────────
+    def _yn_row(l1, v1, l2, v2):
+        has1 = v1 is True or v1 is False
+        has2 = v2 is True or v2 is False
+        if not has1 and not has2:
+            return None
+        return [Paragraph(l1 if has1 else "", styles["small"]),
+                Paragraph(_yn(v1) if has1 else "", styles["body"]),
+                Paragraph(l2 if has2 else "", styles["small"]),
+                Paragraph(_yn(v2) if has2 else "", styles["body"])]
+
+    korea_exp = _dash(e.get("korea_experience"))
+    cap_candidates = [
+        _yn_row("GMP 인증",     e.get("has_gmp"),            "수입 이력",    e.get("import_history")),
+        _yn_row("공공조달 이력", e.get("procurement_history"), "공공 채널",    e.get("public_channel")),
+        _yn_row("민간 채널",    e.get("private_channel"),     "약국 체인",    e.get("has_pharmacy_chain")),
+        _yn_row("MAH 대행",     e.get("mah_capable"),         "한국 거래 경험", None),
     ]
-    cap_data = [
-        [Paragraph(r[0], styles["small"]), Paragraph(r[1], styles["body"]),
-         Paragraph(r[2], styles["small"]), Paragraph(r[3], styles["body"])]
-        for r in cap_rows
-    ]
-    cap_tbl = Table(cap_data, colWidths=[28*mm, 62*mm, 28*mm, 62*mm])
-    cap_tbl.setStyle(TableStyle([
-        ("FONTSIZE",      (0, 0), (-1, -1), 8),
-        ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
-        ("GRID",          (0, 0), (-1, -1), 0.2, _MUTED),
-        ("TOPPADDING",    (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]))
-    elems += [cap_tbl, Spacer(1, 3*mm)]
+    cap_rows = [r for r in cap_candidates if r is not None]
+    if korea_exp != "-":
+        cap_rows.append([Paragraph("한국 거래 경험", styles["small"]),
+                         Paragraph(korea_exp, styles["body"]),
+                         Paragraph("", styles["small"]), Paragraph("", styles["body"])])
+    if cap_rows:
+        elems.append(Paragraph("역량 · 실적 · 채널", styles["section"]))
+        cap_tbl = Table(cap_rows, colWidths=[28*mm, 62*mm, 28*mm, 62*mm])
+        cap_tbl.setStyle(TableStyle([
+            ("FONTSIZE",      (0, 0), (-1, -1), 8),
+            ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
+            ("GRID",          (0, 0), (-1, -1), 0.2, _MUTED),
+            ("TOPPADDING",    (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        elems += [cap_tbl, Spacer(1, 3*mm)]
 
     # ── CPHI 등록 제품 ────────────────────────────────────────────────────
     cphi_prods = c.get("products_cphi", [])
@@ -283,14 +297,9 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
         elems.append(Spacer(1, 2*mm))
 
     # ── 참조 출처 ─────────────────────────────────────────────────────────
-    src_urls = e.get("source_urls", [])
-    if src_urls:
-        elems.append(Paragraph("참조 출처", styles["section"]))
-        for url in src_urls[:5]:
-            elems.append(Paragraph(
-                f'• <a href="{url}"><u>{url}</u></a>',
-                styles["link"],
-            ))
+    if e.get("source_urls") or c.get("perplexity_text"):
+        elems.append(Paragraph("출처", styles["section"]))
+        elems.append(Paragraph("Perplexity 분석", styles["body"]))
 
     elems.append(PageBreak())
     return elems

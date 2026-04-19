@@ -109,6 +109,10 @@ async def _claude_extract(
     첫 문장: "{product_label}"과의 성분/치료군 연관성
     이후: {target_country} 시장 진출 여부(Perplexity 근거 포함)·인증·규모·강점을
     근거로 3~5문장 한국어 작성
+    문체 규칙:
+      · ** 등 마크다운 기호 사용 금지 (일반 문장으로만 작성)
+      · 문장 끝을 "어렵습니다", "불확실합니다", "없습니다" 등 부정·단정형으로 끝내지 말 것
+      · 대신 "가능성이 있습니다", "검토할 만합니다", "기대할 수 있습니다" 등 개방형·긍정형 표현 사용
 - JSON만 반환 (```json 마크다운 없이)
 """
 
@@ -129,9 +133,14 @@ async def _claude_extract(
             for k, v in _NULL_ENRICH.items():
                 if k not in parsed or parsed[k] == "":
                     parsed[k] = v
+            if isinstance(parsed.get("recommendation_reason"), str):
+                parsed["recommendation_reason"] = re.sub(r"\*+", "", parsed["recommendation_reason"])
+            if isinstance(parsed.get("company_overview_kr"), str):
+                parsed["company_overview_kr"] = re.sub(r"\*+", "", parsed["company_overview_kr"])
             return parsed
-    except Exception:
-        pass
+    except Exception as ex:
+        import logging
+        logging.getLogger(__name__).warning("Claude extract failed for %s: %s", company_name, ex)
     return dict(_NULL_ENRICH)
 
 
@@ -147,8 +156,8 @@ async def enrich_company(
     country = company.get("country", "-")
     website = company.get("website", "-")
 
-    # full_page_text 우선, 없으면 overview_text, 그 다음 알려진 필드로 컨텍스트 구성
-    full_page_text = company.get("full_page_text", "") or company.get("overview_text", "")
+    # overview_text 우선 (full_page_text는 JS 트래킹 코드 혼재로 Claude 파싱 불량)
+    full_page_text = company.get("overview_text", "") or company.get("full_page_text", "")
     if not full_page_text:
         parts: list[str] = []
         if company.get("address") and company["address"] != "-":
@@ -206,6 +215,107 @@ async def enrich_company(
             enriched[k] = v
 
     return {**company, "enriched": enriched}
+
+
+async def discover_companies_via_perplexity(
+    ingredient: str,
+    therapeutic: str,
+    target_country: str = "Singapore",
+    target_region: str = "Asia",
+    emit: Callable[[str], Awaitable[None]] | None = None,
+) -> list[dict[str, Any]]:
+    """CPHI 결과 없을 때 fallback — Perplexity 검색 텍스트를 Claude Haiku로 파싱해 stub 기업 목록 반환."""
+    px_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()
+    if not px_key:
+        return []
+
+    try:
+        from utils.perplexity_searcher import search_by_product
+        if emit:
+            await emit(f"  Perplexity 직접 탐색: {ingredient} / {therapeutic} in {target_country}")
+        results = await search_by_product(ingredient, therapeutic, target_country, target_region, emit=emit)
+    except Exception as e:
+        if emit:
+            await emit(f"  Perplexity 탐색 오류: {e}")
+        return []
+
+    combined_text = "\n\n".join(r.get("text", "") for r in results if r.get("text"))
+    all_citations: list[str] = []
+    for r in results:
+        all_citations.extend(r.get("citations", []))
+
+    if not combined_text:
+        return []
+
+    api_key = os.environ.get("CLAUDE_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return []
+
+    prompt = f"""아래 텍스트에서 {target_country}에서 {ingredient} / {therapeutic} 관련 제약 유통·수입 기업 목록을 추출하세요.
+
+[Perplexity 검색 결과]
+{combined_text}
+
+출력 형식 (JSON 배열, ```json 없이):
+[
+  {{
+    "company_name": "기업명",
+    "country": "{target_country}",
+    "website": "URL 또는 빈 문자열",
+    "overview_text": "기업 설명 1-2문장 (영어)"
+  }}
+]
+
+규칙:
+- {target_country} 또는 {target_region}에 실제로 언급된 기업만 포함
+- 최대 10개, 중복 제거, 불명확한 기업 제외
+- JSON 배열만 반환"""
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=1200,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = msg.content[0].text.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        m = re.search(r"\[.*\]", raw, re.S)
+        if not m:
+            return []
+        parsed: list[dict] = json.loads(m.group(0))
+
+        stubs = []
+        for item in parsed:
+            name = item.get("company_name", "").strip()
+            if not name:
+                continue
+            overview = item.get("overview_text", "")
+            stubs.append({
+                "company_name": name,
+                "country": item.get("country", target_country),
+                "website": item.get("website", "-") or "-",
+                "email": "-", "phone": "-", "fax": "-", "address": "-", "booth": "-",
+                "category": therapeutic,
+                "products_cphi": [ingredient],
+                "overview_text": overview,
+                "full_page_text": overview,
+                "matched_ingredients": [ingredient],
+                "ingredient_match": True,
+                "source_region": "perplexity_fallback",
+                "perplexity_text": combined_text,
+                "perplexity_citations": all_citations,
+            })
+
+        if emit:
+            await emit(f"  Perplexity fallback 파싱 완료 — {len(stubs)}개 기업 추출")
+        return stubs
+    except Exception as e:
+        if emit:
+            await emit(f"  Perplexity fallback 파싱 오류: {e}")
+        return []
 
 
 async def enrich_all(
