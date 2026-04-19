@@ -1327,7 +1327,7 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .process-arrow.closed { transform: rotate(-90deg); }
 
 .process-body {
-  padding: 0 16px 14px;
+  padding: 14px 16px 14px;
   border-top: 1px solid rgba(23,63,120,.06);
 }
 .process-body.hidden { display: none; }
@@ -1707,3 +1707,185 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   .process-body  { padding: 0 16px 18px; }
   .p2-three-col  { grid-template-columns: 1fr; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   32. 3공정 — 바이어 발굴 (P3)
+══════════════════════════════════════════════════════════════════════════ */
+
+/* 평가 항목 체크박스 그리드 */
+.p3-criteria-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+.p3-chk {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text); cursor: pointer;
+  user-select: none;
+}
+.p3-chk input[type="checkbox"] {
+  width: 14px; height: 14px; accent-color: var(--navy); cursor: pointer;
+}
+
+/* 카드 래퍼 — 가로 스크롤 행 */
+.p3-cards-wrap {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+/* 개별 바이어 카드 */
+.p3-card {
+  background: #fff;
+  border: 1px solid rgba(23,63,120,.12);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: box-shadow .15s;
+}
+.p3-card:hover { box-shadow: 0 4px 16px rgba(23,63,120,.12); }
+
+.p3-card-top {
+  display: flex; align-items: center; gap: 6px;
+}
+.p3-card-rank {
+  font-size: 18px; line-height: 1; flex-shrink: 0;
+}
+.p3-card-score {
+  margin-left: auto;
+  font-size: 11px; font-weight: 900; color: var(--navy);
+  background: rgba(23,63,120,.07);
+  padding: 2px 7px; border-radius: 20px;
+}
+
+.p3-card-name {
+  font-size: 13px; font-weight: 800; color: var(--navy);
+  line-height: 1.3; word-break: break-word;
+}
+.p3-card-country {
+  font-size: 11px; color: var(--muted);
+}
+.p3-card-match {
+  font-size: 11px; color: var(--green); font-weight: 700;
+  background: rgba(39,174,96,.08);
+  padding: 2px 7px; border-radius: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.p3-card-contact {
+  font-size: 10.5px; color: var(--muted); line-height: 1.5;
+  word-break: break-all;
+}
+.p3-card-tags {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px;
+}
+
+/* 태그 배지 */
+.p3-tag {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 20px;
+  white-space: nowrap;
+}
+.p3-tag-p1   { background: var(--green); color: #fff; }
+.p3-tag-p2   { background: var(--orange, #e67e22); color: #fff; }
+.p3-tag-info { background: rgba(23,63,120,.1); color: var(--navy); }
+
+/* 빈 상태 */
+.p3-empty {
+  grid-column: 1/-1;
+  text-align: center; padding: 32px;
+  color: var(--muted); font-size: 13px;
+}
+
+/* 반응형 */
+@media (max-width: 1100px) {
+  .p3-cards-wrap       { grid-template-columns: repeat(3, 1fr); }
+  .p3-criteria-grid    { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 720px) {
+  .p3-cards-wrap       { grid-template-columns: repeat(2, 1fr); }
+  .p3-criteria-grid    { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* P3 평가 항목 헤더 (라벨 + 연동 품목 pill 한 줄) */
+.p3-criteria-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.p3-criteria-header .selector-label { margin-bottom: 0; }
+
+/* P3 연동 품목 표시 */
+.p3-linked-product {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px 4px 8px;
+  background: rgba(23,63,120,.05);
+  border: 1px solid rgba(23,63,120,.10);
+  border-radius: 20px;
+}
+.p3-linked-icon  { font-size: 11px; flex-shrink: 0; }
+.p3-linked-title { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.p3-product-label {
+  font-size: 11px; color: var(--muted);
+}
+.p3-product-label--ready {
+  color: var(--navy); font-weight: 700;
+}
+
+/* 카드 hover + 상세 힌트 */
+.p3-card:hover { box-shadow: 0 4px 16px rgba(23,63,120,.15); transform: translateY(-2px); transition: all .15s; }
+.p3-card-hint  { font-size: 10px; color: var(--muted); margin-top: 8px; text-align: right; opacity: .7; }
+
+/* ── 바이어 상세 모달 ─────────────────────────────────────── */
+.buyer-modal-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.buyer-modal {
+  position: relative;
+  background: #fff;
+  border-radius: 12px;
+  width: 100%; max-width: 620px;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 28px 28px 24px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.25);
+}
+.buyer-modal-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; color: var(--muted); line-height: 1;
+}
+.buyer-modal-close:hover { color: var(--navy); }
+
+.bm-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 12px; }
+.bm-rank   { font-size: 28px; line-height: 1; flex-shrink: 0; }
+.bm-name   { font-size: 17px; font-weight: 700; color: var(--navy); }
+.bm-meta   { font-size: 12px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.bm-score  { font-size: 12px; font-weight: 700; color: var(--navy); }
+
+.bm-summary {
+  background: var(--light); border-radius: 8px;
+  padding: 10px 12px; font-size: 12px; color: #444;
+  margin-bottom: 14px; line-height: 1.6;
+}
+.bm-section {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px; margin: 14px 0 8px;
+}
+.bm-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bm-table th {
+  width: 34%; text-align: left; padding: 5px 8px 5px 0;
+  color: var(--muted); font-weight: 500; vertical-align: top;
+}
+.bm-table td { padding: 5px 0; color: #222; word-break: break-word; }
+.bm-yes { color: var(--green); font-weight: 600; }
+.bm-no  { color: var(--red);   font-weight: 600; }
+
+.bm-match   { font-size: 12px; color: #555; padding: 4px 0; }
+.bm-sources { display: flex; flex-direction: column; gap: 4px; }
+.bm-link    { font-size: 11px; color: var(--navy); word-break: break-all; }

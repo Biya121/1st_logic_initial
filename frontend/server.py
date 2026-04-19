@@ -72,6 +72,37 @@ async def _emit(event: dict[str, Any]) -> None:
             _state["events"] = _state["events"][-400:]
 
 
+# ── API 키 런타임 설정 ────────────────────────────────────────────────────────
+
+class ApiKeysBody(BaseModel):
+    perplexity_api_key: str = ""
+    anthropic_api_key:  str = ""
+
+
+@app.post("/api/settings/keys")
+async def set_api_keys(body: ApiKeysBody) -> JSONResponse:
+    """프론트엔드에서 API 키를 런타임에 설정 (프로세스 환경변수 갱신)."""
+    import os
+    updated: list[str] = []
+    if body.perplexity_api_key.strip():
+        os.environ["PERPLEXITY_API_KEY"] = body.perplexity_api_key.strip()
+        updated.append("PERPLEXITY_API_KEY")
+    if body.anthropic_api_key.strip():
+        os.environ["ANTHROPIC_API_KEY"] = body.anthropic_api_key.strip()
+        updated.append("ANTHROPIC_API_KEY")
+    return JSONResponse({"ok": True, "updated": updated})
+
+
+@app.get("/api/settings/keys/status")
+async def get_keys_status() -> JSONResponse:
+    """현재 API 키 설정 여부 확인 (값은 노출하지 않음)."""
+    import os
+    return JSONResponse({
+        "perplexity": bool(os.environ.get("PERPLEXITY_API_KEY", "").strip()),
+        "anthropic":  bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()),
+    })
+
+
 # ── 분석 ──────────────────────────────────────────────────────────────────────
 
 _analysis_cache: dict[str, Any] = {"result": None, "running": False}
@@ -1102,12 +1133,199 @@ async def stream() -> StreamingResponse:
     )
 
 
+# ── 3공정: 바이어 발굴 파이프라인 ─────────────────────────────────────────────
+
+_buyer_task: dict[str, Any] = {}
+
+_PROD_LABELS: dict[str, str] = {
+    "SG_sereterol_activair":      "Sereterol Activair (Fluticasone+Salmeterol)",
+    "SG_omethyl_omega3_2g":       "Omethyl Cutielet (Omega-3 에틸에스테르 2g)",
+    "SG_hydrine_hydroxyurea_500": "Hydrine (Hydroxyurea 500mg)",
+    "SG_gadvoa_gadobutrol_604":   "Gadvoa Inj. (Gadobutrol)",
+    "SG_rosumeg_combigel":        "Rosumeg Combigel (Rosuvastatin+Omega-3)",
+    "SG_atmeg_combigel":          "Atmeg Combigel (Atorvastatin+Omega-3)",
+    "SG_ciloduo_cilosta_rosuva":  "Ciloduo (Cilostazol+Rosuvastatin)",
+    "SG_gastiin_cr_mosapride":    "Gastiin CR (Mosapride citrate 15mg)",
+}
+
+
+class BuyerRunBody(BaseModel):
+    product_key:     str = "SG_sereterol_activair"
+    active_criteria: list[str] | None = None
+    target_country:  str = "Singapore"
+    target_region:   str = "Asia"
+
+
+async def _run_buyer_pipeline(
+    product_key: str,
+    active_criteria: list[str] | None = None,
+    target_country: str = "Singapore",
+    target_region: str = "Asia",
+) -> None:
+    global _buyer_task
+
+    async def _log(msg: str, level: str = "info") -> None:
+        await _emit({"phase": "buyer", "message": msg, "level": level})
+
+    try:
+        product_label = _PROD_LABELS.get(product_key, product_key)
+
+        # ── Step 1: 1차 수집 (CPHI 크롤링 — 후보 최대 20개) ─────────────
+        _buyer_task.update({"step": "crawl", "step_label": "CPHI 크롤링 중…"})
+        await _log(f"바이어 발굴 시작 — 품목: {product_label} / 타깃: {target_country} ({target_region})")
+
+        from utils.cphi_crawler import crawl as cphi_crawl
+        companies = await cphi_crawl(
+            product_key=product_key,
+            candidate_pool=20,
+            emit=_log,
+        )
+        _buyer_task["crawl_count"] = len(companies)
+        await _log(f"1차 수집 완료 — {len(companies)}개 후보", "success")
+
+        # ── Step 2: 심층조사 (CPHI 전체 텍스트 → Claude Haiku) ───────────
+        _buyer_task.update({"step": "enrich", "step_label": "심층조사 중…"})
+        await _log("심층조사 시작 (CPHI 페이지 텍스트 → Claude Haiku 파싱)")
+
+        from utils.buyer_enricher import enrich_all
+        enriched = await enrich_all(
+            companies,
+            product_label=product_label,
+            target_country=target_country,
+            target_region=target_region,
+            emit=_log,
+        )
+        # 전체 후보 풀 저장 — 기준 변경 시 재선택에 사용
+        _buyer_task["all_candidates"] = enriched
+        await _log(f"심층조사 완료 — {len(enriched)}개", "success")
+
+        # ── Step 3: 상위 10개 선택 ────────────────────────────────────────
+        _buyer_task.update({"step": "rank", "step_label": "Top 10 선정 중…"})
+        await _log("평가 기준 적용 → Top 10 선정")
+
+        from analysis.buyer_scorer import rank_companies
+        ranked = rank_companies(enriched, active_criteria=active_criteria, top_n=10)
+        _buyer_task["buyers"] = ranked
+        await _log(f"Top {len(ranked)}개 바이어 선정 완료", "success")
+
+        # ── Step 4: PDF 보고서 생성 ───────────────────────────────────────
+        _buyer_task.update({"step": "report", "step_label": "PDF 생성 중…"})
+        await _log("바이어 보고서 PDF 생성 중…")
+
+        from datetime import datetime, timezone as _tz_b
+        from analysis.buyer_report_generator import build_buyer_pdf
+        import re as _re_b
+
+        _ts = datetime.now(_tz_b.utc).strftime("%Y%m%d_%H%M%S")
+        _reports_dir = ROOT / "reports"
+        _reports_dir.mkdir(parents=True, exist_ok=True)
+
+        safe = _re_b.sub(r"[^\w가-힣]", "_", product_key)[:30]
+        pdf_name = f"sg_buyers_{safe}_{_ts}.pdf"
+        pdf_path = _reports_dir / pdf_name
+
+        await asyncio.to_thread(build_buyer_pdf, ranked, product_label, pdf_path)
+        _buyer_task["pdf"] = pdf_name
+        _buyer_task.update({"status": "done", "step": "done", "step_label": "완료"})
+        await _log("바이어 발굴 파이프라인 완료", "success")
+
+    except Exception as exc:
+        _buyer_task.update({"status": "error", "step": "error", "step_label": str(exc)})
+        await _emit({"phase": "buyer", "message": f"오류: {exc}", "level": "error"})
+
+
+@app.post("/api/buyers/run")
+async def trigger_buyers(body: BuyerRunBody | None = None) -> JSONResponse:
+    global _buyer_task
+    req = body if body is not None else BuyerRunBody()
+    if _buyer_task.get("status") == "running":
+        raise HTTPException(409, "바이어 발굴이 이미 실행 중입니다.")
+    _buyer_task = {
+        "status": "running", "step": "crawl", "step_label": "시작 중…",
+        "crawl_count": 0, "all_candidates": [], "buyers": [], "pdf": None,
+    }
+    asyncio.create_task(_run_buyer_pipeline(
+        req.product_key,
+        req.active_criteria,
+        req.target_country,
+        req.target_region,
+    ))
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/buyers/status")
+async def buyer_status() -> JSONResponse:
+    if not _buyer_task:
+        return JSONResponse({"status": "idle"})
+    return JSONResponse({
+        "status":          _buyer_task.get("status", "idle"),
+        "step":            _buyer_task.get("step", ""),
+        "step_label":      _buyer_task.get("step_label", ""),
+        "crawl_count":     _buyer_task.get("crawl_count", 0),
+        "buyer_count":     len(_buyer_task.get("buyers", [])),
+        "candidate_count": len(_buyer_task.get("all_candidates", [])),
+        "has_pdf":         bool(_buyer_task.get("pdf")),
+    })
+
+
+@app.get("/api/buyers/result")
+async def buyer_result() -> JSONResponse:
+    if not _buyer_task:
+        raise HTTPException(404, "바이어 발굴 미실행")
+    return JSONResponse({
+        "status":  _buyer_task.get("status"),
+        "buyers":  _buyer_task.get("buyers", []),
+        "pdf":     _buyer_task.get("pdf"),
+    })
+
+
+@app.post("/api/buyers/rerank")
+async def buyer_rerank(body: dict = None) -> JSONResponse:
+    """기준 변경 시 전체 후보 풀(20개)에서 재선택."""
+    all_candidates = _buyer_task.get("all_candidates", [])
+    if not all_candidates:
+        raise HTTPException(404, "후보 풀 없음. 파이프라인을 먼저 실행하세요.")
+    criteria = (body or {}).get("criteria")
+    from analysis.buyer_scorer import rank_companies
+    ranked = rank_companies(all_candidates, active_criteria=criteria, top_n=10)
+    _buyer_task["buyers"] = ranked
+    return JSONResponse({"buyers": ranked})
+
+
+@app.get("/api/buyers/report/download")
+async def buyer_report_download(name: str | None = None) -> Any:
+    reports_dir = ROOT / "reports"
+    if name:
+        target = reports_dir / Path(name).name
+        if target.is_file():
+            return FileResponse(
+                str(target), media_type="application/pdf",
+                filename=target.name, content_disposition_type="attachment",
+            )
+    # 최신 buyers PDF
+    pdfs = sorted(reports_dir.glob("sg_buyers_*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not pdfs:
+        raise HTTPException(404, "바이어 보고서 없음")
+    return FileResponse(
+        str(pdfs[0]), media_type="application/pdf",
+        filename=pdfs[0].name, content_disposition_type="attachment",
+    )
+
+
 @app.get("/")
 async def index() -> FileResponse:
     index_path = STATIC / "index.html"
     if not index_path.is_file():
         raise HTTPException(status_code=404, detail="index.html 없음")
     return FileResponse(index_path)
+
+
+@app.get("/frontend3")
+async def frontend3() -> FileResponse:
+    path = STATIC / "frontend3.html"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="frontend3.html 없음")
+    return FileResponse(path)
 
 
 app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
