@@ -1228,11 +1228,22 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   grid-template-columns: 1.25fr 1fr;
   gap: 10px;
   margin-bottom: 10px;
-  align-items: start;
+  align-items: stretch;
 }
 .map-card-wrap {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+.news-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#news-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 .world-map-container {
   flex: 1;
@@ -1271,7 +1282,6 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   height: 300px;
   border-radius: 12px;
   overflow: hidden;
-  flex: 1;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

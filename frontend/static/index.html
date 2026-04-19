@@ -69,7 +69,7 @@
         <div id="sg-map" class="sg-leaflet-map"></div>
       </article>
 
-      <article class="card">
+      <article class="card news-card">
         <div class="sec">
           <h3>싱가포르 의약품 시장 주요 동향</h3>
           <button class="btn-refresh" id="btn-news-refresh" onclick="loadNews()" style="margin-top:0;">↺</button>
@@ -437,54 +437,73 @@
 <script src="/static/app.js?v=5"></script>
 <script>
 (function() {
-  var map = L.map('sg-map', {
-    center: [8, 112],
-    zoom: 4,
-    zoomControl: true,
-    scrollWheelZoom: true,
-  });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 18,
-  }).addTo(map);
+  function initSgMap() {
+    var container = document.getElementById('sg-map');
+    if (!container || container._leaflet_id) return;
 
-  var mainIcon = L.divIcon({
-    className: '',
-    html: '<div style="width:14px;height:14px;background:#c8564d;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 7px rgba(200,86,77,.22),0 2px 6px rgba(0,0,0,.3);"></div>',
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-  });
-  var cityIcon = L.divIcon({
-    className: '',
-    html: '<div style="width:9px;height:9px;background:#4a7cc7;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);"></div>',
-    iconSize: [9, 9],
-    iconAnchor: [4, 4],
-  });
+    var map = L.map('sg-map', {
+      center: [8, 112],
+      zoom: 4,
+      zoomControl: true,
+      scrollWheelZoom: true,
+    });
+    window._sgMap = map;
 
-  var cities = [
-    { name: 'Kuala Lumpur', lat: 3.139,  lng: 101.687 },
-    { name: 'Jakarta',      lat: -6.209, lng: 106.846 },
-    { name: 'Bangkok',      lat: 13.756, lng: 100.502 },
-    { name: 'Manila',       lat: 14.600, lng: 120.984 },
-    { name: 'Ho Chi Minh',  lat: 10.823, lng: 106.630 },
-    { name: 'Hong Kong',    lat: 22.319, lng: 114.169 },
-    { name: 'Taipei',       lat: 25.033, lng: 121.565 },
-    { name: 'Tokyo',        lat: 35.676, lng: 139.650 },
-    { name: 'Seoul',        lat: 37.567, lng: 126.978 },
-    { name: 'Mumbai',       lat: 19.076, lng: 72.878  },
-  ];
-  cities.forEach(function(c) {
-    L.marker([c.lat, c.lng], { icon: cityIcon })
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 18,
+    }).addTo(map);
+
+    var mainIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;background:#c8564d;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 7px rgba(200,86,77,.22),0 2px 6px rgba(0,0,0,.3);"></div>',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+    var cityIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:9px;height:9px;background:#4a7cc7;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);"></div>',
+      iconSize: [9, 9],
+      iconAnchor: [4, 4],
+    });
+
+    var cities = [
+      { name: 'Kuala Lumpur', lat: 3.139,  lng: 101.687 },
+      { name: 'Jakarta',      lat: -6.209, lng: 106.846 },
+      { name: 'Bangkok',      lat: 13.756, lng: 100.502 },
+      { name: 'Manila',       lat: 14.600, lng: 120.984 },
+      { name: 'Ho Chi Minh',  lat: 10.823, lng: 106.630 },
+      { name: 'Hong Kong',    lat: 22.319, lng: 114.169 },
+      { name: 'Taipei',       lat: 25.033, lng: 121.565 },
+      { name: 'Tokyo',        lat: 35.676, lng: 139.650 },
+      { name: 'Seoul',        lat: 37.567, lng: 126.978 },
+      { name: 'Mumbai',       lat: 19.076, lng: 72.878  },
+    ];
+    cities.forEach(function(c) {
+      L.marker([c.lat, c.lng], { icon: cityIcon })
+        .addTo(map)
+        .bindPopup('<b>' + c.name + '</b>');
+    });
+
+    L.marker([1.3521, 103.8198], { icon: mainIcon })
       .addTo(map)
-      .bindPopup('<b>' + c.name + '</b>');
+      .bindPopup('<b>Singapore</b> ★')
+      .openPopup();
+
+    [100, 300, 600, 1000].forEach(function(ms) {
+      setTimeout(function() { map.invalidateSize(); }, ms);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSgMap);
+  } else {
+    initSgMap();
+  }
+  window.addEventListener('load', function() {
+    if (window._sgMap) window._sgMap.invalidateSize();
+    else initSgMap();
   });
-
-  L.marker([1.3521, 103.8198], { icon: mainIcon })
-    .addTo(map)
-    .bindPopup('<b>Singapore</b> ★')
-    .openPopup();
-
-  setTimeout(function() { map.invalidateSize(); }, 100);
 })();
 </script>
 </body>
