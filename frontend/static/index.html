@@ -105,7 +105,7 @@
                 <div id="p2-ai-seg-desc" class="p2-note" style="margin-top:5px;"></div>
                 <div id="p2-loading-state" class="p1-simple-loading" style="display:none;">
                   <span class="report-loading-spinner"></span>
-                  <span style="font-size:12px;color:var(--muted);">가격 분석 중…</span>
+                  <span id="p2-loading-label" style="font-size:12px;color:var(--muted);">가격 분석 중…</span>
                 </div>
                 <div id="p2-ai-error-msg" class="p2-note" style="display:none;color:var(--red);"></div>
               </div>
@@ -446,12 +446,19 @@ function downloadCombinedReport() {
       var a = document.createElement('a');
       a.href = url; a.download = 'combined_report.pdf'; a.click();
       URL.revokeObjectURL(url);
+      // 보고서 탭 등록
+      var reports = JSON.parse(localStorage.getItem('sg_upharma_reports_v1') || '[]');
+      var latestP1 = reports.find(function(r) { return r.report_type === 'p1'; });
+      var productName = latestP1 ? (latestP1.product || '종합') : '종합';
+      if (typeof _addReportEntry === 'function') {
+        _addReportEntry({ trade_name: productName, inn: null, verdict: '—' }, '', 'final');
+      }
     })
     .catch(function() {
       alert('아직 생성된 보고서가 없습니다. 1·2·3 공정을 먼저 완료해 주세요.');
     })
     .finally(function() {
-      btn.innerHTML = '최종 보고서 다운로드';
+      btn.innerHTML = '↓ 최종 보고서 다운로드';
       btn.disabled = false;
     });
 }

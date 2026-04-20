@@ -1997,8 +1997,13 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   margin-bottom: 0;
 }
 .p3-top-row .p3-report-bar {
-  flex-shrink: 0;
+  flex: 1;
   padding: 0;
+  display: flex;
+  align-items: stretch;
+}
+.p3-top-row .p3-report-bar .btn-final-report {
+  width: 100%;
 }
 
 /* 기업 평가 기준 박스 */

@@ -59,15 +59,23 @@ const STEP_ORDER = ['db_load', 'analyze', 'refs', 'report'];
 let _pollTimer  = null;   // 파이프라인 폴링 타이머
 let _currentKey = null;   // 현재 선택된 product_key
 
-// P2 3열 시나리오용 원본 데이터
-let _p2ScenarioRaw = { agg: 0, avg: 0, cons: 0, sgd_usd: 0, sgd_krw: 0 };
-
-// P2 컬럼별 커스텀 옵션 데이터
-let _p2ColData = {
-  agg:  { opts: [] },
-  avg:  { opts: [] },
-  cons: { opts: [] },
+// P2 3열 시나리오용 원본 데이터 (시장별)
+let _p2ScenarioRawByMarket = {
+  public:  { agg: 0, avg: 0, cons: 0, sgd_usd: 0, sgd_krw: 0 },
+  private: { agg: 0, avg: 0, cons: 0, sgd_usd: 0, sgd_krw: 0 },
 };
+let _p2ScenarioRaw = _p2ScenarioRawByMarket['public'];
+
+// P2 컬럼별 커스텀 옵션 데이터 (시장별)
+let _p2ColDataByMarket = {
+  public:  { agg: { opts: [] }, avg: { opts: [] }, cons: { opts: [] } },
+  private: { agg: { opts: [] }, avg: { opts: [] }, cons: { opts: [] } },
+};
+let _p2ColData = _p2ColDataByMarket['public'];
+
+// 시장별 AI 결과 캐시
+let _p2PublicResult  = null;
+let _p2PrivateResult = null;
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    §2. 탭 전환 (N1)
@@ -382,7 +390,7 @@ function _addReportEntry(result, pdfName, reportType) {
   const reports = _loadReports();
   const rType = reportType || 'p1';
   const productName = result ? (result.trade_name || result.product_id || '알 수 없음') : '알 수 없음';
-  const titleMap = { p1: `시장조사 보고서 - ${productName}`, p2: `수출가격 전략 - ${productName}`, p3: `바이어 발굴 보고서 - ${productName}` };
+  const titleMap = { p1: `시장조사 보고서 - ${productName}`, p2: `수출가격 전략 - ${productName}`, p3: `바이어 발굴 보고서 - ${productName}`, final: `최종 보고서 - ${productName}` };
   const entry   = {
     id:        Date.now(),
     product:   productName,
@@ -447,11 +455,15 @@ function renderReportTab() {
       : '';
     const downloadUrl = r.report_type === 'p3'
       ? `/api/buyers/report/download${r.pdf_name ? `?name=${encodeURIComponent(r.pdf_name)}` : ''}`
+      : r.report_type === 'final'
+      ? '/api/report/combined'
       : `/api/report/download${r.pdf_name ? `?name=${encodeURIComponent(r.pdf_name)}` : ''}`;
     const typeBadge = r.report_type === 'p2'
       ? ' <span style="font-size:10px;color:var(--orange);font-weight:600;">[가격]</span>'
       : r.report_type === 'p3'
       ? ' <span style="font-size:10px;color:var(--navy);font-weight:600;">[바이어]</span>'
+      : r.report_type === 'final'
+      ? ' <span style="font-size:10px;color:#5a3ea8;font-weight:600;">[최종]</span>'
       : '';
     const dlBtn = r.hasPdf
       ? `<a class="btn-download"
@@ -545,6 +557,8 @@ function switchP2Tab(tab) {
 
 function setP2AiSeg(seg) {
   _p2AiSeg = seg === 'private' ? 'private' : 'public';
+  _p2ColData = _p2ColDataByMarket[_p2AiSeg];
+  _p2ScenarioRaw = _p2ScenarioRawByMarket[_p2AiSeg];
   document.getElementById('p2-ai-seg-public')?.classList.toggle('on', _p2AiSeg === 'public');
   document.getElementById('p2-ai-seg-private')?.classList.toggle('on', _p2AiSeg === 'private');
   const desc = document.getElementById('p2-ai-seg-desc');
@@ -553,6 +567,8 @@ function setP2AiSeg(seg) {
       ? '공공 시장: ALPS 조달청 채널 · 27개 공공기관 통합구매 기준'
       : '민간 시장: 병원·약국·체인 채널 중심 유통 구조 기준';
   }
+  const cached = _p2AiSeg === 'public' ? _p2PublicResult : _p2PrivateResult;
+  if (cached) _applyP2ResultToCards(cached, _p2AiSeg);
 }
 
 async function handleP2FileSelect(inputEl) {
@@ -675,71 +691,82 @@ async function runP2AiPipeline() {
     return;
   }
 
-  if (_p2AiPollTimer) clearInterval(_p2AiPollTimer);
   _resetP2AiResultView();
   _resetP2Progress();
   _showP2Loading();
+  _p2PublicResult  = null;
+  _p2PrivateResult = null;
 
   if (runBtn) runBtn.disabled = true;
   if (runIcon) runIcon.textContent = '⏳';
 
   try {
-    const res = await fetch('/api/p2/pipeline', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ report_filename: reportFilename, market: _p2AiSeg }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-    _p2AiPollTimer = setInterval(_pollP2AiPipeline, 1800);
+    const loadingLabel = document.getElementById('p2-loading-label');
+
+    if (loadingLabel) loadingLabel.textContent = '공공 시장 분석 중…';
+    const pubResult = await _runP2MarketPipeline(reportFilename, 'public');
+    _p2PublicResult = pubResult;
+
+    if (loadingLabel) loadingLabel.textContent = '민간 시장 분석 중…';
+    const privResult = await _runP2MarketPipeline(reportFilename, 'private');
+    _p2PrivateResult = privResult;
+
+    _hideP2Loading();
+    _resetP2Progress();
+
+    // 두 시장 카드 데이터 초기화 (현재 선택된 시장부터)
+    _applyP2ResultToCards(pubResult, 'public');
+    _applyP2ResultToCards(privResult, 'private');
+
+    // 현재 선택된 시장을 화면에 적용
+    _p2ColData = _p2ColDataByMarket[_p2AiSeg];
+    _p2ScenarioRaw = _p2ScenarioRawByMarket[_p2AiSeg];
+    _applyP2ResultToCards(_p2AiSeg === 'public' ? pubResult : privResult, _p2AiSeg);
+
+    // 보고서 탭 등록 (공공 시장 결과 기준)
+    const extracted = pubResult?.extracted || {};
+    if (pubResult?.pdf) {
+      _addReportEntry(
+        { trade_name: extracted.product_name || '수출가격 전략', inn: null, verdict: '—' },
+        pubResult.pdf, 'p2'
+      );
+    }
   } catch (err) {
     _setP2Progress('extract', 'error');
     _showP2AiError(`실행 실패: ${err.message}`);
+    _hideP2Loading();
+  } finally {
     if (runBtn) runBtn.disabled = false;
     if (runIcon) runIcon.textContent = '▶';
   }
 }
 
-async function _pollP2AiPipeline() {
-  try {
-    const res = await fetch('/api/p2/pipeline/status');
-    const data = await res.json();
-    if (data.status === 'idle') return;
+async function _runP2MarketPipeline(reportFilename, market) {
+  const res = await fetch('/api/p2/pipeline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ report_filename: reportFilename, market }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
 
-    // 서버 step → 프론트 진행 단계 매핑
-    const stepMap = {
-      extract:     () => _setP2Progress('extract',     'running'),
-      ai_extract:  () => { _setP2Progress('extract', 'done'); _setP2Progress('ai_extract', 'running'); },
-      exchange:    () => { _setP2Progress('ai_extract', 'done'); _setP2Progress('ai_analysis', 'running'); },
-      ai_analysis: () => { _setP2Progress('ai_extract', 'done'); _setP2Progress('ai_analysis', 'running'); },
-      report:      () => { _setP2Progress('ai_analysis', 'done'); _setP2Progress('report', 'running'); },
-    };
-    if (stepMap[data.step]) stepMap[data.step]();
-
-    if (data.status === 'done') {
-      clearInterval(_p2AiPollTimer);
-      _p2AiPollTimer = null;
-      _hideP2Loading();
-      _resetP2Progress();
-      const rr = await fetch('/api/p2/pipeline/result');
-      const result = await rr.json();
-      _renderP2AiResult(result);
-      document.getElementById('btn-p2-ai-run')?.removeAttribute('disabled');
-      const runIcon = document.getElementById('p2-ai-run-icon');
-      if (runIcon) runIcon.textContent = '▶';
-    } else if (data.status === 'error') {
-      clearInterval(_p2AiPollTimer);
-      _p2AiPollTimer = null;
-      _hideP2Loading();
-      _resetP2Progress();
-      _showP2AiError(`오류: ${data.step_label || '파이프라인 실패'}`);
-      document.getElementById('btn-p2-ai-run')?.removeAttribute('disabled');
-      const runIcon = document.getElementById('p2-ai-run-icon');
-      if (runIcon) runIcon.textContent = '▶';
-    }
-  } catch (_err) {
-    // polling retry
-  }
+  return new Promise((resolve, reject) => {
+    const timer = setInterval(async () => {
+      try {
+        const sr = await fetch('/api/p2/pipeline/status');
+        const sd = await sr.json();
+        if (sd.status === 'idle') return;
+        if (sd.status === 'done') {
+          clearInterval(timer);
+          const rr = await fetch('/api/p2/pipeline/result');
+          resolve(await rr.json());
+        } else if (sd.status === 'error') {
+          clearInterval(timer);
+          reject(new Error(sd.step_label || '파이프라인 실패'));
+        }
+      } catch (_e) {}
+    }, 1800);
+  });
 }
 
 /* P2 3열 카드: 역산 섹션 토글 */
@@ -749,8 +776,9 @@ let _p2EditCol = null;
 function openP2EditModal(col) {
   _p2EditCol = col;
   const labels = { agg: '저가 진입', avg: '기준가', cons: '프리미엄' };
+  const marketLabel = _p2AiSeg === 'public' ? '[공공 시장]' : '[민간 시장]';
   const titleEl = document.getElementById('p2em-title');
-  if (titleEl) titleEl.textContent = `${labels[col] || col} — 역산 · 옵션 편집`;
+  if (titleEl) titleEl.textContent = `${labels[col] || col} — 역산 · 옵션 편집  ${marketLabel}`;
 
   // 보고서 SGD 참조 표시
   const sgdVal  = parseFloat(document.getElementById('p2ci-base-' + col)?.value || 0);
@@ -764,14 +792,25 @@ function openP2EditModal(col) {
   const initUsd = (sgdVal > 0 && sgdUsd > 0) ? (sgdVal / sgdUsd).toFixed(2) : sgdVal.toFixed(2);
   document.getElementById('p2em-base').value = initUsd;
 
-  // opts가 없으면 fee·freight 기본값으로 초기화
+  // opts가 없으면 시장별 기본값으로 초기화 (fallback)
+  _p2ColData = _p2ColDataByMarket[_p2AiSeg];
   if (!_p2ColData[col] || !_p2ColData[col].opts.length) {
     const feeDefault     = { agg: 3.0, avg: 5.0, cons: 10.0 }[col] ?? 5.0;
     const freightDefault = { agg: 0.85, avg: 1.0, cons: 1.20 }[col] ?? 1.0;
-    _p2ColData[col] = { opts: [
-      { id: 'fee',     name: '에이전트 수수료', type: 'pct_deduct', value: feeDefault },
-      { id: 'freight', name: '운임 배수',       type: 'multiply',   value: freightDefault },
-    ]};
+    const isPublic = _p2AiSeg === 'public';
+    _p2ColData[col] = isPublic
+      ? { opts: [
+          { id: 'fee',          name: '에이전트 수수료',    type: 'pct_deduct', value: feeDefault },
+          { id: 'freight',      name: '운임 배수',          type: 'multiply',   value: freightDefault },
+          { id: 'procurement',  name: '조달청 입찰 수수료', type: 'pct_deduct', value: 3.0 },
+          { id: 'gpo_discount', name: 'GPO 물량 할인율',   type: 'pct_deduct', value: 2.0 },
+        ]}
+      : { opts: [
+          { id: 'fee',               name: '에이전트 수수료',    type: 'pct_deduct', value: feeDefault },
+          { id: 'freight',           name: '운임 배수',          type: 'multiply',   value: freightDefault },
+          { id: 'pharmacy_margin',   name: '병원·약국 유통 마진', type: 'pct_deduct', value: 15.0 },
+          { id: 'distributor_markup',name: '유통사 마크업',      type: 'pct_add',    value: 8.0 },
+        ]};
   }
 
   _renderP2ModalOpts();
@@ -990,51 +1029,76 @@ function _renderP2AiResult(data) {
     );
   }
 
-  // ── 3열 시나리오 UI 채우기 ──────────────────────────────
+  // ── 3열 시나리오 UI 채우기 (현재 활성 시장 기준) ──────────
+  _applyP2ResultToCards(data, 'public');
+
+}
+
+/* 특정 시장의 AI 결과를 3열 카드 UI에 적용 */
+function _applyP2ResultToCards(data, market) {
+  const extracted  = data?.extracted || {};
+  const analysis   = data?.analysis  || {};
+  const rates      = data?.exchange_rates || {};
+  const scenarios  = Array.isArray(analysis.scenarios) ? analysis.scenarios : [];
+
   const sgdUsd = rates.sgd_usd ? Number(rates.sgd_usd) : 0;
   const sgdKrw = rates.sgd_krw ? Number(rates.sgd_krw) : 0;
 
+  // 결과 섹션 표시
+  const resultSection = document.getElementById('p2-ai-result-section');
+  if (resultSection) resultSection.style.display = '';
+
+  // 시장별 저장소 참조
+  const rawData  = _p2ScenarioRawByMarket[market];
+  const colStore = _p2ColDataByMarket[market];
+  rawData.sgd_usd = sgdUsd;
+  rawData.sgd_krw = sgdKrw;
+
+  const isPublic = market === 'public';
   const cols = ['agg', 'avg', 'cons'];
+
   scenarios.forEach((s, i) => {
-    const col     = cols[i];
+    const col = cols[i];
     if (!col) return;
     const priceSgd = Number(s.price_sgd || 0);
-    _p2ScenarioRaw[col]     = priceSgd;
-    _p2ScenarioRaw.sgd_usd  = sgdUsd;
-    _p2ScenarioRaw.sgd_krw  = sgdKrw;
+    rawData[col] = priceSgd;
 
-    const refBase = extracted.ref_price_sgd != null ? Number(extracted.ref_price_sgd) : 0;
-    const refLabel = refBase > 0
-      ? `Retail base: ${(refBase * (i === 0 ? 1.3 : i === 1 ? 1.0 : 0.7)).toFixed(2)} SGD`
-      : `Retail base: — SGD`;
-
-    const priceEl = document.getElementById('p2c-price-' + col);
-    const subEl   = document.getElementById('p2c-sub-' + col);
-    const refEl   = document.getElementById('p2c-ref-' + col);
     const baseInput = document.getElementById('p2ci-base-' + col);
+    if (baseInput) baseInput.value = priceSgd.toFixed(2);
 
-    if (refEl)     refEl.textContent   = refLabel;
-    if (baseInput) baseInput.value     = priceSgd.toFixed(2);
-    // Reset custom options: fee·freight as default deletable opts
+    // 시장별 기본 옵션 (처음 실행 시에만 초기화)
     const feeDefault     = { agg: 3.0,  avg: 5.0,  cons: 10.0 }[col] ?? 5.0;
     const freightDefault = { agg: 0.85, avg: 1.0,  cons: 1.20 }[col] ?? 1.0;
-    _p2ColData[col] = { opts: [
-      { id: 'fee',     name: '에이전트 수수료', type: 'pct_deduct', value: feeDefault },
-      { id: 'freight', name: '운임 배수',       type: 'multiply',   value: freightDefault },
-    ]};
-
-    // Initial display: apply default opts before rendering
-    recalcP2Col(col);
+    colStore[col] = isPublic
+      ? { opts: [
+          { id: 'fee',         name: '에이전트 수수료',   type: 'pct_deduct', value: feeDefault },
+          { id: 'freight',     name: '운임 배수',         type: 'multiply',   value: freightDefault },
+          { id: 'procurement', name: '조달청 입찰 수수료', type: 'pct_deduct', value: 3.0 },
+          { id: 'gpo_discount',name: 'GPO 물량 할인율',   type: 'pct_deduct', value: 2.0 },
+        ]}
+      : { opts: [
+          { id: 'fee',              name: '에이전트 수수료',    type: 'pct_deduct', value: feeDefault },
+          { id: 'freight',          name: '운임 배수',          type: 'multiply',   value: freightDefault },
+          { id: 'pharmacy_margin',  name: '병원·약국 유통 마진', type: 'pct_deduct', value: 15.0 },
+          { id: 'distributor_markup', name: '유통사 마크업',    type: 'pct_add',    value: 8.0 },
+        ]};
   });
 
+  // 이 시장이 현재 표시 중인 시장이면 _p2ColData / _p2ScenarioRaw 참조 동기화
+  if (market === _p2AiSeg) {
+    _p2ColData = colStore;
+    _p2ScenarioRaw = rawData;
+    // 숨김 입력값을 실제 카드 가격으로 반영
+    cols.forEach(col => recalcP2Col(col));
+  }
+
   // 경쟁가 분포
-  if (scenarios.length >= 3) {
+  if (market === _p2AiSeg && scenarios.length >= 3) {
     const prices = scenarios.map(s => Number(s.price_sgd || 0)).sort((a, b) => a - b);
     _setText('p2-dist-p25', `${prices[0].toFixed(2)} SGD`);
     _setText('p2-dist-med', `${prices[1].toFixed(2)} SGD`);
     _setText('p2-dist-p75', `${prices[2].toFixed(2)} SGD`);
   }
-
 }
 
 function _p2FillExchangeRate() {
@@ -1070,7 +1134,10 @@ function _syncP2ReportsOptions() {
   const allReports = _loadReports();
   const p1Reports  = allReports.filter((r) => r.report_type === 'p1');
   const optionHtml = ['<option value="">저장된 분석 보고서를 선택하세요.</option>']
-    .concat(p1Reports.map((r) => `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`))
+    .concat(p1Reports.map((r) => {
+      const name = r.product || r.report_title || '보고서';
+      return `<option value="${r.id}">시장조사 보고서 · ${_escHtml(name)} · ${_escHtml(r.timestamp || '')}</option>`;
+    }))
     .join('');
 
   const aiSelect = document.getElementById('p2-ai-report-select');
