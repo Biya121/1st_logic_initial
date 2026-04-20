@@ -1305,6 +1305,46 @@ async def buyer_rerank(body: dict = None) -> JSONResponse:
     return JSONResponse({"buyers": ranked})
 
 
+@app.get("/api/report/combined")
+async def download_combined_report() -> Any:
+    """P1 + P2 + P3 최신 PDF를 순서대로 병합해 반환."""
+    import io
+    try:
+        from pypdf import PdfWriter, PdfReader
+    except ImportError:
+        from PyPDF2 import PdfWriter, PdfReader  # type: ignore
+
+    reports_dir = ROOT / "reports"
+
+    def _latest(pattern: str):
+        pdfs = sorted(reports_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+        return pdfs[0] if pdfs else None
+
+    p1 = _latest("sg_report_*.pdf")
+    p2 = _latest("sg_p2_*.pdf")
+    p3 = _latest("sg_buyers_*.pdf")
+
+    found = [p for p in [p1, p2, p3] if p is not None]
+    if not found:
+        raise HTTPException(404, "생성된 보고서가 없습니다. 1·2·3 공정을 먼저 완료해 주세요.")
+
+    writer = PdfWriter()
+    for pdf_path in found:
+        reader = PdfReader(str(pdf_path))
+        for page in reader.pages:
+            writer.add_page(page)
+
+    buf = io.BytesIO()
+    writer.write(buf)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=combined_report.pdf"},
+    )
+
+
 @app.get("/api/buyers/report/download")
 async def buyer_report_download(name: str | None = None) -> Any:
     reports_dir = ROOT / "reports"

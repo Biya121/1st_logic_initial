@@ -375,6 +375,9 @@ def _register_korean_font() -> str:
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     from reportlab.pdfbase.ttfonts import TTFont
 
+    _bold_variants = {
+        "NanumGothic": str(ROOT / "fonts" / "NanumGothicBold.ttf"),
+    }
     candidates = [
         # Render/Linux 배포환경 — download_fonts.py 가 빌드 시 받아놓은 파일
         ("NanumGothic",  str(ROOT / "fonts" / "NanumGothic.ttf")),
@@ -389,7 +392,12 @@ def _register_korean_font() -> str:
         if Path(path).is_file():
             try:
                 pdfmetrics.registerFont(TTFont(name, path))
-                pdfmetrics.registerFont(TTFont(f"{name}-Bold", path))
+                bold_path = _bold_variants.get(name, path)
+                if not Path(bold_path).is_file():
+                    bold_path = path
+                pdfmetrics.registerFont(TTFont(f"{name}-Bold", bold_path))
+                from reportlab.pdfbase import pdfmetrics as _pm
+                _pm.registerFontFamily(name, normal=name, bold=f"{name}-Bold", italic=name, boldItalic=f"{name}-Bold")
                 _FONT_CACHE = name
                 return name
             except Exception:

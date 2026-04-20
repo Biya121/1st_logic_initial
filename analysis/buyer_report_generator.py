@@ -41,6 +41,7 @@ def _register_fonts() -> tuple[str, str]:
         try:
             pdfmetrics.registerFont(TTFont("Korean",      str(_FONT_REGULAR)))
             pdfmetrics.registerFont(TTFont("Korean-Bold", str(_FONT_BOLD)))
+            pdfmetrics.registerFontFamily("Korean", normal="Korean", bold="Korean-Bold", italic="Korean", boldItalic="Korean-Bold")
             return "Korean", "Korean-Bold"
         except Exception:
             pass

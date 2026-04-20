@@ -100,6 +100,42 @@ function toggleProcess(id) {
   if (arrow) arrow.classList.toggle('closed', !_processOpen[id]);
 }
 
+/* 신약 직접 분석 폼 토글 */
+function toggleCustomForm() {
+  const wrap = document.getElementById('custom-form-wrap');
+  const btn  = document.getElementById('btn-custom-toggle');
+  if (!wrap) return;
+  const open = wrap.style.display === 'none';
+  wrap.style.display = open ? '' : 'none';
+  if (btn) btn.textContent = (open ? '▾' : '▸') + ' 신약 직접 분석';
+}
+
+/* 1공정 간단 로딩 표시 */
+function _showP1Loading() {
+  const el = document.getElementById('p1-loading-state');
+  if (el) el.style.display = 'flex';
+}
+function _hideP1Loading() {
+  const el = document.getElementById('p1-loading-state');
+  if (el) el.style.display = 'none';
+}
+function _showCustomLoading() {
+  const el = document.getElementById('custom-loading-state');
+  if (el) el.style.display = 'flex';
+}
+function _hideCustomLoading() {
+  const el = document.getElementById('custom-loading-state');
+  if (el) el.style.display = 'none';
+}
+function _showP2Loading() {
+  const el = document.getElementById('p2-loading-state');
+  if (el) el.style.display = 'flex';
+}
+function _hideP2Loading() {
+  const el = document.getElementById('p2-loading-state');
+  if (el) el.style.display = 'none';
+}
+
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    §2-c. 거시 지표 로드 — GET /api/macro
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
@@ -393,7 +429,7 @@ function renderReportTab() {
     container.innerHTML = `
       <div class="rep-empty">
         아직 생성된 보고서가 없습니다.<br>
-        시장조사를 실행하면 여기에 자동으로 등록됩니다.
+        만들어진 보고서는 자동으로 등록됩니다.
       </div>`;
     return;
   }
@@ -631,7 +667,7 @@ async function runP2AiPipeline() {
   if (_p2AiPollTimer) clearInterval(_p2AiPollTimer);
   _resetP2AiResultView();
   _resetP2Progress();
-  _setP2Progress('extract', 'running');
+  _showP2Loading();
 
   if (runBtn) runBtn.disabled = true;
   if (runIcon) runIcon.textContent = '⏳';
@@ -672,7 +708,8 @@ async function _pollP2AiPipeline() {
     if (data.status === 'done') {
       clearInterval(_p2AiPollTimer);
       _p2AiPollTimer = null;
-      for (const s of P2_STEP_ORDER) _setP2Progress(s, 'done');
+      _hideP2Loading();
+      _resetP2Progress();
       const rr = await fetch('/api/p2/pipeline/result');
       const result = await rr.json();
       _renderP2AiResult(result);
@@ -682,8 +719,8 @@ async function _pollP2AiPipeline() {
     } else if (data.status === 'error') {
       clearInterval(_p2AiPollTimer);
       _p2AiPollTimer = null;
-      const errStep = P2_STEP_ORDER.includes(data.step) ? data.step : 'extract';
-      _setP2Progress(errStep, 'error');
+      _hideP2Loading();
+      _resetP2Progress();
       _showP2AiError(`오류: ${data.step_label || '파이프라인 실패'}`);
       document.getElementById('btn-p2-ai-run')?.removeAttribute('disabled');
       const runIcon = document.getElementById('p2-ai-run-icon');
@@ -1323,6 +1360,7 @@ async function runPipeline() {
   // UI 초기화
   resetProgress();
   _hideP1Note();
+  _showP1Loading();
   document.getElementById('result-card').classList.remove('visible');
   document.getElementById('papers-card').classList.remove('visible');
   document.getElementById('report-card').classList.remove('visible');
@@ -1355,6 +1393,7 @@ async function runPipeline() {
 function _resetBtn() {
   document.getElementById('btn-analyze').disabled = false;
   document.getElementById('btn-icon').textContent  = '▶';
+  _hideP1Loading();
 }
 
 /**
@@ -1379,6 +1418,7 @@ async function pollPipeline(productKey) {
 
     if (d.status === 'done') {
       clearInterval(_pollTimer);
+      _hideP1Loading();
       for (const s of STEP_ORDER) setProgress(s, 'done');
       const r2   = await fetch(`/api/pipeline/${encodeURIComponent(productKey)}/result`);
       const data = await r2.json();
@@ -1388,6 +1428,7 @@ async function pollPipeline(productKey) {
 
     if (d.status === 'error') {
       clearInterval(_pollTimer);
+      _hideP1Loading();
       setProgress(STEP_ORDER.includes(d.step) ? d.step : 'analyze', 'error');
       _resetBtn();
     }
@@ -1437,6 +1478,7 @@ function _resetCustomProgress() {
 function _resetCustomBtn() {
   document.getElementById('btn-custom').disabled = false;
   document.getElementById('custom-icon').textContent = '▶';
+  _hideCustomLoading();
 }
 
 async function runCustomPipeline() {
@@ -1446,6 +1488,7 @@ async function runCustomPipeline() {
   if (!tradeName || !inn) { alert('약품명과 성분명을 입력하세요.'); return; }
 
   _resetCustomProgress();
+  _showCustomLoading();
   document.getElementById('result-card').classList.remove('visible');
   document.getElementById('papers-card').classList.remove('visible');
   document.getElementById('report-card').classList.remove('visible');
@@ -1488,6 +1531,7 @@ async function _pollCustomPipeline() {
 
     if (d.status === 'done') {
       clearInterval(_customPollTimer);
+      _hideCustomLoading();
       for (const s of CUSTOM_STEP_ORDER) _setCustomProgress(s, 'done');
       const r2   = await fetch('/api/pipeline/custom/result');
       const data = await r2.json();
@@ -1496,6 +1540,7 @@ async function _pollCustomPipeline() {
     }
     if (d.status === 'error') {
       clearInterval(_customPollTimer);
+      _hideCustomLoading();
       _setCustomProgress(d.step || 'analyze', 'error');
       _resetCustomBtn();
     }
