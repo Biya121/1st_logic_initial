@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>싱가포르 수출 적합성 분석 — UPharma Export AI</title>
-  <link rel="stylesheet" href="/static/style.css?v=10"/>
+  <link rel="stylesheet" href="/static/style.css?v=11"/>
 </head>
 <body>
 <div class="app">
@@ -32,44 +32,6 @@
 
       <!-- ── 왼쪽 컬럼 ── -->
       <div class="col-left">
-
-        <!-- 매뉴얼 -->
-        <div class="manual-box">
-          <div class="manual-header" onclick="toggleManual()" style="cursor:pointer;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span class="manual-title">매뉴얼</span>
-            </div>
-            <span class="manual-arrow" id="manual-arrow">▾</span>
-          </div>
-          <div class="manual-body" id="manual-body" style="display:none;">
-            <p class="manual-desc">
-              이 대시보드는 한국유나이티드제약의 <strong>싱가포르 수출 전략</strong>을 지원하는 AI 분석 시스템입니다.
-            </p>
-            <div class="manual-steps">
-              <div class="manual-step">
-                <span class="manual-step-num">01</span>
-                <div class="manual-step-info">
-                  <div class="manual-step-title">수출가격 전략</div>
-                  <div class="manual-step-desc">품목 선택 후 분석 실행 → Claude AI 시장조사 자동 진행 + PDF 생성 → 완료 후 보고서 선택 &amp; AI 가격 분석 실행 → 저가 진입·기준가·프리미엄 3가지 시나리오 제시.</div>
-                </div>
-              </div>
-              <div class="manual-step">
-                <span class="manual-step-num">02</span>
-                <div class="manual-step-info">
-                  <div class="manual-step-title">바이어 발굴</div>
-                  <div class="manual-step-desc">시장조사 완료 보고서 선택 후 실행 → CPHI 크롤링 → AI 심층분석 → Top 10 바이어 선정 및 PDF 생성.</div>
-                </div>
-              </div>
-              <div class="manual-step">
-                <span class="manual-step-num">최종</span>
-                <div class="manual-step-info">
-                  <div class="manual-step-title">최종 보고서</div>
-                  <div class="manual-step-desc">각 단계별 보고서는 보고서 탭에서 확인. 우측 하단 취합 버튼으로 최종 보고서 다운로드.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- 01 수출가격 전략 (품목 선택 통합) -->
         <div class="process-section">
@@ -447,7 +409,7 @@
   </button>
 </div>
 
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=11"></script>
 <script>
 function toggleManual() {
   var body  = document.getElementById('manual-body');

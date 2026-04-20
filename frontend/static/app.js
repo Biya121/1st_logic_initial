@@ -1067,24 +1067,17 @@ function _p2FillBaseFromReport() {
 
 function _syncP2ReportsOptions() {
   if (!_p2Ready) return;
-  const reports = _loadReports();
-  const optionHtml = ['<option value="">보고서를 선택하세요</option>']
-    .concat(reports.map((r) => `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`))
+  const allReports = _loadReports();
+  const p1Reports  = allReports.filter((r) => r.report_type === 'p1');
+  const optionHtml = ['<option value="">저장된 분석 보고서를 선택하세요.</option>']
+    .concat(p1Reports.map((r) => `<option value="${r.id}">${_escHtml(r.report_title || r.product || '보고서')}</option>`))
     .join('');
-
-  const manualSelect = document.getElementById('p2-report-select');
-  if (manualSelect) {
-    const curr = _p2SelectedReportId;
-    manualSelect.innerHTML = optionHtml;
-    _p2SelectedReportId = reports.some((r) => String(r.id) === String(curr)) ? curr : '';
-    manualSelect.value = _p2SelectedReportId;
-  }
 
   const aiSelect = document.getElementById('p2-ai-report-select');
   if (aiSelect) {
     const curr = _p2AiSelectedReportId;
     aiSelect.innerHTML = optionHtml;
-    _p2AiSelectedReportId = reports.some((r) => String(r.id) === String(curr)) ? curr : '';
+    _p2AiSelectedReportId = p1Reports.some((r) => String(r.id) === String(curr)) ? curr : '';
     aiSelect.value = _p2AiSelectedReportId;
   }
 
@@ -1930,21 +1923,20 @@ let _p3SelectedReportId = '';
 function _syncP3ReportOptions() {
   const sel = document.getElementById('p3-report-select');
   if (!sel) return;
-  const reports = _loadReports();
+  const p1Reports = _loadReports().filter(r => r.report_type === 'p1');
   sel.innerHTML = ['<option value="">시장조사 보고서를 선택하세요</option>']
-    .concat(reports.map(r => {
+    .concat(p1Reports.map(r => {
       const name = r.product || r.report_title || '보고서';
       return `<option value="${r.id}">시장조사 보고서 · ${_escHtml(name)} · ${_escHtml(r.timestamp || '')}</option>`;
     })).join('');
 
   const readyBanner    = document.getElementById('p3-ready-banner');
   const noReportBanner = document.getElementById('p3-no-report-banner');
-  if (reports.length) {
+  if (p1Reports.length) {
     if (readyBanner)    readyBanner.style.display    = '';
     if (noReportBanner) noReportBanner.style.display = 'none';
-    // 최신 보고서 자동 선택
-    if (!_p3SelectedReportId || !reports.find(r => String(r.id) === _p3SelectedReportId)) {
-      _p3SelectedReportId = String(reports[0].id);
+    if (!_p3SelectedReportId || !p1Reports.find(r => String(r.id) === _p3SelectedReportId)) {
+      _p3SelectedReportId = String(p1Reports[0].id);
     }
     sel.value = _p3SelectedReportId;
   } else {
@@ -2126,56 +2118,34 @@ async function _pollP3() {
 }
 
 
-/** Top 10 스켈레톤 렌더링 (레이아웃 고정용) */
+/** Top 10 스켈레톤 렌더링 (로딩 중 표시) */
 function _renderP3Skeleton() {
   const wrap = document.getElementById('p3-cards');
   if (!wrap) return;
-  wrap.innerHTML = Array.from({ length: 10 }, () => `
-    <div class="p3-card-skeleton">
-      <div class="p3-skel-line" style="height:12px;width:60%;"></div>
-      <div class="p3-skel-line" style="height:10px;width:40%;"></div>
-      <div style="display:flex;gap:6px;margin-top:4px;">
-        <div class="p3-skel-line" style="height:18px;width:56px;border-radius:20px;"></div>
-        <div class="p3-skel-line" style="height:18px;width:48px;border-radius:20px;"></div>
-      </div>
+  wrap.innerHTML = Array.from({ length: 10 }, (_, i) => `
+    <div class="p3-list-row" style="pointer-events:none;">
+      <span class="p3-card-rank" style="opacity:.25;">${i + 1}</span>
+      <div class="p3-skel-line" style="height:13px;width:55%;border-radius:4px;"></div>
     </div>`).join('');
 }
 
-/** Top 10 카드 렌더링 (2×5 컴팩트) */
+/** Top 10 리스트 렌더링 — 번호 + 회사명만 표시, 클릭 시 상세 모달 */
 function _renderP3Cards(buyers) {
   const wrap = document.getElementById('p3-cards');
   if (!wrap) return;
 
-  _p3DisplayedBuyers = buyers;   // 현재 표시 순서 저장 (재배열 후 모달 참조용)
+  _p3DisplayedBuyers = buyers;
 
   if (!buyers.length) {
     wrap.innerHTML = '<div class="p3-empty">발굴된 바이어가 없습니다.</div>';
     return;
   }
 
-  wrap.innerHTML = buyers.map((b, i) => {
-    const priLabel = b.priority === 1 ? '성분 일치' : 'Singapore';
-    const priClass = b.priority === 1 ? 'p3-tag-p1' : 'p3-tag-p2';
-
-    const tags = [];
-    if (b.enriched?.has_gmp)         tags.push('GMP인증');
-    if (b.enriched?.mah_capable)     tags.push('MAH가능');
-    if (b.enriched?.public_channel)  tags.push('공공채널');
-    if (b.enriched?.private_channel) tags.push('민간채널');
-    if (b.enriched?.korea_experience && b.enriched.korea_experience !== '-' && b.enriched.korea_experience !== '없음')
-                                     tags.push('한국거래');
-    const tagHtml = tags.map(t => `<span class="p3-tag p3-tag-info">${_escHtml(t)}</span>`).join('');
-    const country = _escHtml(b.country || 'Singapore');
-
-    return `
-      <div class="p3-list-row" onclick="showBuyerDetail(${i})">
-        <span class="p3-card-rank">${i + 1}</span>
-        <span class="p3-tag ${priClass}">${priLabel}</span>
-        <span class="p3-list-name">${_escHtml(b.company_name || '-')}</span>
-        <span class="p3-list-country">${country}</span>
-        ${tagHtml ? `<div class="p3-list-tags">${tagHtml}</div>` : ''}
-      </div>`;
-  }).join('');
+  wrap.innerHTML = buyers.map((b, i) => `
+    <div class="p3-list-row" onclick="showBuyerDetail(${i})">
+      <span class="p3-card-rank">${i + 1}</span>
+      <span class="p3-list-name">${_escHtml(b.company_name || '-')}</span>
+    </div>`).join('');
 
   const criteriaBox = document.getElementById('p3-criteria-box');
   const cardsTitle  = document.getElementById('p3-cards-title');

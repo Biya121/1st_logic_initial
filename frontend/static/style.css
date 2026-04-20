@@ -50,6 +50,8 @@
   --sh2:     0 2px 8px  rgba(23,63,120,.06);
   --sh3:     0 1px 4px  rgba(23,63,120,.04);
 
+  --topbar-h: 66px;
+
   /* 1공정 호환 변수 */
   --ok:      #2d9870;
   --ok-bg:   rgba(45,152,112,.10);
@@ -1184,93 +1186,35 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   display: grid;
   grid-template-columns: 1fr 1.45fr;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  height: calc(100vh - var(--topbar-h) - 44px);
 }
 .col-left, .col-right {
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: var(--sh);
+  overflow-y: auto;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0;
 }
 
-/* ── 매뉴얼 박스 ─────────────────────────────────────────────────────────── */
-.manual-box {
-  background: var(--card);
-  border-radius: 16px;
-  box-shadow: var(--sh);
-  padding: 0;
-  overflow: hidden;
-}
-.manual-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 13px 20px;
-  user-select: none;
-  transition: background .15s;
-}
-.manual-header:hover { background: rgba(23,63,120,.025); }
-.manual-arrow {
-  font-size: 20px;
-  color: var(--muted);
-  transition: transform .2s ease;
-  line-height: 1;
-}
-.manual-title {
-  font-size: 15px;
-  font-weight: 900;
-  color: var(--navy);
-  letter-spacing: -.03em;
-}
-.manual-subtitle {
-  font-size: 11.5px;
-  color: var(--muted);
-}
-.manual-body {
-  padding: 0 16px 14px;
-  border-top: 1px solid rgba(23,63,120,.06);
-}
-.manual-desc {
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: var(--text);
-  margin: 12px 0 12px;
-}
-.manual-steps {
+/* 컬럼 내부 process-section은 카드 아닌 flat 섹션으로 */
+.col-left .process-section,
+.col-right .process-section {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 7px;
 }
-.manual-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 9px 12px;
-  background: var(--inner);
-  border-radius: 10px;
-}
-.manual-step-num {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 900;
-  color: #fff;
-  background: var(--navy);
-  border-radius: 6px;
-  padding: 3px 8px;
-  letter-spacing: .04em;
-  margin-top: 1px;
-}
-.manual-step-info { flex: 1; }
-.manual-step-title {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--navy);
-  margin-bottom: 2px;
-}
-.manual-step-desc {
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.55;
+.col-left .process-body,
+.col-right .process-body {
+  flex: 1;
+  overflow-y: auto;
 }
 
 /* ── 최종 보고서 다운로드 (인라인 소형 버튼) ─────────────────────────────── */
@@ -1377,18 +1321,10 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   padding: 12px 14px;
 }
 
-/* P3 바이어 카드 2열 고정 */
-.col-right .p3-cards-wrap {
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+/* 우측 컬럼 p3 다운로드 버튼 */
+.col-right .p3-report-bar {
+  padding: 10px 0 2px;
 }
-.col-right .p3-card {
-  padding: 12px 12px 10px;
-  gap: 5px;
-  min-height: 100px;
-}
-.col-right .p3-card-name  { font-size: 12.5px; }
-.col-right .p3-tag  { font-size: 9.5px; padding: 2px 6px; }
 
 /* 스켈레톤 카드 */
 .p3-card-skeleton {
@@ -1413,11 +1349,10 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 /* 반응형 */
 @media (max-width: 1200px) {
   .dashboard-grid { grid-template-columns: 1fr 1fr; }
-  .col-right .p3-cards-wrap { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 860px) {
-  .dashboard-grid { grid-template-columns: 1fr; }
-  .col-right .p3-cards-wrap { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-grid { grid-template-columns: 1fr; height: auto; }
+  .col-left, .col-right { height: auto; max-height: none; }
 }
 
 /* ── 25. 스크롤바 ────────────────────────────────────────────────────────── */
