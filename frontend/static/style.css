@@ -1687,6 +1687,8 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   font-size: 11.5px;
   color: var(--muted);
   margin-bottom: 4px;
+  white-space: pre-line;
+  line-height: 1.45;
 }
 .p2-col-expand-row { margin-bottom: 4px; }
 .p2-col-expand-btn {
@@ -1737,6 +1739,43 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   transition: box-shadow .15s;
 }
 .p2-col-input:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
+.p2-ref-price-box {
+  width: 100%;
+  height: auto;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  text-align: left;
+}
+.p2-ref-price-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--navy);
+}
+.p2-ref-price-main #p2em-ref-sgd {
+  font-size: 18px;
+  line-height: 1;
+}
+.p2-ref-price-convert {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2a9d8f;
+}
+#p2em-result {
+  white-space: pre-line;
+  line-height: 1.45;
+}
 .p2-col-foot-note {
   font-size: 10.5px;
   color: var(--muted);

@@ -349,20 +349,24 @@
 
   <!-- ════ P2 역산·옵션 편집 모달 ════ -->
   <div id="p2-edit-overlay" class="buyer-modal-overlay" style="display:none;" onclick="closeP2EditModal(event)">
-    <div class="buyer-modal" id="p2-edit-modal" style="width:400px;max-width:94vw;padding:22px 24px;">
+    <div class="buyer-modal" id="p2-edit-modal" style="width:470px;max-width:95vw;padding:22px 24px;">
       <button class="buyer-modal-close" onclick="closeP2EditModal()">✕</button>
       <div style="margin-bottom:14px;">
         <strong id="p2em-title" style="font-size:15px;color:var(--navy);">역산 · 옵션 편집</strong>
       </div>
-      <!-- 보고서 SGD 참조 (읽기 전용) -->
+      <!-- 보고서 가격 참조 (읽기 전용) -->
       <div class="p2-col-input-row">
-        <label class="p2-col-input-label">보고서 SGD</label>
-        <div class="p2-col-input" style="display:flex;align-items:center;gap:6px;background:var(--bg-soft,#f4f6fb);cursor:default;pointer-events:none;">
-          <span id="p2em-ref-sgd" style="font-weight:700;color:var(--navy,#173f78);">—</span>
-          <span style="font-size:11px;color:var(--muted,#8a96a8);">SGD</span>
-          <span style="font-size:11px;color:var(--muted,#8a96a8);">≈</span>
-          <span id="p2em-ref-usd" style="font-weight:600;color:#2a9d8f;font-size:12px;">—</span>
-          <span style="font-size:11px;color:var(--muted,#8a96a8);">USD</span>
+        <label class="p2-col-input-label">보고서 가격</label>
+        <div class="p2-col-input p2-ref-price-box" style="cursor:default;pointer-events:none;">
+          <div class="p2-ref-price-main">
+            <span id="p2em-ref-sgd">—</span>
+            <span>SGD</span>
+          </div>
+          <div class="p2-ref-price-convert">
+            <span>≈</span>
+            <span id="p2em-ref-usd">—</span>
+            <span>USD</span>
+          </div>
         </div>
       </div>
       <!-- 기준가 (USD) -->

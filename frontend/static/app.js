@@ -820,7 +820,7 @@ function _updateP2ModalResult() {
   const krw    = sgdKrw > 0 ? Math.round(priceSgd * sgdKrw).toLocaleString('ko-KR') : '—';
   const resultEl = document.getElementById('p2em-result');
   if (resultEl) resultEl.textContent = usdVal > 0
-    ? `${usdVal.toFixed(2)} USD  (${priceSgd.toFixed(2)} SGD · ${krw} KRW)`
+    ? `${usdVal.toFixed(2)} USD\n${priceSgd.toFixed(2)} SGD · ${krw} KRW`
     : '—';
 }
 
@@ -896,7 +896,7 @@ function recalcP2Col(col) {
   const priceEl = document.getElementById('p2c-price-' + col);
   const subEl   = document.getElementById('p2c-sub-' + col);
   if (priceEl) priceEl.textContent = usdVal > 0 ? usdVal.toFixed(2) : '—';
-  if (subEl)   subEl.textContent   = `${priceSgd.toFixed(2)} SGD · ${krw} KRW`;
+  if (subEl)   subEl.textContent   = `${priceSgd.toFixed(2)} SGD\n${krw} KRW`;
 }
 
 /* renderP2ColOptions — 모달 전용 _renderP2ModalOpts로 통합됨 (호환용 stub) */
