@@ -262,29 +262,32 @@
 
             <div id="p3-result-section" style="display:none;">
 
-              <div class="p3-criteria-box" id="p3-criteria-box" style="display:none;">
-                <div class="p3-criteria-header-row">
-                  <div>
-                    <div class="p3-criteria-title">기업 평가 기준 <span class="p3-criteria-sub">(체크된 항목들에 대해 평가 후 추천 순위 배열)</span></div>
+              <!-- 기업 평가 기준 + 최종 보고서 버튼 한 줄 -->
+              <div class="p3-top-row">
+                <div class="p3-criteria-box" id="p3-criteria-box" style="display:none;">
+                  <div class="p3-criteria-header-row">
+                    <div>
+                      <div class="p3-criteria-title">기업 평가 기준 <span class="p3-criteria-sub">(체크된 항목들에 대해 평가 후 추천 순위 배열)</span></div>
+                    </div>
+                    <button class="btn-clear-all" onclick="p3ClearAll()">전체 해제</button>
                   </div>
-                  <button class="btn-clear-all" onclick="p3ClearAll()">전체 해제</button>
+                  <div class="p3-criteria-grid">
+                    <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="기업규모" data-weight="35" onchange="p3ReRank()"> ① 매출규모</label>
+                    <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="유통실적" data-weight="28" onchange="p3ReRank()"> ② 파이프라인</label>
+                    <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="GMP보유" data-weight="20" onchange="p3ReRank()"> ③ 제조소 보유</label>
+                    <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="한국거래" data-weight="12" onchange="p3ReRank()"> ④ 수입 경험</label>
+                    <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="pharmacy_chain" data-weight="5" onchange="p3ReRank()"> ⑤ 약국체인 운영</label>
+                  </div>
                 </div>
-                <div class="p3-criteria-grid">
-                  <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="기업규모" data-weight="35" onchange="p3ReRank()"> ① 매출규모</label>
-                  <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="유통실적" data-weight="28" onchange="p3ReRank()"> ② 파이프라인</label>
-                  <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="GMP보유" data-weight="20" onchange="p3ReRank()"> ③ 제조소 보유</label>
-                  <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="한국거래" data-weight="12" onchange="p3ReRank()"> ④ 수입 경험</label>
-                  <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="pharmacy_chain" data-weight="5" onchange="p3ReRank()"> ⑤ 약국체인 운영</label>
+                <div class="p3-report-bar" id="p3-report-bar" style="display:none;">
+                  <button class="btn-final-report" id="btn-final-report" onclick="downloadCombinedReport()">
+                    ↓ 최종 보고서 다운로드
+                  </button>
                 </div>
               </div>
 
               <div class="p3-cards-section-title" id="p3-cards-title" style="display:none;">Top 10</div>
               <div id="p3-cards" class="p3-cards-wrap"></div>
-              <div class="p3-report-bar" id="p3-report-bar" style="display:none;">
-                <button class="btn-final-report" id="btn-final-report" onclick="downloadCombinedReport()">
-                  ↓ 최종 보고서 다운로드
-                </button>
-              </div>
             </div>
 
           </div>
