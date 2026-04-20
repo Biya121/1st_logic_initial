@@ -157,99 +157,57 @@
               <div id="p2-ai-result-section" style="display:none;">
                 <div class="p2-three-col">
 
-                  <div class="p2-col p2-col--agg">
+                  <div class="p2-col p2-col--agg" onclick="openP2EditModal('agg')" style="cursor:pointer;">
                     <div class="p2-col-rank-row">
-                      <span class="p2-col-label">공격적 (1위)</span>
-                      <span class="p2-rank-badge">RANK 1</span>
+                      <span class="p2-col-label">공격적</span>
                     </div>
                     <div class="p2-col-price" id="p2c-price-agg">—</div>
-                    <div class="p2-col-currency">SGD</div>
-                    <div class="p2-col-sub" id="p2c-sub-agg">— USD · — KRW</div>
-                    <div class="p2-col-expand-row">
-                      <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('agg')">▸ 역산 · 옵션 편집</button>
-                    </div>
-                    <div class="p2-col-detail" id="p2cd-agg" style="display:none;">
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">기준가 (SGD)</label>
-                        <input class="p2-col-input" type="number" id="p2ci-base-agg" value="0" step="0.1" min="0" oninput="recalcP2Col('agg')">
-                      </div>
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">에이전트 수수료(%)</label>
-                        <input class="p2-col-input" type="number" id="p2ci-fee-agg" value="3.0" step="0.5" min="0" max="50" oninput="recalcP2Col('agg')">
-                      </div>
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">운임 배수</label>
-                        <input class="p2-col-input" type="number" id="p2ci-freight-agg" value="0.85" step="0.05" min="0.1" max="5" oninput="recalcP2Col('agg')">
-                      </div>
-                      <div id="p2co-agg" class="p2-custom-opts"></div>
-                      <button class="p2c-add-btn" onclick="addP2ColOption('agg')">+ 옵션 추가</button>
-                    </div>
+                    <div class="p2-col-currency">USD</div>
+                    <div class="p2-col-sub" id="p2c-sub-agg">— SGD · — KRW</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;">클릭하여 편집</div>
                   </div>
 
-                  <div class="p2-col p2-col--avg">
+                  <div class="p2-col p2-col--avg" onclick="openP2EditModal('avg')" style="cursor:pointer;">
                     <div class="p2-col-rank-row">
-                      <span class="p2-col-label">평균 (2위)</span>
-                      <span class="p2-rank-badge">RANK 2</span>
+                      <span class="p2-col-label">평균</span>
                     </div>
                     <div class="p2-col-price" id="p2c-price-avg">—</div>
-                    <div class="p2-col-currency">SGD</div>
-                    <div class="p2-col-sub" id="p2c-sub-avg">— USD · — KRW</div>
-                    <div class="p2-col-expand-row">
-                      <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('avg')">▸ 역산 · 옵션 편집</button>
-                    </div>
-                    <div class="p2-col-detail" id="p2cd-avg" style="display:none;">
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">기준가 (SGD)</label>
-                        <input class="p2-col-input" type="number" id="p2ci-base-avg" value="0" step="0.1" min="0" oninput="recalcP2Col('avg')">
-                      </div>
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">에이전트 수수료(%)</label>
-                        <input class="p2-col-input" type="number" id="p2ci-fee-avg" value="5.0" step="0.5" min="0" max="50" oninput="recalcP2Col('avg')">
-                      </div>
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">운임 배수</label>
-                        <input class="p2-col-input" type="number" id="p2ci-freight-avg" value="1.00" step="0.05" min="0.1" max="5" oninput="recalcP2Col('avg')">
-                      </div>
-                      <div id="p2co-avg" class="p2-custom-opts"></div>
-                      <button class="p2c-add-btn" onclick="addP2ColOption('avg')">+ 옵션 추가</button>
-                    </div>
+                    <div class="p2-col-currency">USD</div>
+                    <div class="p2-col-sub" id="p2c-sub-avg">— SGD · — KRW</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;">클릭하여 편집</div>
                   </div>
 
-                  <div class="p2-col p2-col--cons">
+                  <div class="p2-col p2-col--cons" onclick="openP2EditModal('cons')" style="cursor:pointer;">
                     <div class="p2-col-rank-row">
-                      <span class="p2-col-label">보수적 (3위)</span>
-                      <span class="p2-rank-badge">RANK 3</span>
+                      <span class="p2-col-label">보수적</span>
                     </div>
                     <div class="p2-col-price" id="p2c-price-cons">—</div>
-                    <div class="p2-col-currency">SGD</div>
-                    <div class="p2-col-sub" id="p2c-sub-cons">— USD · — KRW</div>
-                    <div class="p2-col-expand-row">
-                      <button class="p2-col-expand-btn" onclick="toggleP2ColDetail('cons')">▸ 역산 · 옵션 편집</button>
-                    </div>
-                    <div class="p2-col-detail" id="p2cd-cons" style="display:none;">
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">기준가 (SGD)</label>
-                        <input class="p2-col-input" type="number" id="p2ci-base-cons" value="0" step="0.1" min="0" oninput="recalcP2Col('cons')">
-                      </div>
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">에이전트 수수료(%)</label>
-                        <input class="p2-col-input" type="number" id="p2ci-fee-cons" value="10.0" step="0.5" min="0" max="50" oninput="recalcP2Col('cons')">
-                      </div>
-                      <div class="p2-col-input-row">
-                        <label class="p2-col-input-label">운임 배수</label>
-                        <input class="p2-col-input" type="number" id="p2ci-freight-cons" value="1.20" step="0.05" min="0.1" max="5" oninput="recalcP2Col('cons')">
-                      </div>
-                      <div id="p2co-cons" class="p2-custom-opts"></div>
-                      <button class="p2c-add-btn" onclick="addP2ColOption('cons')">+ 옵션 추가</button>
-                    </div>
+                    <div class="p2-col-currency">USD</div>
+                    <div class="p2-col-sub" id="p2c-sub-cons">— SGD · — KRW</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;">클릭하여 편집</div>
                   </div>
 
                 </div>
 
                 <div class="selector-card" style="margin-top:10px;">
                   <div id="p2-product-list"></div>
-                  <div id="p2-report-dl-state" style="margin-top:10px;"></div>
                 </div>
+              </div>
+
+              <!-- 역산 계산용 숨김 입력값 -->
+              <div style="display:none;" aria-hidden="true">
+                <input type="number" id="p2ci-base-agg"    value="0"    step="0.1"  min="0">
+                <input type="number" id="p2ci-fee-agg"     value="3.0"  step="0.5"  min="0" max="50">
+                <input type="number" id="p2ci-freight-agg" value="0.85" step="0.05" min="0.1" max="5">
+                <input type="number" id="p2ci-base-avg"    value="0"    step="0.1"  min="0">
+                <input type="number" id="p2ci-fee-avg"     value="5.0"  step="0.5"  min="0" max="50">
+                <input type="number" id="p2ci-freight-avg" value="1.00" step="0.05" min="0.1" max="5">
+                <input type="number" id="p2ci-base-cons"   value="0"    step="0.1"  min="0">
+                <input type="number" id="p2ci-fee-cons"    value="10.0" step="0.5"  min="0" max="50">
+                <input type="number" id="p2ci-freight-cons" value="1.20" step="0.05" min="0.1" max="5">
+                <div id="p2co-agg"  class="p2-custom-opts"></div>
+                <div id="p2co-avg"  class="p2-custom-opts"></div>
+                <div id="p2co-cons" class="p2-custom-opts"></div>
               </div>
 
               <div style="display:none;" aria-hidden="true">
@@ -347,22 +305,14 @@
                 </button>
               </div>
 
-              <div class="progress-row" id="p3-progress-row">
-                <div class="prog-step" id="p3prog-crawl">  <div class="prog-dot">1</div><div class="prog-label">1차 수집</div></div>
-                <div class="prog-step" id="p3prog-enrich"> <div class="prog-dot">2</div><div class="prog-label">Haiku 분석</div></div>
-                <div class="prog-step" id="p3prog-rank">   <div class="prog-dot">3</div><div class="prog-label">Top 10 선정</div></div>
-                <div class="prog-step" id="p3prog-report"> <div class="prog-dot">4</div><div class="prog-label">PDF 생성</div></div>
+              <div id="p3-loading-state" class="p1-simple-loading" style="display:none;">
+                <span class="report-loading-spinner"></span>
+                <span style="font-size:12px;color:var(--muted);">바이어 발굴 중…</span>
               </div>
               <div id="p3-error-msg" class="p2-note" style="display:none;color:var(--red);margin-top:10px;"></div>
             </div>
 
             <div id="p3-result-section" style="display:none;">
-
-              <div style="margin-bottom:14px;">
-                <button class="btn-download" id="p3-dl-btn" onclick="downloadBuyerReport()" disabled>
-                  📄 바이어 보고서 다운로드
-                </button>
-              </div>
 
               <div class="p3-criteria-box" id="p3-criteria-box" style="display:none;">
                 <div class="p3-criteria-header-row">
@@ -398,6 +348,30 @@
 
     </div><!-- /dashboard-grid -->
   </div><!-- /main page -->
+
+  <!-- ════ P2 역산·옵션 편집 모달 ════ -->
+  <div id="p2-edit-overlay" class="buyer-modal-overlay" style="display:none;" onclick="closeP2EditModal(event)">
+    <div class="buyer-modal" id="p2-edit-modal" style="width:360px;max-width:92vw;padding:22px 24px;">
+      <button class="buyer-modal-close" onclick="closeP2EditModal()">✕</button>
+      <div style="margin-bottom:16px;">
+        <strong id="p2em-title" style="font-size:15px;color:var(--navy);">역산 · 옵션 편집</strong>
+      </div>
+      <div class="p2-col-input-row">
+        <label class="p2-col-input-label">기준가 (SGD)</label>
+        <input class="p2-col-input" type="number" id="p2em-base" step="0.1" min="0" oninput="recalcP2ColModal()">
+      </div>
+      <div class="p2-col-input-row">
+        <label class="p2-col-input-label">에이전트 수수료(%)</label>
+        <input class="p2-col-input" type="number" id="p2em-fee" step="0.5" min="0" max="50" oninput="recalcP2ColModal()">
+      </div>
+      <div class="p2-col-input-row">
+        <label class="p2-col-input-label">운임 배수</label>
+        <input class="p2-col-input" type="number" id="p2em-freight" step="0.05" min="0.1" max="5" oninput="recalcP2ColModal()">
+      </div>
+      <div id="p2em-opts" class="p2-custom-opts" style="margin-top:8px;"></div>
+      <button class="p2c-add-btn" style="margin-top:6px;" onclick="addP2ModalOption()">+ 옵션 추가</button>
+    </div>
+  </div>
 
   <!-- ════ 바이어 상세 모달 ════ -->
   <div id="buyer-modal-overlay" class="buyer-modal-overlay" onclick="closeBuyerModal(event)" style="display:none;">

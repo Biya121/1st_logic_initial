@@ -373,24 +373,27 @@ function _loadReports() {
 }
 
 /**
- * 시장조사 완료 후 renderResult()가 호출 → 보고서 탭에 항목 추가.
+ * 보고서 탭에 항목 추가.
  * @param {object|null} result  분석 결과
  * @param {string|null} pdfName PDF 파일명
+ * @param {string} reportType   'p1' | 'p2' | 'p3'
  */
-function _addReportEntry(result, pdfName) {
+function _addReportEntry(result, pdfName, reportType) {
   const reports = _loadReports();
+  const rType = reportType || 'p1';
   const productName = result ? (result.trade_name || result.product_id || '알 수 없음') : '알 수 없음';
+  const titleMap = { p1: `시장조사 보고서 - ${productName}`, p2: `수출가격 전략 - ${productName}`, p3: `바이어 발굴 보고서 - ${productName}` };
   const entry   = {
     id:        Date.now(),
     product:   productName,
-    stage_label: '시장조사',
-    report_title: `시장조사 보고서 - ${productName}`,
-    inn:       result ? (INN_MAP[result.product_id] || result.inn || '') : '',
-    verdict:   result ? (result.verdict || '—') : '—',
-    price_hint: result ? String(result.price_positioning_pbs || '').trim() : '',
-    pbs_sgd_hint: result ? (result.pbs_dpmq_sgd_hint ?? null) : null,
-    basis_trade: result ? String(result.basis_trade || '').trim() : '',
-    risks_conditions: result ? String(result.risks_conditions || '').trim() : '',
+    report_type: rType,
+    report_title: titleMap[rType] || `보고서 - ${productName}`,
+    inn:       rType === 'p1' ? (result ? (INN_MAP[result.product_id] || result.inn || '') : '') : '',
+    verdict:   rType === 'p1' ? (result ? (result.verdict || '—') : '—') : '—',
+    price_hint: rType === 'p1' ? (result ? String(result.price_positioning_pbs || '').trim() : '') : '',
+    pbs_sgd_hint: rType === 'p1' ? (result ? (result.pbs_dpmq_sgd_hint ?? null) : null) : null,
+    basis_trade: rType === 'p1' ? (result ? String(result.basis_trade || '').trim() : '') : '',
+    risks_conditions: rType === 'p1' ? (result ? String(result.risks_conditions || '').trim() : '') : '',
     timestamp: new Date().toLocaleString('ko-KR', {
       month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit',
@@ -442,9 +445,17 @@ function renderReportTab() {
     const innSpan = r.inn
       ? ` <span style="font-weight:400;color:var(--muted);font-size:12px;">· ${_escHtml(r.inn)}</span>`
       : '';
+    const downloadUrl = r.report_type === 'p3'
+      ? `/api/buyers/report/download${r.pdf_name ? `?name=${encodeURIComponent(r.pdf_name)}` : ''}`
+      : `/api/report/download${r.pdf_name ? `?name=${encodeURIComponent(r.pdf_name)}` : ''}`;
+    const typeBadge = r.report_type === 'p2'
+      ? ' <span style="font-size:10px;color:var(--orange);font-weight:600;">[가격]</span>'
+      : r.report_type === 'p3'
+      ? ' <span style="font-size:10px;color:var(--navy);font-weight:600;">[바이어]</span>'
+      : '';
     const dlBtn = r.hasPdf
       ? `<a class="btn-download"
-            href="/api/report/download${r.pdf_name ? `?name=${encodeURIComponent(r.pdf_name)}` : ''}"
+            href="${downloadUrl}"
             target="_blank"
             style="padding:7px 14px;font-size:12px;flex-shrink:0;">📄 PDF</a>`
       : '';
@@ -453,7 +464,7 @@ function renderReportTab() {
     return `
       <div class="rep-item">
         <div class="rep-item-info">
-          <div class="rep-item-product">${_escHtml(r.report_title || r.product)}${innSpan}</div>
+          <div class="rep-item-product">${_escHtml(r.report_title || r.product)}${typeBadge}${innSpan}</div>
           <div class="rep-item-meta">${_escHtml(r.timestamp)}</div>
         </div>
         <div class="rep-item-verdict">
@@ -732,38 +743,112 @@ async function _pollP2AiPipeline() {
 }
 
 /* P2 3열 카드: 역산 섹션 토글 */
-function toggleP2ColDetail(col) {
-  const detail = document.getElementById('p2cd-' + col);
-  const btn    = detail?.previousElementSibling?.querySelector('.p2-col-expand-btn');
-  if (!detail) return;
-  const open = detail.style.display === 'none';
-  detail.style.display = open ? '' : 'none';
-  if (btn) btn.textContent = (open ? '▾' : '▸') + ' 단계별 역산 보기';
+/* P2 단일 편집 모달 */
+let _p2EditCol = null;
+
+function openP2EditModal(col) {
+  _p2EditCol = col;
+  const labels = { agg: '공격적', avg: '평균', cons: '보수적' };
+  const titleEl = document.getElementById('p2em-title');
+  if (titleEl) titleEl.textContent = `${labels[col] || col} — 역산 · 옵션 편집`;
+
+  document.getElementById('p2em-base').value    = document.getElementById('p2ci-base-'    + col)?.value || 0;
+  document.getElementById('p2em-fee').value     = document.getElementById('p2ci-fee-'     + col)?.value || 0;
+  document.getElementById('p2em-freight').value = document.getElementById('p2ci-freight-' + col)?.value || 1;
+
+  _renderP2ModalOpts(false);
+  document.getElementById('p2-edit-overlay').style.display = '';
+  document.body.style.overflow = 'hidden';
 }
 
-/* P2 3열 카드: 기준가/수수료/운임/커스텀옵션 변경 시 가격 재계산 */
+function closeP2EditModal(e) {
+  if (e && e.target !== document.getElementById('p2-edit-overlay')) return;
+  document.getElementById('p2-edit-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+  _p2EditCol = null;
+}
+
+function recalcP2ColModal() {
+  if (!_p2EditCol) return;
+  document.getElementById('p2ci-base-'    + _p2EditCol).value = document.getElementById('p2em-base').value;
+  document.getElementById('p2ci-fee-'     + _p2EditCol).value = document.getElementById('p2em-fee').value;
+  document.getElementById('p2ci-freight-' + _p2EditCol).value = document.getElementById('p2em-freight').value;
+  recalcP2Col(_p2EditCol);
+}
+
+function _renderP2ModalOpts(showAddForm) {
+  const col = _p2EditCol;
+  if (!col) return;
+  const container = document.getElementById('p2em-opts');
+  if (!container) return;
+  const opts = (_p2ColData[col] || { opts: [] }).opts;
+  const typeLabel = { pct_add: '% 가산', pct_deduct: '% 차감', abs_add: 'SGD 가산' };
+
+  let html = opts.map(opt => `
+    <div class="p2c-opt-row">
+      <span class="p2c-opt-name">${_escHtml(opt.name)}</span>
+      <span class="p2c-opt-type-label">${typeLabel[opt.type] || opt.type}</span>
+      <input class="p2c-opt-val" type="number" value="${opt.value}" step="0.1" min="0"
+        onchange="updateP2ColOption('${col}','${_escHtml(opt.id)}',this.value);_renderP2ModalOpts(false)">
+      <button class="p2c-opt-del" onclick="removeP2ColOption('${col}','${_escHtml(opt.id)}');_renderP2ModalOpts(false)">×</button>
+    </div>`).join('');
+
+  if (showAddForm) {
+    html += `
+      <div class="p2c-opt-row p2c-add-row">
+        <input class="p2c-opt-name-input" type="text" placeholder="옵션명" id="p2em-newname" maxlength="20">
+        <select class="p2c-opt-type-select" id="p2em-newtype">
+          <option value="pct_deduct">% 차감</option>
+          <option value="pct_add">% 가산</option>
+          <option value="abs_add">SGD 가산</option>
+        </select>
+        <input class="p2c-opt-val" type="number" placeholder="값" id="p2em-newval" step="0.1" min="0">
+        <button class="p2c-confirm-btn" onclick="confirmP2ModalOption()">✓</button>
+      </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function addP2ModalOption() {
+  _renderP2ModalOpts(true);
+}
+
+function confirmP2ModalOption() {
+  const col = _p2EditCol;
+  if (!col) return;
+  const name = (document.getElementById('p2em-newname')?.value || '').trim();
+  const type = document.getElementById('p2em-newtype')?.value || 'pct_deduct';
+  const val  = parseFloat(document.getElementById('p2em-newval')?.value || '0');
+  if (!name || Number.isNaN(val) || val < 0) return;
+  _p2ColData[col] = _p2ColData[col] || { opts: [] };
+  _p2ColData[col].opts.push({ id: 'o' + Date.now(), name, type, value: val });
+  _renderP2ModalOpts(false);
+  recalcP2Col(col);
+}
+
+/* P2 3열 카드: 기준가/수수료/운임/커스텀옵션 변경 시 가격 재계산 (USD 기준 표시) */
 function recalcP2Col(col) {
   const base    = parseFloat(document.getElementById('p2ci-base-' + col)?.value || 0);
   const fee     = parseFloat(document.getElementById('p2ci-fee-' + col)?.value || 0);
   const freight = parseFloat(document.getElementById('p2ci-freight-' + col)?.value || 1);
 
-  let price = base * (1 - fee / 100) * freight;
+  let priceSgd = base * (1 - fee / 100) * freight;
 
   const opts = _p2ColData[col]?.opts || [];
   for (const opt of opts) {
-    if (opt.type === 'pct_add')   price *= (1 + opt.value / 100);
-    else if (opt.type === 'pct_deduct') price *= (1 - opt.value / 100);
-    else if (opt.type === 'abs_add')    price += opt.value;
+    if (opt.type === 'pct_add')        priceSgd *= (1 + opt.value / 100);
+    else if (opt.type === 'pct_deduct') priceSgd *= (1 - opt.value / 100);
+    else if (opt.type === 'abs_add')    priceSgd += opt.value;
   }
-  price = Math.max(0, price);
+  priceSgd = Math.max(0, priceSgd);
 
-  const usd = _p2ScenarioRaw.sgd_usd > 0 ? (price / _p2ScenarioRaw.sgd_usd).toFixed(2) : '—';
-  const krw = _p2ScenarioRaw.sgd_krw > 0 ? Math.round(price * _p2ScenarioRaw.sgd_krw).toLocaleString('ko-KR') : '—';
+  const usdVal = _p2ScenarioRaw.sgd_usd > 0 ? priceSgd / _p2ScenarioRaw.sgd_usd : 0;
+  const krw    = _p2ScenarioRaw.sgd_krw > 0 ? Math.round(priceSgd * _p2ScenarioRaw.sgd_krw).toLocaleString('ko-KR') : '—';
 
   const priceEl = document.getElementById('p2c-price-' + col);
   const subEl   = document.getElementById('p2c-sub-' + col);
-  if (priceEl) priceEl.textContent = price.toFixed(2);
-  if (subEl)   subEl.textContent   = `${usd} USD · ${krw} KRW`;
+  if (priceEl) priceEl.textContent = usdVal > 0 ? usdVal.toFixed(2) : '—';
+  if (subEl)   subEl.textContent   = `${priceSgd.toFixed(2)} SGD · ${krw} KRW`;
 }
 
 /* P2 컬럼 커스텀 옵션 렌더링 */
@@ -889,17 +974,13 @@ function _renderP2AiResult(data) {
   // 산정 이유
   _setText('p2r-rationale', analysis.rationale || '산정 이유 없음');
 
-  // 다운로드
-  const dlState = document.getElementById('p2-report-dl-state');
-  if (dlState) {
-    if (data?.pdf) {
-      dlState.innerHTML = `
-        <a class="btn-download"
-           href="/api/report/download?name=${encodeURIComponent(data.pdf)}"
-           target="_blank">📄 수출가격전략 보고서 다운로드</a>`;
-    } else {
-      dlState.innerHTML = `<span style="font-size:13px;color:var(--red);">PDF 생성에 실패했습니다.</span>`;
-    }
+  // P2 보고서 탭 자동 등록
+  if (data?.pdf) {
+    _addReportEntry(
+      { trade_name: extracted.product_name || '수출가격 전략', inn: null, verdict: '—' },
+      data.pdf,
+      'p2'
+    );
   }
 
   // ── 3열 시나리오 UI 채우기 ──────────────────────────────
@@ -926,12 +1007,14 @@ function _renderP2AiResult(data) {
     const baseInput = document.getElementById('p2ci-base-' + col);
 
     if (refEl)     refEl.textContent   = refLabel;
-    if (priceEl)   priceEl.textContent = priceSgd.toFixed(2);
     if (baseInput) baseInput.value     = priceSgd.toFixed(2);
+    if (priceEl) {
+      const usdMain = sgdUsd > 0 ? (priceSgd / sgdUsd).toFixed(2) : '—';
+      priceEl.textContent = usdMain;
+    }
     if (subEl) {
-      const usd = sgdUsd > 0 ? (priceSgd / sgdUsd).toFixed(2) : '—';
       const krw = sgdKrw > 0 ? Math.round(priceSgd * sgdKrw).toLocaleString('ko-KR') : '—';
-      subEl.textContent = `${usd} USD · ${krw} KRW`;
+      subEl.textContent = `${priceSgd.toFixed(2)} SGD · ${krw} KRW`;
     }
     // Reset custom options for each column on new AI result
     _p2ColData[col] = { opts: [] };
@@ -946,21 +1029,6 @@ function _renderP2AiResult(data) {
     _setText('p2-dist-p75', `${prices[2].toFixed(2)} SGD`);
   }
 
-  // 제품 목록 (추출된 product_name 기준)
-  const prodList = document.getElementById('p2-product-list');
-  if (prodList && extracted.product_name) {
-    prodList.innerHTML = `
-      <table class="p2-prod-table">
-        <thead><tr><th>제품</th><th>참조가 (원문)</th><th>출처</th></tr></thead>
-        <tbody>
-          <tr>
-            <td>${_escHtml(extracted.product_name || '—')}</td>
-            <td>${_escHtml(extracted.ref_price_text || '—')}</td>
-            <td>report</td>
-          </tr>
-        </tbody>
-      </table>`;
-  }
 }
 
 function _p2FillExchangeRate() {
@@ -1952,9 +2020,8 @@ async function runP3Pipeline() {
   if (icon) icon.textContent = '…';
   if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
   document.getElementById('p3-result-section').style.display = 'none';
-  _resetP3Progress();
-  _showP3Progress();
-  _setP3Progress('crawl', 'active');
+  const _p3LoadEl = document.getElementById('p3-loading-state');
+  if (_p3LoadEl) _p3LoadEl.style.display = '';
 
   try {
     const res = await fetch('/api/buyers/run', {
@@ -1975,7 +2042,8 @@ async function runP3Pipeline() {
     if (errEl) { errEl.style.display = ''; errEl.textContent = `오류: ${e.message}`; }
     if (btn) btn.disabled = false;
     if (icon) icon.textContent = '▶';
-    _resetP3Progress();
+    const _p3LoadElErr = document.getElementById('p3-loading-state');
+    if (_p3LoadElErr) _p3LoadElErr.style.display = 'none';
   }
 }
 
@@ -1989,8 +2057,8 @@ async function runP3Pipeline() {
       const icon = document.getElementById('p3-run-icon');
       if (btn)  btn.disabled = true;
       if (icon) icon.textContent = '…';
-      _showP3Progress();
-      _setP3Progress(data.step, 'active');
+      const _p3LoadElResume = document.getElementById('p3-loading-state');
+      if (_p3LoadElResume) _p3LoadElResume.style.display = '';
       if (_p3PollTimer) clearInterval(_p3PollTimer);
       _p3PollTimer = setInterval(_pollP3, 2500);
     } else if (data.status === 'done') {
@@ -2000,8 +2068,6 @@ async function runP3Pipeline() {
       _p3PdfName = result.pdf || null;
       document.getElementById('p3-result-section').style.display = '';
       document.getElementById('p3-cards').innerHTML = '';
-      const dlBtn = document.getElementById('p3-dl-btn');
-      if (dlBtn && _p3PdfName) dlBtn.disabled = false;
     }
   } catch (_) {}
 })();
@@ -2012,16 +2078,11 @@ async function _pollP3() {
     const data = await res.json();
 
     const stepOrder = ['crawl', 'enrich', 'rank', 'report'];
-    const idx = stepOrder.indexOf(data.step);
-    if (idx >= 0) {
-      _showP3Progress();
-      for (let i = 0; i < idx; i++) _setP3Progress(stepOrder[i], 'done');
-      _setP3Progress(stepOrder[idx], 'active');
-    }
 
     if (data.status === 'done') {
       clearInterval(_p3PollTimer); _p3PollTimer = null;
-      for (const s of stepOrder) _setP3Progress(s, 'done');
+      const _p3LoadDone = document.getElementById('p3-loading-state');
+      if (_p3LoadDone) _p3LoadDone.style.display = 'none';
       _p3Log('파이프라인 완료 — 결과 불러오는 중…', 'success');
 
       const rr     = await fetch('/api/buyers/result');
@@ -2032,8 +2093,9 @@ async function _pollP3() {
 
       _renderP3Cards(_p3Buyers);
       document.getElementById('p3-result-section').style.display = '';
-      const dlBtn = document.getElementById('p3-dl-btn');
-      if (dlBtn && _p3PdfName) dlBtn.disabled = false;
+      if (_p3PdfName) {
+        _addReportEntry({ trade_name: '바이어 발굴', inn: null, verdict: '—' }, _p3PdfName, 'p3');
+      }
       const btn  = document.getElementById('btn-p3-run');
       const icon = document.getElementById('p3-run-icon');
       if (btn)  btn.disabled = false;
@@ -2043,7 +2105,8 @@ async function _pollP3() {
       clearInterval(_p3PollTimer); _p3PollTimer = null;
       const errEl = document.getElementById('p3-error-msg');
       if (errEl) { errEl.style.display = ''; errEl.textContent = `오류: ${data.step_label || '파이프라인 실패'}`; }
-      if (data.step) _setP3Progress(data.step, 'error');
+      const _p3LoadErr = document.getElementById('p3-loading-state');
+      if (_p3LoadErr) _p3LoadErr.style.display = 'none';
       _p3Log(`오류: ${data.step_label || '파이프라인 실패'}`, 'error');
       const btn  = document.getElementById('btn-p3-run');
       const icon = document.getElementById('p3-run-icon');
