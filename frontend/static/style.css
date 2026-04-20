@@ -1988,7 +1988,7 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 /* 기업 평가 기준 + 다운로드 버튼 한 줄 래퍼 */
 .p3-top-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -1997,13 +1997,16 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   margin-bottom: 0;
 }
 .p3-top-row .p3-report-bar {
-  flex: 1;
+  flex-shrink: 0;
   padding: 0;
   display: flex;
   align-items: stretch;
 }
-.p3-top-row .p3-report-bar .btn-final-report {
-  width: 100%;
+.p3-top-row .btn-final-report {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 기업 평가 기준 박스 */
