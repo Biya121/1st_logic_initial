@@ -351,37 +351,27 @@
 
         <!-- 실행 설정 + 버튼 + 진행 단계 -->
         <div class="selector-card">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <label style="font-size:12px;color:var(--muted);white-space:nowrap;">타깃 국가</label>
-              <select id="inp-target-country"
-                style="font-size:13px;border:1px solid #d0d7e2;border-radius:6px;padding:4px 8px;background:#fff;">
-                <option value="Singapore">싱가포르</option>
-                <option value="Indonesia">인도네시아</option>
-                <option value="Vietnam">베트남</option>
-                <option value="Thailand">태국</option>
-                <option value="Malaysia">말레이시아</option>
-                <option value="Philippines">필리핀</option>
-                <option value="India">인도</option>
-                <option value="Japan">일본</option>
-                <option value="South Korea">한국</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <label style="font-size:12px;color:var(--muted);white-space:nowrap;">검색 범위</label>
-              <select id="inp-target-region"
-                style="font-size:13px;border:1px solid #d0d7e2;border-radius:6px;padding:4px 8px;background:#fff;">
-                <option value="Asia">아시아 전체</option>
-                <option value="Southeast Asia">동남아시아</option>
-                <option value="East Asia">동아시아</option>
-                <option value="South Asia">남아시아</option>
-                <option value="Global">글로벌</option>
-              </select>
-            </div>
-            <button class="btn-analyze" id="btn-p3-run" onclick="runP3Pipeline()" style="margin-left:auto;">
+          <div class="selector-label">1공정 보고서 · 실행</div>
+
+          <!-- 1·2공정 완료 배너 (보고서 있을 때만 표시) -->
+          <div id="p3-ready-banner" class="p3-ready-banner" style="display:none;">
+            <span class="p3-ready-check">✅</span>
+            1·2공정 완료. 전체 맥락이 반영된 바이어 발굴을 실행합니다.
+          </div>
+          <div id="p3-no-report-banner" class="p3-no-report-banner" style="display:none;">
+            ⚠ 1공정 보고서가 없습니다. 먼저 시장조사를 완료해 주세요.
+          </div>
+
+          <!-- 보고서 드롭다운 + 실행 버튼 -->
+          <div class="selector-row" style="margin-top:10px;">
+            <select id="p3-report-select" style="flex:1;" onchange="onP3ReportChange()">
+              <option value="">1공정 보고서를 선택하세요</option>
+            </select>
+            <button class="btn-analyze" id="btn-p3-run" onclick="runP3Pipeline()">
               <span id="p3-run-icon">▶</span> 바이어 발굴 실행
             </button>
           </div>
+
           <div class="progress-row" id="p3-progress-row">
             <div class="prog-step" id="p3prog-crawl">  <div class="prog-dot">1</div><div class="prog-label">1차 수집</div></div>
             <div class="prog-step" id="p3prog-enrich"> <div class="prog-dot">2</div><div class="prog-label">Haiku 분석</div></div>
@@ -457,7 +447,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/app.js?v=5"></script>
+<script src="/static/app.js?v=6"></script>
 <script>
 (function() {
   function initSgMap() {

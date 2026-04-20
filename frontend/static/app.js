@@ -367,6 +367,7 @@ function _addReportEntry(result, pdfName) {
   localStorage.setItem(REPORTS_LS_KEY, JSON.stringify(reports.slice(0, 30)));
   renderReportTab();
   _syncP2ReportsOptions();
+  _syncP3ReportOptions();
 }
 
 function clearAllReports() {
@@ -1801,9 +1802,51 @@ async function loadNews() {
    §11. 3공정 — 바이어 발굴 (P3)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-let _p3PollTimer = null;
-let _p3Buyers    = [];
-let _p3PdfName   = null;
+let _p3PollTimer        = null;
+let _p3Buyers           = [];
+let _p3PdfName          = null;
+let _p3SelectedReportId = '';
+
+function _syncP3ReportOptions() {
+  const sel = document.getElementById('p3-report-select');
+  if (!sel) return;
+  const reports = _loadReports();
+  sel.innerHTML = ['<option value="">1공정 보고서를 선택하세요</option>']
+    .concat(reports.map(r => {
+      const name = r.product || r.report_title || '보고서';
+      return `<option value="${r.id}">1공정 보고서 · ${_escHtml(name)} · ${_escHtml(r.timestamp || '')}</option>`;
+    })).join('');
+
+  const readyBanner    = document.getElementById('p3-ready-banner');
+  const noReportBanner = document.getElementById('p3-no-report-banner');
+  if (reports.length) {
+    if (readyBanner)    readyBanner.style.display    = '';
+    if (noReportBanner) noReportBanner.style.display = 'none';
+    // 최신 보고서 자동 선택
+    if (!_p3SelectedReportId || !reports.find(r => String(r.id) === _p3SelectedReportId)) {
+      _p3SelectedReportId = String(reports[0].id);
+    }
+    sel.value = _p3SelectedReportId;
+  } else {
+    if (readyBanner)    readyBanner.style.display    = 'none';
+    if (noReportBanner) noReportBanner.style.display = '';
+  }
+}
+
+function onP3ReportChange() {
+  const sel = document.getElementById('p3-report-select');
+  _p3SelectedReportId = sel?.value || '';
+  // 선택된 보고서의 품목을 product-select에 연동
+  const report = _loadReports().find(r => String(r.id) === _p3SelectedReportId);
+  if (!report) return;
+  const productSel = document.getElementById('product-select');
+  if (!productSel) return;
+  const productName = (report.product || '').toLowerCase();
+  const matched = [...productSel.options].find(o =>
+    o.text.toLowerCase().includes(productName) || productName.includes(o.value.split('_')[1] || '')
+  );
+  if (matched) productSel.value = matched.value;
+}
 
 function _p3Log(msg, level = 'info') {
   const box = document.getElementById('p3-log-box');
@@ -1857,8 +1900,8 @@ async function runP3Pipeline() {
   const icon    = document.getElementById('p3-run-icon');
   const errEl   = document.getElementById('p3-error-msg');
   const product = document.getElementById('product-select')?.value || 'SG_sereterol_activair';
-  const targetCountry = document.getElementById('inp-target-country')?.value.trim() || 'Singapore';
-  const targetRegion  = document.getElementById('inp-target-region')?.value.trim()  || 'Asia';
+  const targetCountry = 'Singapore';
+  const targetRegion  = 'Asia';
 
   if (btn) btn.disabled = true;
   if (icon) icon.textContent = '…';
@@ -2154,6 +2197,7 @@ function downloadBuyerReport() {
 
 loadKeyStatus();        // API 키 배지
 loadExchange();         // 환율 즉시 로드
+_syncP3ReportOptions(); // P3 보고서 드롭다운 초기화
 setInterval(() => { loadExchange(); }, 10000); // yfinance 실시간 반영 강화
 loadMacro();            // 거시 지표 로드
 renderReportTab();      // 보고서 탭 초기 렌더
