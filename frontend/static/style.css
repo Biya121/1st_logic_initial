@@ -1214,7 +1214,6 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .col-left .process-body,
 .col-right .process-body {
   flex: 1;
-  overflow-y: auto;
 }
 
 /* ── 최종 보고서 다운로드 (인라인 소형 버튼) ─────────────────────────────── */
