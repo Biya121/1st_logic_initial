@@ -332,16 +332,14 @@
 
               <div class="p3-cards-section-title" id="p3-cards-title" style="display:none;">Top 10 · 바이어 카드</div>
               <div id="p3-cards" class="p3-cards-wrap"></div>
+              <div class="p3-report-bar" id="p3-report-bar" style="display:none;">
+                <button class="btn-final-report" id="btn-final-report" onclick="downloadCombinedReport()">
+                  ↓ 최종 보고서 다운로드
+                </button>
+              </div>
             </div>
 
           </div>
-        </div>
-
-        <!-- 최종 보고서 다운로드 -->
-        <div class="final-report-section">
-          <button class="btn-final-report" id="btn-final-report" onclick="downloadCombinedReport()">
-            최종 보고서 다운로드
-          </button>
         </div>
 
       </div><!-- /col-right -->
@@ -351,25 +349,39 @@
 
   <!-- ════ P2 역산·옵션 편집 모달 ════ -->
   <div id="p2-edit-overlay" class="buyer-modal-overlay" style="display:none;" onclick="closeP2EditModal(event)">
-    <div class="buyer-modal" id="p2-edit-modal" style="width:360px;max-width:92vw;padding:22px 24px;">
+    <div class="buyer-modal" id="p2-edit-modal" style="width:400px;max-width:94vw;padding:22px 24px;">
       <button class="buyer-modal-close" onclick="closeP2EditModal()">✕</button>
-      <div style="margin-bottom:16px;">
+      <div style="margin-bottom:14px;">
         <strong id="p2em-title" style="font-size:15px;color:var(--navy);">역산 · 옵션 편집</strong>
       </div>
+      <!-- 기준가 (고정) -->
       <div class="p2-col-input-row">
         <label class="p2-col-input-label">기준가 (SGD)</label>
         <input class="p2-col-input" type="number" id="p2em-base" step="0.1" min="0" oninput="recalcP2ColModal()">
       </div>
-      <div class="p2-col-input-row">
-        <label class="p2-col-input-label">에이전트 수수료(%)</label>
-        <input class="p2-col-input" type="number" id="p2em-fee" step="0.5" min="0" max="50" oninput="recalcP2ColModal()">
+      <!-- 옵션 목록 (fee·freight 포함, 전부 삭제 가능) -->
+      <div style="font-size:11px;color:var(--muted);margin:10px 0 4px;font-weight:700;">추가 옵션</div>
+      <div id="p2em-opts" class="p2-custom-opts"></div>
+      <!-- 옵션 추가 폼 (항상 표시) -->
+      <div class="p2c-opt-row p2c-add-row" style="margin-top:6px;" id="p2em-add-row">
+        <input class="p2c-opt-name-input" type="text" placeholder="옵션명" id="p2em-newname" maxlength="20">
+        <select class="p2c-opt-type-select" id="p2em-newtype">
+          <option value="pct_deduct">% 차감</option>
+          <option value="pct_add">% 가산</option>
+          <option value="multiply">× 배수</option>
+          <option value="divide">÷ 나누기</option>
+          <option value="abs_add">SGD 가산</option>
+          <option value="abs_deduct">SGD 차감</option>
+          <option value="usd_add">USD 가산</option>
+          <option value="usd_deduct">USD 차감</option>
+        </select>
+        <input class="p2c-opt-val" type="number" placeholder="값" id="p2em-newval" step="0.1" min="0">
+        <button class="p2c-confirm-btn" onclick="confirmP2ModalOption()">✓</button>
       </div>
-      <div class="p2-col-input-row">
-        <label class="p2-col-input-label">운임 배수</label>
-        <input class="p2-col-input" type="number" id="p2em-freight" step="0.05" min="0.1" max="5" oninput="recalcP2ColModal()">
+      <!-- 결과 요약 -->
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(23,63,120,.1);font-size:12px;color:var(--muted);">
+        결과: <strong id="p2em-result" style="color:var(--navy);font-size:13px;">—</strong>
       </div>
-      <div id="p2em-opts" class="p2-custom-opts" style="margin-top:8px;"></div>
-      <button class="p2c-add-btn" style="margin-top:6px;" onclick="addP2ModalOption()">+ 옵션 추가</button>
     </div>
   </div>
 

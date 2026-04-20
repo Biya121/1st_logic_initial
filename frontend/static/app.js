@@ -752,11 +752,20 @@ function openP2EditModal(col) {
   const titleEl = document.getElementById('p2em-title');
   if (titleEl) titleEl.textContent = `${labels[col] || col} — 역산 · 옵션 편집`;
 
-  document.getElementById('p2em-base').value    = document.getElementById('p2ci-base-'    + col)?.value || 0;
-  document.getElementById('p2em-fee').value     = document.getElementById('p2ci-fee-'     + col)?.value || 0;
-  document.getElementById('p2em-freight').value = document.getElementById('p2ci-freight-' + col)?.value || 1;
+  // 기준가 동기화
+  document.getElementById('p2em-base').value = document.getElementById('p2ci-base-' + col)?.value || 0;
 
-  _renderP2ModalOpts(false);
+  // opts가 없으면 fee·freight 기본값으로 초기화
+  if (!_p2ColData[col] || !_p2ColData[col].opts.length) {
+    const feeDefault     = { agg: 3.0, avg: 5.0, cons: 10.0 }[col] ?? 5.0;
+    const freightDefault = { agg: 0.85, avg: 1.0, cons: 1.20 }[col] ?? 1.0;
+    _p2ColData[col] = { opts: [
+      { id: 'fee',     name: '에이전트 수수료', type: 'pct_deduct', value: feeDefault },
+      { id: 'freight', name: '운임 배수',       type: 'multiply',   value: freightDefault },
+    ]};
+  }
+
+  _renderP2ModalOpts();
   document.getElementById('p2-edit-overlay').style.display = '';
   document.body.style.overflow = 'hidden';
 }
@@ -770,80 +779,108 @@ function closeP2EditModal(e) {
 
 function recalcP2ColModal() {
   if (!_p2EditCol) return;
-  document.getElementById('p2ci-base-'    + _p2EditCol).value = document.getElementById('p2em-base').value;
-  document.getElementById('p2ci-fee-'     + _p2EditCol).value = document.getElementById('p2em-fee').value;
-  document.getElementById('p2ci-freight-' + _p2EditCol).value = document.getElementById('p2em-freight').value;
+  const baseEl = document.getElementById('p2ci-base-' + _p2EditCol);
+  if (baseEl) baseEl.value = document.getElementById('p2em-base').value;
   recalcP2Col(_p2EditCol);
+  _updateP2ModalResult();
 }
 
-function _renderP2ModalOpts(showAddForm) {
+function _updateP2ModalResult() {
+  const col = _p2EditCol;
+  if (!col) return;
+  const base   = parseFloat(document.getElementById('p2ci-base-' + col)?.value || 0);
+  const sgdUsd = _p2ScenarioRaw.sgd_usd || 0;
+  const sgdKrw = _p2ScenarioRaw.sgd_krw || 0;
+  let priceSgd = base;
+  const opts = _p2ColData[col]?.opts || [];
+  for (const opt of opts) {
+    const v = opt.value ?? 0;
+    if      (opt.type === 'pct_add')    priceSgd *= (1 + v / 100);
+    else if (opt.type === 'pct_deduct') priceSgd *= (1 - v / 100);
+    else if (opt.type === 'multiply')   priceSgd *= v;
+    else if (opt.type === 'divide')     { if (v !== 0) priceSgd /= v; }
+    else if (opt.type === 'abs_add')    priceSgd += v;
+    else if (opt.type === 'abs_deduct') priceSgd -= v;
+    else if (opt.type === 'usd_add')    priceSgd += sgdUsd > 0 ? v / sgdUsd : 0;
+    else if (opt.type === 'usd_deduct') priceSgd -= sgdUsd > 0 ? v / sgdUsd : 0;
+  }
+  priceSgd = Math.max(0, priceSgd);
+  const usdVal = sgdUsd > 0 ? priceSgd / sgdUsd : 0;
+  const krw    = sgdKrw > 0 ? Math.round(priceSgd * sgdKrw).toLocaleString('ko-KR') : '—';
+  const resultEl = document.getElementById('p2em-result');
+  if (resultEl) resultEl.textContent = usdVal > 0
+    ? `${usdVal.toFixed(2)} USD  (${priceSgd.toFixed(2)} SGD · ${krw} KRW)`
+    : '—';
+}
+
+const _P2_TYPE_LABEL = {
+  pct_add: '% 가산', pct_deduct: '% 차감',
+  multiply: '× 배수', divide: '÷ 나누기',
+  abs_add: 'SGD 가산', abs_deduct: 'SGD 차감',
+  usd_add: 'USD 가산', usd_deduct: 'USD 차감',
+};
+
+function _renderP2ModalOpts() {
   const col = _p2EditCol;
   if (!col) return;
   const container = document.getElementById('p2em-opts');
   if (!container) return;
   const opts = (_p2ColData[col] || { opts: [] }).opts;
-  const typeLabel = { pct_add: '% 가산', pct_deduct: '% 차감', abs_add: 'SGD 가산' };
 
-  let html = opts.map(opt => `
+  container.innerHTML = opts.map(opt => `
     <div class="p2c-opt-row">
       <span class="p2c-opt-name">${_escHtml(opt.name)}</span>
-      <span class="p2c-opt-type-label">${typeLabel[opt.type] || opt.type}</span>
+      <span class="p2c-opt-type-label">${_P2_TYPE_LABEL[opt.type] || opt.type}</span>
       <input class="p2c-opt-val" type="number" value="${opt.value}" step="0.1" min="0"
-        onchange="updateP2ColOption('${col}','${_escHtml(opt.id)}',this.value);_renderP2ModalOpts(false)">
-      <button class="p2c-opt-del" onclick="removeP2ColOption('${col}','${_escHtml(opt.id)}');_renderP2ModalOpts(false)">×</button>
+        onchange="updateP2ColOption('${col}','${_escHtml(opt.id)}',this.value)">
+      <button class="p2c-opt-del" onclick="removeP2ColOption('${col}','${_escHtml(opt.id)}')">×</button>
     </div>`).join('');
 
-  if (showAddForm) {
-    html += `
-      <div class="p2c-opt-row p2c-add-row">
-        <input class="p2c-opt-name-input" type="text" placeholder="옵션명" id="p2em-newname" maxlength="20">
-        <select class="p2c-opt-type-select" id="p2em-newtype">
-          <option value="pct_deduct">% 차감</option>
-          <option value="pct_add">% 가산</option>
-          <option value="abs_add">SGD 가산</option>
-        </select>
-        <input class="p2c-opt-val" type="number" placeholder="값" id="p2em-newval" step="0.1" min="0">
-        <button class="p2c-confirm-btn" onclick="confirmP2ModalOption()">✓</button>
-      </div>`;
-  }
-  container.innerHTML = html;
-}
-
-function addP2ModalOption() {
-  _renderP2ModalOpts(true);
+  _updateP2ModalResult();
 }
 
 function confirmP2ModalOption() {
   const col = _p2EditCol;
   if (!col) return;
-  const name = (document.getElementById('p2em-newname')?.value || '').trim();
+  const nameEl = document.getElementById('p2em-newname');
+  const name = (nameEl?.value || '').trim();
   const type = document.getElementById('p2em-newtype')?.value || 'pct_deduct';
   const val  = parseFloat(document.getElementById('p2em-newval')?.value || '0');
-  if (!name || Number.isNaN(val) || val < 0) return;
+  if (!name || Number.isNaN(val)) return;
   _p2ColData[col] = _p2ColData[col] || { opts: [] };
   _p2ColData[col].opts.push({ id: 'o' + Date.now(), name, type, value: val });
-  _renderP2ModalOpts(false);
+  // 입력창 초기화 (폼은 항상 표시 유지)
+  if (nameEl) nameEl.value = '';
+  const valEl = document.getElementById('p2em-newval');
+  if (valEl) valEl.value = '';
+  _renderP2ModalOpts();
   recalcP2Col(col);
 }
 
-/* P2 3열 카드: 기준가/수수료/운임/커스텀옵션 변경 시 가격 재계산 (USD 기준 표시) */
+/* P2 3열 카드: 기준가 + opts 배열 기반 재계산 (USD 환산 수정: × sgd_usd) */
 function recalcP2Col(col) {
-  const base    = parseFloat(document.getElementById('p2ci-base-' + col)?.value || 0);
-  const fee     = parseFloat(document.getElementById('p2ci-fee-' + col)?.value || 0);
-  const freight = parseFloat(document.getElementById('p2ci-freight-' + col)?.value || 1);
+  const base   = parseFloat(document.getElementById('p2ci-base-' + col)?.value || 0);
+  const sgdUsd = _p2ScenarioRaw.sgd_usd || 0;
+  const sgdKrw = _p2ScenarioRaw.sgd_krw || 0;
 
-  let priceSgd = base * (1 - fee / 100) * freight;
+  let priceSgd = base;
 
   const opts = _p2ColData[col]?.opts || [];
   for (const opt of opts) {
-    if (opt.type === 'pct_add')        priceSgd *= (1 + opt.value / 100);
-    else if (opt.type === 'pct_deduct') priceSgd *= (1 - opt.value / 100);
-    else if (opt.type === 'abs_add')    priceSgd += opt.value;
+    const v = opt.value ?? 0;
+    if      (opt.type === 'pct_add')    priceSgd *= (1 + v / 100);
+    else if (opt.type === 'pct_deduct') priceSgd *= (1 - v / 100);
+    else if (opt.type === 'multiply')   priceSgd *= v;
+    else if (opt.type === 'divide')     { if (v !== 0) priceSgd /= v; }
+    else if (opt.type === 'abs_add')    priceSgd += v;
+    else if (opt.type === 'abs_deduct') priceSgd -= v;
+    else if (opt.type === 'usd_add')    priceSgd += sgdUsd > 0 ? v / sgdUsd : 0;
+    else if (opt.type === 'usd_deduct') priceSgd -= sgdUsd > 0 ? v / sgdUsd : 0;
   }
   priceSgd = Math.max(0, priceSgd);
 
-  const usdVal = _p2ScenarioRaw.sgd_usd > 0 ? priceSgd / _p2ScenarioRaw.sgd_usd : 0;
-  const krw    = _p2ScenarioRaw.sgd_krw > 0 ? Math.round(priceSgd * _p2ScenarioRaw.sgd_krw).toLocaleString('ko-KR') : '—';
+  const usdVal = sgdUsd > 0 ? priceSgd / sgdUsd : 0;
+  const krw    = sgdKrw > 0 ? Math.round(priceSgd * sgdKrw).toLocaleString('ko-KR') : '—';
 
   const priceEl = document.getElementById('p2c-price-' + col);
   const subEl   = document.getElementById('p2c-sub-' + col);
@@ -851,54 +888,9 @@ function recalcP2Col(col) {
   if (subEl)   subEl.textContent   = `${priceSgd.toFixed(2)} SGD · ${krw} KRW`;
 }
 
-/* P2 컬럼 커스텀 옵션 렌더링 */
-function renderP2ColOptions(col, showAddForm) {
-  const container = document.getElementById('p2co-' + col);
-  if (!container) return;
-  const opts = (_p2ColData[col] || { opts: [] }).opts;
-
-  const typeLabel = { pct_add: '% 가산', pct_deduct: '% 차감', abs_add: 'SGD 가산' };
-
-  let html = opts.map(opt => `
-    <div class="p2c-opt-row">
-      <span class="p2c-opt-name">${_escHtml(opt.name)}</span>
-      <span class="p2c-opt-type-label">${typeLabel[opt.type] || opt.type}</span>
-      <input class="p2c-opt-val" type="number" value="${opt.value}" step="0.1" min="0"
-        onchange="updateP2ColOption('${col}','${_escHtml(opt.id)}',this.value)">
-      <button class="p2c-opt-del" onclick="removeP2ColOption('${col}','${_escHtml(opt.id)}')">×</button>
-    </div>`).join('');
-
-  if (showAddForm) {
-    html += `
-      <div class="p2c-opt-row p2c-add-row">
-        <input class="p2c-opt-name-input" type="text" placeholder="옵션명" id="p2c-newname-${col}" maxlength="20">
-        <select class="p2c-opt-type-select" id="p2c-newtype-${col}">
-          <option value="pct_deduct">% 차감</option>
-          <option value="pct_add">% 가산</option>
-          <option value="abs_add">SGD 가산</option>
-        </select>
-        <input class="p2c-opt-val" type="number" placeholder="값" id="p2c-newval-${col}" step="0.1" min="0">
-        <button class="p2c-confirm-btn" onclick="confirmP2ColOption('${col}')">✓</button>
-      </div>`;
-  }
-
-  container.innerHTML = html;
-}
-
-/* 옵션 추가 (버튼 클릭) */
-function addP2ColOption(col) {
-  renderP2ColOptions(col, true);
-}
-
-/* 입력 확정 */
-function confirmP2ColOption(col) {
-  const name = (document.getElementById('p2c-newname-' + col)?.value || '').trim();
-  const type = document.getElementById('p2c-newtype-' + col)?.value || 'pct_deduct';
-  const val  = parseFloat(document.getElementById('p2c-newval-' + col)?.value || '0');
-  if (!name || Number.isNaN(val) || val < 0) return;
-  _p2ColData[col] = _p2ColData[col] || { opts: [] };
-  _p2ColData[col].opts.push({ id: 'o' + Date.now(), name, type, value: val });
-  renderP2ColOptions(col, false);
+/* renderP2ColOptions — 모달 전용 _renderP2ModalOpts로 통합됨 (호환용 stub) */
+function renderP2ColOptions(col) {
+  if (_p2EditCol === col) _renderP2ModalOpts();
   recalcP2Col(col);
 }
 
@@ -906,7 +898,7 @@ function confirmP2ColOption(col) {
 function removeP2ColOption(col, optId) {
   if (!_p2ColData[col]) return;
   _p2ColData[col].opts = _p2ColData[col].opts.filter(o => o.id !== optId);
-  renderP2ColOptions(col, false);
+  if (_p2EditCol === col) _renderP2ModalOpts();
   recalcP2Col(col);
 }
 
@@ -914,7 +906,11 @@ function removeP2ColOption(col, optId) {
 function updateP2ColOption(col, optId, newVal) {
   if (!_p2ColData[col]) return;
   const opt = _p2ColData[col].opts.find(o => o.id === optId);
-  if (opt) { opt.value = parseFloat(newVal) || 0; recalcP2Col(col); }
+  if (opt) {
+    opt.value = parseFloat(newVal) ?? 0;
+    recalcP2Col(col);
+    if (_p2EditCol === col) _updateP2ModalResult();
+  }
 }
 
 function _renderP2AiResult(data) {
@@ -1008,17 +1004,16 @@ function _renderP2AiResult(data) {
 
     if (refEl)     refEl.textContent   = refLabel;
     if (baseInput) baseInput.value     = priceSgd.toFixed(2);
-    if (priceEl) {
-      const usdMain = sgdUsd > 0 ? (priceSgd / sgdUsd).toFixed(2) : '—';
-      priceEl.textContent = usdMain;
-    }
-    if (subEl) {
-      const krw = sgdKrw > 0 ? Math.round(priceSgd * sgdKrw).toLocaleString('ko-KR') : '—';
-      subEl.textContent = `${priceSgd.toFixed(2)} SGD · ${krw} KRW`;
-    }
-    // Reset custom options for each column on new AI result
-    _p2ColData[col] = { opts: [] };
-    renderP2ColOptions(col, false);
+    // Reset custom options: fee·freight as default deletable opts
+    const feeDefault     = { agg: 3.0,  avg: 5.0,  cons: 10.0 }[col] ?? 5.0;
+    const freightDefault = { agg: 0.85, avg: 1.0,  cons: 1.20 }[col] ?? 1.0;
+    _p2ColData[col] = { opts: [
+      { id: 'fee',     name: '에이전트 수수료', type: 'pct_deduct', value: feeDefault },
+      { id: 'freight', name: '운임 배수',       type: 'multiply',   value: freightDefault },
+    ]};
+
+    // Initial display: apply default opts before rendering
+    recalcP2Col(col);
   });
 
   // 경쟁가 분포
@@ -1917,6 +1912,7 @@ async function loadNews() {
 
 let _p3PollTimer        = null;
 let _p3Buyers           = [];
+let _p3DisplayedBuyers  = [];   // 재배열 후 현재 표시 순서
 let _p3PdfName          = null;
 let _p3SelectedReportId = '';
 
@@ -2019,7 +2015,9 @@ async function runP3Pipeline() {
   if (btn) btn.disabled = true;
   if (icon) icon.textContent = '…';
   if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
-  document.getElementById('p3-result-section').style.display = 'none';
+  // 스켈레톤으로 레이아웃 고정 후 섹션 표시
+  _renderP3Skeleton();
+  document.getElementById('p3-result-section').style.display = '';
   const _p3LoadEl = document.getElementById('p3-loading-state');
   if (_p3LoadEl) _p3LoadEl.style.display = '';
 
@@ -2117,10 +2115,27 @@ async function _pollP3() {
 }
 
 
-/** Top 10 카드 렌더링 */
+/** Top 10 스켈레톤 렌더링 (레이아웃 고정용) */
+function _renderP3Skeleton() {
+  const wrap = document.getElementById('p3-cards');
+  if (!wrap) return;
+  wrap.innerHTML = Array.from({ length: 10 }, () => `
+    <div class="p3-card-skeleton">
+      <div class="p3-skel-line" style="height:12px;width:60%;"></div>
+      <div class="p3-skel-line" style="height:10px;width:40%;"></div>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <div class="p3-skel-line" style="height:18px;width:56px;border-radius:20px;"></div>
+        <div class="p3-skel-line" style="height:18px;width:48px;border-radius:20px;"></div>
+      </div>
+    </div>`).join('');
+}
+
+/** Top 10 카드 렌더링 (2×5 컴팩트) */
 function _renderP3Cards(buyers) {
   const wrap = document.getElementById('p3-cards');
   if (!wrap) return;
+
+  _p3DisplayedBuyers = buyers;   // 현재 표시 순서 저장 (재배열 후 모달 참조용)
 
   if (!buyers.length) {
     wrap.innerHTML = '<div class="p3-empty">발굴된 바이어가 없습니다.</div>';
@@ -2128,20 +2143,9 @@ function _renderP3Cards(buyers) {
   }
 
   wrap.innerHTML = buyers.map((b, i) => {
-    const pri       = b.priority === 1 ? 1 : 2;
-    const priLabel  = pri === 1 ? '성분 일치' : 'Singapore';
-    const priClass  = pri === 1 ? 'p3-tag-p1' : 'p3-tag-p2';
-    const matched   = (b.matched_ingredients || []).join(' · ') || '';
-    const country   = b.country || '-';
-    const email     = b.email   || '-';
-    const phone     = b.phone   || '-';
-    const category  = b.category|| '-';
-    const _reason   = (b.enriched?.recommendation_reason || '').trim();
-    const reasonPreview = (_reason && _reason !== '-')
-      ? _reason.split(/[.。!?！？]\s+/).slice(0,3).join('. ').slice(0,200) + (_reason.length > 200 ? '…' : '')
-      : '';
+    const priLabel = b.priority === 1 ? '성분 일치' : 'Singapore';
+    const priClass = b.priority === 1 ? 'p3-tag-p1' : 'p3-tag-p2';
 
-    // 유효한 태그만 표시
     const tags = [];
     if (b.enriched?.has_gmp)         tags.push('GMP인증');
     if (b.enriched?.mah_capable)     tags.push('MAH가능');
@@ -2154,35 +2158,26 @@ function _renderP3Cards(buyers) {
     return `
       <div class="p3-card" onclick="showBuyerDetail(${i})" style="cursor:pointer;">
         <div class="p3-card-top">
-          <span class="p3-card-rank">${i+1}</span>
+          <span class="p3-card-rank">${i + 1}</span>
           <span class="p3-tag ${priClass}">${priLabel}</span>
         </div>
         <div class="p3-card-name">${_escHtml(b.company_name || '-')}</div>
-        <div class="p3-card-country">${_escHtml(country)} · ${_escHtml(category)}</div>
-        ${reasonPreview ? `<div class="p3-card-reason">${_escHtml(reasonPreview)}</div>` : ''}
-        ${matched ? `<div class="p3-card-match">🧪 ${_escHtml(matched)}</div>` : ''}
-        <div class="p3-card-contact">
-          ${email !== '-' ? `<div>✉ ${_escHtml(email)}</div>` : ''}
-          ${phone !== '-' ? `<div>☎ ${_escHtml(phone)}</div>` : ''}
-        </div>
         ${tagHtml ? `<div class="p3-card-tags">${tagHtml}</div>` : ''}
         <div class="p3-card-hint">클릭하여 상세 보기</div>
       </div>`;
   }).join('');
 
-  // 체크박스 이벤트 바인딩 + 카드/기준 섹션 표시
-  document.querySelectorAll('.p3-cb').forEach(cb => {
-    cb.onchange = () => p3ReRank();
-  });
   const criteriaBox = document.getElementById('p3-criteria-box');
   const cardsTitle  = document.getElementById('p3-cards-title');
+  const reportBar   = document.getElementById('p3-report-bar');
   if (criteriaBox) criteriaBox.style.display = '';
   if (cardsTitle)  cardsTitle.style.display  = '';
+  if (reportBar)   reportBar.style.display   = '';
 }
 
-/** 바이어 상세 모달 열기 */
+/** 바이어 상세 모달 열기 — 재배열 후에도 현재 표시 순서(_p3DisplayedBuyers) 기준 */
 function showBuyerDetail(idx) {
-  const b = _p3Buyers[idx];
+  const b = _p3DisplayedBuyers[idx] || _p3Buyers[idx];
   if (!b) return;
   const e = b.enriched || {};
   const priLabel = b.priority === 1 ? '성분 일치' : 'Singapore';

@@ -329,7 +329,7 @@ async def api_exchange() -> JSONResponse:
         fallback: dict[str, Any] = {
             "sgd_krw": 1085.0,
             "usd_krw": 1393.0,
-            "sgd_usd": 0.7795,
+            "sgd_usd": 1.3500,   # USDSGD 방향 (1 USD ≈ 1.35 SGD); 프론트엔드에서 priceSgd / sgd_usd 로 USD 환산
             "sgd_jpy": 113.2,
             "sgd_cny": 5.63,
             "source": "폴백 (Yahoo Finance 연결 실패)",
@@ -783,7 +783,7 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
 
         exchange_rates: dict[str, Any] = {
             "sgd_krw": 1085.0, "usd_krw": 1393.0,
-            "sgd_usd": 0.7795, "source": "폴백값 (Yahoo Finance 연결 실패)",
+            "sgd_usd": 1.3500, "source": "폴백값 (Yahoo Finance 연결 실패)",
         }
         try:
             import yfinance as yf  # type: ignore[import]
