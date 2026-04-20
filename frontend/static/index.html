@@ -50,7 +50,7 @@
                 <span class="manual-step-num">01</span>
                 <div class="manual-step-info">
                   <div class="manual-step-title">수출가격 전략</div>
-                  <div class="manual-step-desc">품목 선택 후 분석 실행 → Claude AI 시장조사 자동 진행 + PDF 생성 → 완료 후 보고서 선택 &amp; AI 가격 분석 실행 → 공격·평균·보수 3가지 시나리오 제시.</div>
+                  <div class="manual-step-desc">품목 선택 후 분석 실행 → Claude AI 시장조사 자동 진행 + PDF 생성 → 완료 후 보고서 선택 &amp; AI 가격 분석 실행 → 저가 진입·기준가·프리미엄 3가지 시나리오 제시.</div>
                 </div>
               </div>
               <div class="manual-step">
@@ -159,7 +159,7 @@
 
                   <div class="p2-col p2-col--agg" onclick="openP2EditModal('agg')" style="cursor:pointer;">
                     <div class="p2-col-rank-row">
-                      <span class="p2-col-label">공격적</span>
+                      <span class="p2-col-label">저가 진입</span>
                     </div>
                     <div class="p2-col-price" id="p2c-price-agg">—</div>
                     <div class="p2-col-currency">USD</div>
@@ -169,7 +169,7 @@
 
                   <div class="p2-col p2-col--avg" onclick="openP2EditModal('avg')" style="cursor:pointer;">
                     <div class="p2-col-rank-row">
-                      <span class="p2-col-label">평균</span>
+                      <span class="p2-col-label">기준가</span>
                     </div>
                     <div class="p2-col-price" id="p2c-price-avg">—</div>
                     <div class="p2-col-currency">USD</div>
@@ -179,7 +179,7 @@
 
                   <div class="p2-col p2-col--cons" onclick="openP2EditModal('cons')" style="cursor:pointer;">
                     <div class="p2-col-rank-row">
-                      <span class="p2-col-label">보수적</span>
+                      <span class="p2-col-label">프리미엄</span>
                     </div>
                     <div class="p2-col-price" id="p2c-price-cons">—</div>
                     <div class="p2-col-currency">USD</div>
@@ -330,7 +330,7 @@
                 </div>
               </div>
 
-              <div class="p3-cards-section-title" id="p3-cards-title" style="display:none;">Top 10 · 바이어 카드</div>
+              <div class="p3-cards-section-title" id="p3-cards-title" style="display:none;">Top 10</div>
               <div id="p3-cards" class="p3-cards-wrap"></div>
               <div class="p3-report-bar" id="p3-report-bar" style="display:none;">
                 <button class="btn-final-report" id="btn-final-report" onclick="downloadCombinedReport()">
@@ -354,10 +354,21 @@
       <div style="margin-bottom:14px;">
         <strong id="p2em-title" style="font-size:15px;color:var(--navy);">역산 · 옵션 편집</strong>
       </div>
-      <!-- 기준가 (고정) -->
+      <!-- 보고서 SGD 참조 (읽기 전용) -->
       <div class="p2-col-input-row">
-        <label class="p2-col-input-label">기준가 (SGD)</label>
-        <input class="p2-col-input" type="number" id="p2em-base" step="0.1" min="0" oninput="recalcP2ColModal()">
+        <label class="p2-col-input-label">보고서 SGD</label>
+        <div class="p2-col-input" style="display:flex;align-items:center;gap:6px;background:var(--bg-soft,#f4f6fb);cursor:default;pointer-events:none;">
+          <span id="p2em-ref-sgd" style="font-weight:700;color:var(--navy,#173f78);">—</span>
+          <span style="font-size:11px;color:var(--muted,#8a96a8);">SGD</span>
+          <span style="font-size:11px;color:var(--muted,#8a96a8);">≈</span>
+          <span id="p2em-ref-usd" style="font-weight:600;color:#2a9d8f;font-size:12px;">—</span>
+          <span style="font-size:11px;color:var(--muted,#8a96a8);">USD</span>
+        </div>
+      </div>
+      <!-- 기준가 (USD) -->
+      <div class="p2-col-input-row">
+        <label class="p2-col-input-label">기준가 (USD)</label>
+        <input class="p2-col-input" type="number" id="p2em-base" step="0.01" min="0" oninput="recalcP2ColModal()">
       </div>
       <!-- 옵션 목록 (fee·freight 포함, 전부 삭제 가능) -->
       <div style="font-size:11px;color:var(--muted);margin:10px 0 4px;font-weight:700;">추가 옵션</div>

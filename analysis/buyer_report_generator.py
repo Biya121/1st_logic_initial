@@ -69,22 +69,22 @@ def _styles() -> dict:
 
     return {
         "cover_title": _s("cover_title", fontSize=22, leading=30, textColor=_NAVY,
-                          fontName=_FONT_BOLD_NAME, spaceAfter=4),
+                          fontName=_FONT_BOLD_NAME, spaceAfter=4, wordWrap="CJK"),
         "cover_sub":   _s("cover_sub",   fontSize=13, leading=18, textColor=_MUTED,
-                          fontName=_FONT, spaceAfter=12),
+                          fontName=_FONT, spaceAfter=12, wordWrap="CJK"),
         "section":     _s("section",     fontSize=10, leading=14, textColor=_NAVY,
-                          fontName=_FONT_BOLD_NAME, spaceBefore=8, spaceAfter=3),
+                          fontName=_FONT_BOLD_NAME, spaceBefore=8, spaceAfter=3, wordWrap="CJK"),
         "body":        _s("body",        fontSize=9,  leading=14, textColor=colors.black,
-                          fontName=_FONT, spaceAfter=2),
+                          fontName=_FONT, spaceAfter=2, wordWrap="CJK"),
         "small":       _s("small",       fontSize=8,  leading=12, textColor=_MUTED,
-                          fontName=_FONT),
+                          fontName=_FONT, wordWrap="CJK"),
         "reason":      _s("reason",      fontSize=9,  leading=15, textColor=colors.black,
-                          fontName=_FONT, spaceAfter=2,
+                          fontName=_FONT, spaceAfter=2, wordWrap="CJK",
                           backColor=_REASON, borderPadding=(6, 8, 6, 8)),
         "overview":    _s("overview",    fontSize=9,  leading=14, textColor=colors.black,
-                          fontName=_FONT, spaceAfter=2),
+                          fontName=_FONT, spaceAfter=2, wordWrap="CJK"),
         "link":        _s("link",        fontSize=8,  leading=12, textColor=colors.blue,
-                          fontName=_FONT),
+                          fontName=_FONT, wordWrap="CJK"),
     }
 
 
@@ -166,12 +166,12 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
         Paragraph(
             f"{idx}.  {name}",
             ParagraphStyle("hdr", fontSize=14, textColor=_NAVY,
-                           fontName=_FONT_BOLD_NAME, leading=18),
+                           fontName=_FONT_BOLD_NAME, leading=18, wordWrap="CJK"),
         ),
         Paragraph(
             f"{country}  ·  {_dash(c.get('category'))}",
             ParagraphStyle("hdr_r", fontSize=9, textColor=_MUTED,
-                           fontName=_FONT, leading=12),
+                           fontName=_FONT, leading=12, wordWrap="CJK"),
         ),
     ]]
     hdr_tbl = Table(hdr_data, colWidths=[120*mm, 65*mm])

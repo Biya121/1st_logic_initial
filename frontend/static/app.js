@@ -748,12 +748,21 @@ let _p2EditCol = null;
 
 function openP2EditModal(col) {
   _p2EditCol = col;
-  const labels = { agg: '공격적', avg: '평균', cons: '보수적' };
+  const labels = { agg: '저가 진입', avg: '기준가', cons: '프리미엄' };
   const titleEl = document.getElementById('p2em-title');
   if (titleEl) titleEl.textContent = `${labels[col] || col} — 역산 · 옵션 편집`;
 
-  // 기준가 동기화
-  document.getElementById('p2em-base').value = document.getElementById('p2ci-base-' + col)?.value || 0;
+  // 보고서 SGD 참조 표시
+  const sgdVal  = parseFloat(document.getElementById('p2ci-base-' + col)?.value || 0);
+  const sgdUsd  = _p2ScenarioRaw.sgd_usd || 0;
+  const refSgdEl = document.getElementById('p2em-ref-sgd');
+  const refUsdEl = document.getElementById('p2em-ref-usd');
+  if (refSgdEl) refSgdEl.textContent = sgdVal > 0 ? sgdVal.toFixed(2) : '—';
+  if (refUsdEl) refUsdEl.textContent = (sgdVal > 0 && sgdUsd > 0) ? (sgdVal / sgdUsd).toFixed(2) : '—';
+
+  // 기준가 USD로 초기화
+  const initUsd = (sgdVal > 0 && sgdUsd > 0) ? (sgdVal / sgdUsd).toFixed(2) : sgdVal.toFixed(2);
+  document.getElementById('p2em-base').value = initUsd;
 
   // opts가 없으면 fee·freight 기본값으로 초기화
   if (!_p2ColData[col] || !_p2ColData[col].opts.length) {
@@ -779,8 +788,10 @@ function closeP2EditModal(e) {
 
 function recalcP2ColModal() {
   if (!_p2EditCol) return;
+  const usdVal = parseFloat(document.getElementById('p2em-base').value || 0);
+  const sgdUsd = _p2ScenarioRaw.sgd_usd || 0;
   const baseEl = document.getElementById('p2ci-base-' + _p2EditCol);
-  if (baseEl) baseEl.value = document.getElementById('p2em-base').value;
+  if (baseEl) baseEl.value = (sgdUsd > 0 ? usdVal * sgdUsd : usdVal).toFixed(4);
   recalcP2Col(_p2EditCol);
   _updateP2ModalResult();
 }
@@ -1315,9 +1326,9 @@ async function _generateP2Pdf() {
       formula_str: sc.formulaStr,
       mode_label: '직접 입력',
       scenarios: [
-        { label: '공격', price: sc.agg,  reason: sc.aggReason  || '', formula: sc.aggFormula  || '' },
-        { label: '평균', price: sc.avg,  reason: sc.avgReason  || '', formula: sc.avgFormula  || '' },
-        { label: '보수', price: sc.cons, reason: sc.consReason || '', formula: sc.consFormula || '' },
+        { label: '저가 진입', price: sc.agg,  reason: sc.aggReason  || '', formula: sc.aggFormula  || '' },
+        { label: '기준가',   price: sc.avg,  reason: sc.avgReason  || '', formula: sc.avgFormula  || '' },
+        { label: '프리미엄', price: sc.cons, reason: sc.consReason || '', formula: sc.consFormula || '' },
       ],
       ai_rationale: [],
     };
@@ -2154,16 +2165,15 @@ function _renderP3Cards(buyers) {
     if (b.enriched?.korea_experience && b.enriched.korea_experience !== '-' && b.enriched.korea_experience !== '없음')
                                      tags.push('한국거래');
     const tagHtml = tags.map(t => `<span class="p3-tag p3-tag-info">${_escHtml(t)}</span>`).join('');
+    const country = _escHtml(b.country || 'Singapore');
 
     return `
-      <div class="p3-card" onclick="showBuyerDetail(${i})" style="cursor:pointer;">
-        <div class="p3-card-top">
-          <span class="p3-card-rank">${i + 1}</span>
-          <span class="p3-tag ${priClass}">${priLabel}</span>
-        </div>
-        <div class="p3-card-name">${_escHtml(b.company_name || '-')}</div>
-        ${tagHtml ? `<div class="p3-card-tags">${tagHtml}</div>` : ''}
-        <div class="p3-card-hint">클릭하여 상세 보기</div>
+      <div class="p3-list-row" onclick="showBuyerDetail(${i})">
+        <span class="p3-card-rank">${i + 1}</span>
+        <span class="p3-tag ${priClass}">${priLabel}</span>
+        <span class="p3-list-name">${_escHtml(b.company_name || '-')}</span>
+        <span class="p3-list-country">${country}</span>
+        ${tagHtml ? `<div class="p3-list-tags">${tagHtml}</div>` : ''}
       </div>`;
   }).join('');
 
