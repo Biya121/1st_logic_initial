@@ -820,7 +820,7 @@ function _updateP2ModalResult() {
   const krw    = sgdKrw > 0 ? Math.round(priceSgd * sgdKrw).toLocaleString('ko-KR') : '—';
   const resultEl = document.getElementById('p2em-result');
   if (resultEl) resultEl.textContent = usdVal > 0
-    ? `${usdVal.toFixed(2)} USD\n${priceSgd.toFixed(2)} SGD · ${krw} KRW`
+    ? `${usdVal.toFixed(2)} USD · ${priceSgd.toFixed(2)} SGD`
     : '—';
 }
 
@@ -896,7 +896,7 @@ function recalcP2Col(col) {
   const priceEl = document.getElementById('p2c-price-' + col);
   const subEl   = document.getElementById('p2c-sub-' + col);
   if (priceEl) priceEl.textContent = usdVal > 0 ? usdVal.toFixed(2) : '—';
-  if (subEl)   subEl.textContent   = `${priceSgd.toFixed(2)} SGD\n${krw} KRW`;
+  if (subEl)   subEl.textContent   = `${priceSgd.toFixed(2)} SGD`;
 }
 
 /* renderP2ColOptions — 모달 전용 _renderP2ModalOpts로 통합됨 (호환용 stub) */
@@ -1699,7 +1699,7 @@ function renderResult(result, refs, pdfName) {
 
     // 완료 노트 표시 (result-card는 숨김 DOM이므로 visible 처리 안 함)
     _showP1Note(
-      `✅ ${result.trade_name || '제품'} 분석 완료 — 판정: ${vLabel}. 상세 결과는 보고서 탭에서 확인하세요.`,
+      `✅ ${result.trade_name || '제품'} 분석 완료 - 가격 분석을 진행하세요.`,
       false
     );
   }

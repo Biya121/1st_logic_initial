@@ -9,10 +9,16 @@
 
 from __future__ import annotations
 
+import html as _html
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+
+def _esc(text: Any) -> str:
+    """XML 특수문자 이스케이프 — ReportLab Paragraph 파싱 오류 방지."""
+    return _html.escape(str(text)) if text is not None else ""
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -105,8 +111,8 @@ def _build_cover(product_label: str, company_count: int, styles: dict) -> list:
     return [
         Spacer(1, 30*mm),
         Paragraph("바이어 발굴 보고서", styles["cover_title"]),
-        Paragraph(f"제품: {product_label}", styles["cover_sub"]),
-        Paragraph(f"발굴 기업 수: {company_count}개  |  분석일: {now}", styles["small"]),
+        Paragraph(f"제품: {_esc(product_label)}", styles["cover_sub"]),
+        Paragraph(f"발굴 기업 수: {company_count}개  |  분석일: {_esc(now)}", styles["small"]),
         Spacer(1, 6*mm),
         HRFlowable(width="100%", thickness=1.5, color=_NAVY),
         Spacer(1, 4*mm),
@@ -130,10 +136,10 @@ def _build_summary_table(companies: list[dict], styles: dict) -> list:
     for i, c in enumerate(companies, 1):
         rows.append([
             str(i),
-            (c.get("company_name") or "-")[:28],
-            (c.get("country") or "-"),
-            (c.get("category") or "-")[:20],
-            (c.get("email") or "-")[:30],
+            _esc(c.get("company_name") or "-")[:28],
+            _esc(c.get("country") or "-"),
+            _esc(c.get("category") or "-")[:20],
+            _esc(c.get("email") or "-")[:30],
         ])
 
     col_w = [10*mm, 58*mm, 28*mm, 40*mm, 50*mm]
@@ -164,12 +170,12 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
     # ── 헤더 ──────────────────────────────────────────────────────────────
     hdr_data = [[
         Paragraph(
-            f"{idx}.  {name}",
+            f"{idx}.  {_esc(name)}",
             ParagraphStyle("hdr", fontSize=14, textColor=_NAVY,
                            fontName=_FONT_BOLD_NAME, leading=18, wordWrap="CJK"),
         ),
         Paragraph(
-            f"{country}  ·  {_dash(c.get('category'))}",
+            f"{_esc(country)}  ·  {_esc(_dash(c.get('category')))}",
             ParagraphStyle("hdr_r", fontSize=9, textColor=_MUTED,
                            fontName=_FONT, leading=12, wordWrap="CJK"),
         ),
@@ -186,28 +192,28 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
     overview = _dash(e.get("company_overview_kr"))
     if overview != "-":
         elems.append(Paragraph("기업 개요", styles["section"]))
-        elems.append(Paragraph(overview, styles["overview"]))
+        elems.append(Paragraph(_esc(overview), styles["overview"]))
         elems.append(Spacer(1, 2*mm))
 
     # ── 추천 이유 (강조 박스) ─────────────────────────────────────────────
     reason = _dash(e.get("recommendation_reason"))
     if reason != "-":
         elems.append(Paragraph("추천 이유", styles["section"]))
-        elems.append(Paragraph(reason, styles["reason"]))
+        elems.append(Paragraph(_esc(reason), styles["reason"]))
         elems.append(Spacer(1, 3*mm))
 
     # ── 기본 정보 (값 있는 항목만) ──────────────────────────────────────────
     def _info_row(l1, v1, l2, v2):
         if v1 == "-" and v2 == "-":
             return None
-        return [Paragraph(l1 if v1 != "-" else "", styles["small"]),
-                Paragraph(v1, styles["body"]),
-                Paragraph(l2 if v2 != "-" else "", styles["small"]),
-                Paragraph(v2, styles["body"])]
+        return [Paragraph(_esc(l1) if v1 != "-" else "", styles["small"]),
+                Paragraph(_esc(v1), styles["body"]),
+                Paragraph(_esc(l2) if v2 != "-" else "", styles["small"]),
+                Paragraph(_esc(v2), styles["body"])]
 
     website_val = _dash(c.get("website"))
     website_cell = (
-        Paragraph(f'<a href="{website_val}"><u>{website_val}</u></a>', styles["link"])
+        Paragraph(f'<a href="{_esc(website_val)}"><u>{_esc(website_val)}</u></a>', styles["link"])
         if website_val != "-" else None
     )
 
@@ -261,10 +267,10 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
         has2 = v2 is True or v2 is False
         if not has1 and not has2:
             return None
-        return [Paragraph(l1 if has1 else "", styles["small"]),
-                Paragraph(_yn(v1) if has1 else "", styles["body"]),
-                Paragraph(l2 if has2 else "", styles["small"]),
-                Paragraph(_yn(v2) if has2 else "", styles["body"])]
+        return [Paragraph(_esc(l1) if has1 else "", styles["small"]),
+                Paragraph(_esc(_yn(v1)) if has1 else "", styles["body"]),
+                Paragraph(_esc(l2) if has2 else "", styles["small"]),
+                Paragraph(_esc(_yn(v2)) if has2 else "", styles["body"])]
 
     korea_exp = _dash(e.get("korea_experience"))
     cap_candidates = [
@@ -276,7 +282,7 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
     cap_rows = [r for r in cap_candidates if r is not None]
     if korea_exp != "-":
         cap_rows.append([Paragraph("한국 거래 경험", styles["small"]),
-                         Paragraph(korea_exp, styles["body"]),
+                         Paragraph(_esc(korea_exp), styles["body"]),
                          Paragraph("", styles["small"]), Paragraph("", styles["body"])])
     if cap_rows:
         elems.append(Paragraph("역량 · 실적 · 채널", styles["section"]))
@@ -294,7 +300,7 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
     cphi_prods = c.get("products_cphi", [])
     if cphi_prods:
         elems.append(Paragraph("CPHI 등록 제품", styles["section"]))
-        elems.append(Paragraph(" / ".join(cphi_prods[:15]), styles["small"]))
+        elems.append(Paragraph(_esc(" / ".join(cphi_prods[:15])), styles["small"]))
         elems.append(Spacer(1, 2*mm))
 
     # ── 참조 출처 ─────────────────────────────────────────────────────────
