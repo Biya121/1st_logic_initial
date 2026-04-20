@@ -1724,26 +1724,73 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
    32. 3공정 — 바이어 발굴 (P3)
 ══════════════════════════════════════════════════════════════════════════ */
 
+/* 기업 평가 기준 박스 */
+.p3-criteria-box {
+  background: #fff;
+  border: 1px solid rgba(23,63,120,.12);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.p3-criteria-header-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  margin-bottom: 8px;
+}
+.p3-criteria-title {
+  font-size: 13px; font-weight: 700; color: var(--navy);
+}
+.p3-criteria-sub {
+  font-size: 11px; font-weight: 400; color: var(--muted);
+}
+.p3-criteria-hint {
+  font-size: 11px; color: var(--muted); margin-top: 2px;
+}
+.btn-clear-all {
+  flex-shrink: 0;
+  font-size: 11px; font-weight: 600; color: var(--orange);
+  background: none; border: 1px solid var(--orange);
+  border-radius: 5px; padding: 3px 10px; cursor: pointer;
+}
+.btn-clear-all:hover { background: rgba(230,126,34,.08); }
+
 /* 평가 항목 체크박스 그리드 */
 .p3-criteria-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px 12px;
-  margin-top: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 24px;
+  margin-top: 4px;
 }
 .p3-chk {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--text); cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer;
   user-select: none;
 }
 .p3-chk input[type="checkbox"] {
-  width: 14px; height: 14px; accent-color: var(--navy); cursor: pointer;
+  width: 15px; height: 15px; accent-color: var(--navy); cursor: pointer; flex-shrink: 0;
+}
+.p3-cb-pct {
+  font-weight: 400; color: var(--muted);
+}
+
+/* Top 10 섹션 타이틀 */
+.p3-cards-section-title {
+  font-size: 13px; font-weight: 700; color: var(--navy);
+  margin-bottom: 10px;
+}
+
+/* 순위 숫자 스타일 */
+.p3-card-rank {
+  font-size: 13px; font-weight: 900; color: var(--navy);
+  background: rgba(23,63,120,.08); border-radius: 50%;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
 
 /* 카드 래퍼 — 가로 스크롤 행 */
 .p3-cards-wrap {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin-top: 14px;
 }
@@ -1761,9 +1808,6 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 
 .p3-card-top {
   display: flex; align-items: center; gap: 6px;
-}
-.p3-card-rank {
-  font-size: 18px; line-height: 1; flex-shrink: 0;
 }
 .p3-card-score {
   margin-left: auto;
@@ -1783,7 +1827,7 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   font-size: 11px; color: var(--green); font-weight: 700;
   background: rgba(39,174,96,.08);
   padding: 2px 7px; border-radius: 6px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: normal; overflow-wrap: break-word; word-break: break-all;
 }
 .p3-card-contact {
   font-size: 10.5px; color: var(--muted); line-height: 1.5;
@@ -1812,11 +1856,11 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 
 /* 반응형 */
 @media (max-width: 1100px) {
-  .p3-cards-wrap       { grid-template-columns: repeat(3, 1fr); }
+  .p3-cards-wrap       { grid-template-columns: repeat(2, 1fr); }
   .p3-criteria-grid    { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 720px) {
-  .p3-cards-wrap       { grid-template-columns: repeat(2, 1fr); }
+  .p3-cards-wrap       { grid-template-columns: 1fr; }
   .p3-criteria-grid    { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -1924,4 +1968,10 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
 .p3-card-reason {
   font-size: 12px; color: #334; line-height: 1.5;
   background: #eef4ff; border-radius: 6px; padding: 7px 9px; margin: 6px 0 8px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }

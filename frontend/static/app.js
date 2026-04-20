@@ -1908,15 +1908,12 @@ async function runP3Pipeline() {
     } else if (data.status === 'done') {
       const rr     = await fetch('/api/buyers/result');
       const result = await rr.json();
-      _p3Buyers  = result.buyers || [];
-      _p3PdfName = result.pdf   || null;
-      if (_p3Buyers.length) {
-        _renderP3Cards(_p3Buyers);
-        document.getElementById('p3-result-section').style.display = '';
-        const dlBtn = document.getElementById('p3-dl-btn');
-        if (dlBtn && _p3PdfName) dlBtn.disabled = false;
-        for (const s of ['crawl','enrich','rank','report']) _setP3Progress(s, 'done');
-      }
+      _p3Buyers  = [];                    // 재방문 시 카드 초기화
+      _p3PdfName = result.pdf || null;
+      document.getElementById('p3-result-section').style.display = '';
+      document.getElementById('p3-cards').innerHTML = '';
+      const dlBtn = document.getElementById('p3-dl-btn');
+      if (dlBtn && _p3PdfName) dlBtn.disabled = false;
     }
   } catch (_) {}
 })();
@@ -1979,8 +1976,6 @@ function _renderP3Cards(buyers) {
     return;
   }
 
-  const rankEmoji = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-
   wrap.innerHTML = buyers.map((b, i) => {
     const pri       = b.priority === 1 ? 1 : 2;
     const priLabel  = pri === 1 ? '성분 일치' : 'Singapore';
@@ -1992,7 +1987,7 @@ function _renderP3Cards(buyers) {
     const category  = b.category|| '-';
     const _reason   = (b.enriched?.recommendation_reason || '').trim();
     const reasonPreview = (_reason && _reason !== '-')
-      ? _reason.split(/[.。!?！？]\s+/).slice(0,2).join('. ').slice(0,120) + (_reason.length > 120 ? '…' : '')
+      ? _reason.split(/[.。!?！？]\s+/).slice(0,3).join('. ').slice(0,200) + (_reason.length > 200 ? '…' : '')
       : '';
 
     // 유효한 태그만 표시
@@ -2008,7 +2003,7 @@ function _renderP3Cards(buyers) {
     return `
       <div class="p3-card" onclick="showBuyerDetail(${i})" style="cursor:pointer;">
         <div class="p3-card-top">
-          <span class="p3-card-rank">${rankEmoji[i] || (i+1)+'위'}</span>
+          <span class="p3-card-rank">${i+1}</span>
           <span class="p3-tag ${priClass}">${priLabel}</span>
         </div>
         <div class="p3-card-name">${_escHtml(b.company_name || '-')}</div>
@@ -2024,10 +2019,14 @@ function _renderP3Cards(buyers) {
       </div>`;
   }).join('');
 
-  // 체크박스 이벤트 (최초 1회만 바인딩)
+  // 체크박스 이벤트 바인딩 + 카드/기준 섹션 표시
   document.querySelectorAll('.p3-cb').forEach(cb => {
     cb.onchange = () => p3ReRank();
   });
+  const criteriaBox = document.getElementById('p3-criteria-box');
+  const cardsTitle  = document.getElementById('p3-cards-title');
+  if (criteriaBox) criteriaBox.style.display = '';
+  if (cardsTitle)  cardsTitle.style.display  = '';
 }
 
 /** 바이어 상세 모달 열기 */
@@ -2035,7 +2034,6 @@ function showBuyerDetail(idx) {
   const b = _p3Buyers[idx];
   if (!b) return;
   const e = b.enriched || {};
-  const rankEmoji = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
   const priLabel = b.priority === 1 ? '성분 일치' : 'Singapore';
   const priClass = b.priority === 1 ? 'p3-tag-p1' : 'p3-tag-p2';
 
@@ -2082,7 +2080,7 @@ function showBuyerDetail(idx) {
 
   document.getElementById('buyer-modal-body').innerHTML = `
     <div class="bm-header">
-      <div class="bm-rank">${rankEmoji[idx] || (idx+1)+'위'}</div>
+      <div class="bm-rank">${idx+1}</div>
       <div class="bm-title">
         <div class="bm-name">${_escHtml(b.company_name || '-')}</div>
         <div class="bm-meta">${metaParts}
@@ -2106,6 +2104,35 @@ function showBuyerDetail(idx) {
   const overlay = document.getElementById('buyer-modal-overlay');
   overlay.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+}
+
+function p3ReRank() {
+  const cbs = [...document.querySelectorAll('.p3-cb:checked')];
+  if (!cbs.length) {
+    _renderP3Cards([..._p3Buyers]);
+    return;
+  }
+  const scored = _p3Buyers.map(b => {
+    const scores = b.scores || {};
+    const e = b.enriched || {};
+    let total = 0;
+    cbs.forEach(cb => {
+      const key = cb.dataset.key;
+      const w   = parseFloat(cb.dataset.weight) || 0;
+      const v   = key === 'pharmacy_chain'
+        ? (e.has_pharmacy_chain ? 100 : 0)
+        : (scores[key] || 0);
+      total += (v * w) / 100;
+    });
+    return { ...b, _rerank: total };
+  });
+  scored.sort((a, b) => b._rerank - a._rerank);
+  _renderP3Cards(scored);
+}
+
+function p3ClearAll() {
+  document.querySelectorAll('.p3-cb').forEach(cb => cb.checked = false);
+  _renderP3Cards([..._p3Buyers]);
 }
 
 function closeBuyerModal(e) {

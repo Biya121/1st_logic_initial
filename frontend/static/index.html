@@ -393,12 +393,35 @@
 
         <!-- 결과 영역 -->
         <div id="p3-result-section" style="display:none;">
-          <div id="p3-cards" class="p3-cards-wrap"></div>
-          <div style="margin-top:14px;">
+
+          <!-- PDF 다운로드 -->
+          <div style="margin-bottom:14px;">
             <button class="btn-download" id="p3-dl-btn" onclick="downloadBuyerReport()" disabled>
               📄 바이어 보고서 다운로드
             </button>
           </div>
+
+          <!-- 기업 평가 기준 체크박스 -->
+          <div class="p3-criteria-box" id="p3-criteria-box" style="display:none;">
+            <div class="p3-criteria-header-row">
+              <div>
+                <div class="p3-criteria-title">기업 평가 기준 <span class="p3-criteria-sub">(체크된 항목들에 대해 평가 후 추천 순위 배열)</span></div>
+                <div class="p3-criteria-hint">※ 유나이티드제약 AHP 평가 항목</div>
+              </div>
+              <button class="btn-clear-all" onclick="p3ClearAll()">전체 해제</button>
+            </div>
+            <div class="p3-criteria-grid">
+              <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="기업규모" data-weight="35"> ① 매출규모 <span class="p3-cb-pct">(35%)</span></label>
+              <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="유통실적" data-weight="28"> ② 파이프라인 <span class="p3-cb-pct">(28%)</span></label>
+              <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="GMP보유" data-weight="20"> ③ 제조소 보유 <span class="p3-cb-pct">(20%)</span></label>
+              <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="한국거래" data-weight="12"> ④ 수입 경험 <span class="p3-cb-pct">(12%)</span></label>
+              <label class="p3-chk"><input type="checkbox" class="p3-cb" data-key="pharmacy_chain" data-weight="5"> ⑤ 약국체인 운영 <span class="p3-cb-pct">(5%)</span></label>
+            </div>
+          </div>
+
+          <!-- Top 10 카드 -->
+          <div class="p3-cards-section-title" id="p3-cards-title" style="display:none;">Top 10 · 바이어 카드</div>
+          <div id="p3-cards" class="p3-cards-wrap"></div>
         </div>
 
       </div>
