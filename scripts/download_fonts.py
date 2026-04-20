@@ -19,6 +19,10 @@ FONTS = [
         "NanumGothic.ttf",
         "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf",
     ),
+    (
+        "NanumGothicBold.ttf",
+        "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Bold.ttf",
+    ),
 ]
 
 

@@ -1217,12 +1217,15 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   border-radius: 0;
   margin-bottom: 0;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 .col-left .process-body,
 .col-right .process-body {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* ── 최종 보고서 다운로드 (인라인 소형 버튼) ─────────────────────────────── */

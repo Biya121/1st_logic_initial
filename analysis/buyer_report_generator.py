@@ -42,16 +42,25 @@ _FONT_REGULAR = _FONT_DIR / "NanumGothic.ttf"
 _FONT_BOLD    = _FONT_DIR / "NanumGothicBold.ttf"
 
 def _register_fonts() -> tuple[str, str]:
-    """한글 폰트 등록. 폰트 파일 없으면 Helvetica 폴백."""
-    if _FONT_REGULAR.is_file() and _FONT_BOLD.is_file():
-        try:
-            pdfmetrics.registerFont(TTFont("Korean",      str(_FONT_REGULAR)))
+    """한글 폰트 등록. Regular만 있어도 동작; 없으면 Helvetica 폴백."""
+    if not _FONT_REGULAR.is_file():
+        return "Helvetica", "Helvetica-Bold"
+    try:
+        pdfmetrics.registerFont(TTFont("Korean", str(_FONT_REGULAR)))
+        bold_name = "Korean"
+        if _FONT_BOLD.is_file():
             pdfmetrics.registerFont(TTFont("Korean-Bold", str(_FONT_BOLD)))
-            pdfmetrics.registerFontFamily("Korean", normal="Korean", bold="Korean-Bold", italic="Korean", boldItalic="Korean-Bold")
-            return "Korean", "Korean-Bold"
-        except Exception:
-            pass
-    return "Helvetica", "Helvetica-Bold"
+            bold_name = "Korean-Bold"
+        pdfmetrics.registerFontFamily(
+            "Korean",
+            normal="Korean",
+            bold=bold_name,
+            italic="Korean",
+            boldItalic=bold_name,
+        )
+        return "Korean", bold_name
+    except Exception:
+        return "Helvetica", "Helvetica-Bold"
 
 _FONT, _FONT_BOLD_NAME = _register_fonts()
 
@@ -328,7 +337,6 @@ def build_buyer_pdf(
     )
     styles = _styles()
     elems: list = []
-    elems += _build_cover(product_label, len(companies), styles)
     if companies:
         elems += _build_summary_table(companies, styles)
         for i, c in enumerate(companies, 1):
