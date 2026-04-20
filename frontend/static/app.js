@@ -1811,10 +1811,10 @@ function _syncP3ReportOptions() {
   const sel = document.getElementById('p3-report-select');
   if (!sel) return;
   const reports = _loadReports();
-  sel.innerHTML = ['<option value="">1공정 보고서를 선택하세요</option>']
+  sel.innerHTML = ['<option value="">시장조사 보고서를 선택하세요</option>']
     .concat(reports.map(r => {
       const name = r.product || r.report_title || '보고서';
-      return `<option value="${r.id}">1공정 보고서 · ${_escHtml(name)} · ${_escHtml(r.timestamp || '')}</option>`;
+      return `<option value="${r.id}">시장조사 보고서 · ${_escHtml(name)} · ${_escHtml(r.timestamp || '')}</option>`;
     })).join('');
 
   const readyBanner    = document.getElementById('p3-ready-banner');
