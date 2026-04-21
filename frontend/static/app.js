@@ -967,7 +967,8 @@ function _renderP2AiResult(data) {
   const extracted = data?.extracted || {};
   const analysis = data?.analysis || {};
   const rates = data?.exchange_rates || {};
-  const scenarios = Array.isArray(analysis.scenarios) ? analysis.scenarios : [];
+  const pubMarket = analysis.public_market || analysis;
+  const scenarios = Array.isArray(pubMarket.scenarios) ? pubMarket.scenarios : [];
   const resultSection = document.getElementById('p2-ai-result-section');
   if (resultSection) resultSection.style.display = '';
 
@@ -996,7 +997,7 @@ function _renderP2AiResult(data) {
   _setText('p2r-exchange', rateText);
 
   // 최종 권고가
-  _setText('p2r-final-price', `SGD ${Number(analysis.final_price_sgd || 0).toFixed(2)}`);
+  _setText('p2r-final-price', `SGD ${Number(pubMarket.final_price_sgd || 0).toFixed(2)}`);
 
   // 시나리오
   const scenEl = document.getElementById('p2r-scenarios');
@@ -1039,7 +1040,9 @@ function _applyP2ResultToCards(data, market) {
   const extracted  = data?.extracted || {};
   const analysis   = data?.analysis  || {};
   const rates      = data?.exchange_rates || {};
-  const scenarios  = Array.isArray(analysis.scenarios) ? analysis.scenarios : [];
+  const marketKey  = market === 'public' ? 'public_market' : 'private_market';
+  const marketData = analysis[marketKey] || analysis;
+  const scenarios  = Array.isArray(marketData.scenarios) ? marketData.scenarios : [];
 
   const sgdUsd = rates.sgd_usd ? Number(rates.sgd_usd) : 0;
   const sgdKrw = rates.sgd_krw ? Number(rates.sgd_krw) : 0;
