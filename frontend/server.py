@@ -20,6 +20,7 @@ try:
 except ImportError:
     pass
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -163,10 +164,91 @@ async def analyze_status() -> dict[str, Any]:
     }
 
 
-# ── 시장 신호 · 뉴스 (Perplexity) ─────────────────────────────────────────────
+# ── 시장 신호 · 뉴스 (Naver 1순위 → Perplexity 폴백) ─────────────────────────
 
 _news_cache: dict[str, Any] = {"data": None, "ts": 0.0}
-_NEWS_TTL = 1800  # 30분 캐시
+_NEWS_TTL = 600  # 10분 캐시
+
+
+async def _scrape_naver_news(count: int = 7) -> list[dict[str, str]]:
+    """Naver 모바일 뉴스 검색 '싱가포르 의약품' 스크레이핑."""
+    import re as _re
+
+    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        resp = await client.get(
+            "https://m.search.naver.com/search.naver",
+            params={"where": "m_news", "query": "싱가포르 의약품", "sort": "1"},
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+                    "Version/17.0 Mobile/15E148 Safari/604.1"
+                ),
+                "Accept-Language": "ko-KR,ko;q=0.9",
+                "Referer": "https://m.naver.com/",
+            },
+        )
+    resp.raise_for_status()
+    html = resp.text
+    items: list[dict[str, str]] = []
+
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "html.parser")
+        seen: set[str] = set()
+
+        for a in soup.find_all("a", href=_re.compile(r"n\.news\.naver\.com")):
+            if len(items) >= count:
+                break
+            href = str(a.get("href", ""))
+            if href in seen:
+                continue
+            seen.add(href)
+
+            # 제목: title 속성 > 텍스트 > 상위 heading
+            title = (a.get("title") or a.get_text(" ", strip=True)).strip()
+            if not title or len(title) < 8:
+                for parent in a.parents:
+                    h = parent.find(["strong", "h2", "h3", "h4"])
+                    if h:
+                        t = h.get_text(strip=True)
+                        if len(t) >= 8:
+                            title = t
+                            break
+                    if parent.name in ("body", "html"):
+                        break
+            if not title or len(title) < 8:
+                continue
+
+            # 언론사 · 날짜: 5단계 상위 컨테이너에서 탐색
+            container = a
+            for _ in range(5):
+                container = container.parent
+                if not container:
+                    break
+            press = date = ""
+            if container:
+                pe = container.select_one(".press, .source, .media_nm, .info.press")
+                de = container.select_one(".time, .date, .info_time")
+                press = pe.get_text(strip=True) if pe else ""
+                date  = de.get_text(strip=True) if de else ""
+
+            items.append({"title": title, "link": href, "source": press, "date": date})
+
+        if items:
+            return items
+    except ImportError:
+        pass
+
+    # regex 폴백
+    for m in _re.finditer(
+        r'href="(https://n\.news\.naver\.com/[^"]+)"[^>]*title="([^"]{8,})"', html
+    ):
+        if len(items) >= count:
+            break
+        items.append({"title": m.group(2).strip(), "link": m.group(1), "source": "", "date": ""})
+
+    return items
 
 
 def _parse_perplexity_news_items(raw_text: str) -> list[dict[str, str]]:
@@ -190,20 +272,18 @@ def _parse_perplexity_news_items(raw_text: str) -> list[dict[str, str]]:
         if not isinstance(parsed, list):
             continue
         items: list[dict[str, str]] = []
-        for row in parsed[:6]:
+        for row in parsed[:7]:
             if not isinstance(row, dict):
                 continue
             title = str(row.get("title", "") or "").strip()
             if not title:
                 continue
-            items.append(
-                {
-                    "title": title,
-                    "source": str(row.get("source", "") or "").strip(),
-                    "date": str(row.get("date", "") or "").strip(),
-                    "link": str(row.get("link", "") or "").strip(),
-                }
-            )
+            items.append({
+                "title":  title,
+                "source": str(row.get("source", "") or "").strip(),
+                "date":   str(row.get("date",   "") or "").strip(),
+                "link":   str(row.get("link",   "") or "").strip(),
+            })
         if items:
             return items
     return []
@@ -211,17 +291,32 @@ def _parse_perplexity_news_items(raw_text: str) -> list[dict[str, str]]:
 
 @app.get("/api/news")
 async def api_news() -> JSONResponse:
-    """Perplexity 기반 싱가포르 제약 시장 뉴스 (30분 캐시)."""
+    """싱가포르 의약품 뉴스 — Naver 스크레이핑 우선, Perplexity 폴백 (10분 캐시)."""
     import time as _time
     import os
-    import httpx
 
     if _news_cache["data"] and _time.time() - _news_cache["ts"] < _NEWS_TTL:
         return JSONResponse(_news_cache["data"])
 
+    # ① Naver 뉴스 스크레이핑
+    try:
+        items = await _scrape_naver_news(7)
+        if items:
+            data = {"ok": True, "source": "naver", "items": items}
+            _news_cache["data"] = data
+            _news_cache["ts"]   = _time.time()
+            return JSONResponse(data)
+    except Exception:
+        pass  # Naver 실패 → Perplexity 폴백
+
+    # ② Perplexity 폴백
     px_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()
     if not px_key:
-        return JSONResponse({"ok": False, "error": "PERPLEXITY_API_KEY 미설정", "items": []})
+        return JSONResponse({
+            "ok": False,
+            "error": "뉴스 수집 실패 — Naver 차단 및 PERPLEXITY_API_KEY 미설정",
+            "items": [],
+        })
 
     try:
         payload = {
@@ -231,47 +326,38 @@ async def api_news() -> JSONResponse:
                     "role": "system",
                     "content": (
                         "You are a Singapore pharmaceutical market analyst. "
-                        "Return ONLY a JSON array with up to 6 recent news items. "
-                        "All 'title' values MUST be written in Korean (한국어). "
-                        "Translate any English titles into natural Korean."
+                        "Return ONLY a JSON array with up to 7 recent news items. "
+                        "All 'title' values MUST be written in Korean (한국어)."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
                         "Find the latest Singapore pharmaceutical market and regulatory news. "
-                        "Return a strict JSON array. Each item must have keys: "
-                        "title (Korean translation required), source, date, link. "
-                        "Translate all titles to Korean. Do not use English titles."
+                        "Return a strict JSON array. Each item: title (Korean), source, date, link."
                     ),
                 },
             ],
             "max_tokens": 900,
             "temperature": 0.2,
         }
-        headers = {
-            "Authorization": f"Bearer {px_key}",
-            "Content-Type": "application/json",
-        }
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(
                 "https://api.perplexity.ai/chat/completions",
-                headers=headers,
+                headers={"Authorization": f"Bearer {px_key}", "Content-Type": "application/json"},
                 json=payload,
             )
             resp.raise_for_status()
             raw = resp.json()
 
         content = str(
-            raw.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
+            raw.get("choices", [{}])[0].get("message", {}).get("content", "")
         )
         items = _parse_perplexity_news_items(content)
         if not items:
             return JSONResponse({"ok": False, "error": "Perplexity 응답 파싱 실패", "items": []})
 
-        data = {"ok": True, "items": items}
+        data = {"ok": True, "source": "perplexity", "items": items}
         _news_cache["data"] = data
         _news_cache["ts"]   = _time.time()
         return JSONResponse(data)

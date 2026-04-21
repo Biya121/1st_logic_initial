@@ -1981,18 +1981,25 @@ function _setPStat(valId, val, srcId, src) {
 }
 
 function initPreviewMap() {
-  if (typeof L === 'undefined') return;
-  if (window._previewMapInstance) return;
+  if (typeof L === 'undefined') { setTimeout(initPreviewMap, 200); return; }
   const el = document.getElementById('preview-map');
   if (!el) return;
+  if (el.classList.contains('leaflet-container')) {
+    if (window._previewMapInstance) window._previewMapInstance.invalidateSize();
+    return;
+  }
+  if (el.offsetWidth === 0) { setTimeout(initPreviewMap, 200); return; }
   const map = L.map('preview-map', { zoomControl: true }).setView([1.3521, 103.8198], 11);
+  window._previewMapInstance = map;
+  window._previewMapInited   = true;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 18,
   }).addTo(map);
-  L.marker([1.3521, 103.8198]).addTo(map).bindPopup('<b>Singapore</b>').openPopup();
-  window._previewMapInstance = map;
-  window._previewMapInited   = true;
+  try {
+    L.marker([1.3521, 103.8198]).addTo(map).bindPopup('<b>Singapore</b>').openPopup();
+  } catch (_) {}
+  setTimeout(() => map.invalidateSize(), 150);
 }
 
 async function loadPreviewNews() {
@@ -2457,7 +2464,6 @@ const _PRODUCT_COUNTRY_MAP = {
   const p1Select = document.getElementById('product-select');
   if (p1Select) {
     p1Select.addEventListener('change', function() {
-      _syncP3ProductLabel();
       const countryEl = document.getElementById('inp-target-country');
       if (countryEl) {
         const mapped = _PRODUCT_COUNTRY_MAP[p1Select.value];
@@ -2465,14 +2471,9 @@ const _PRODUCT_COUNTRY_MAP = {
       }
     });
   }
-  _syncP3ProductLabel(); // 초기 레이블 설정
 })();
 loadNews();             // 시장 뉴스 즉시 로드
 loadPreviewStats();     // 프리뷰 통계 로드
 loadPreviewNews();      // 프리뷰 뉴스 로드
-// Leaflet 지도 초기화 — load 이미 완료됐으면 즉시, 아니면 이벤트 대기
-(function() {
-  function _doInit() { requestAnimationFrame(function() { requestAnimationFrame(initPreviewMap); }); }
-  if (document.readyState === 'complete') { _doInit(); }
-  else { window.addEventListener('load', _doInit); }
-})();
+// Leaflet 지도 초기화 — 페이지 준비 완료 후 실행
+setTimeout(initPreviewMap, 300);
