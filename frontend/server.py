@@ -756,11 +756,13 @@ async def download_report(name: str | None = None, inline: bool = False) -> Any:
 
 class P2ReportBody(BaseModel):
     product_name:  str   = ""
+    inn_name:      str   = ""
     verdict:       str   = ""
     seg_label:     str   = ""
     base_price:    float | None = None
     formula_str:   str   = ""
     mode_label:    str   = ""
+    macro_text:    str   = ""
     scenarios:     list  = []
     ai_rationale:  list  = []
     sections:      list  = []  # [{seg_label, base_price, scenarios}] 공공+민간 통합 시
@@ -782,11 +784,13 @@ async def generate_p2_report(body: P2ReportBody) -> JSONResponse:
 
     p2_data = {
         "product_name":  body.product_name,
+        "inn_name":      body.inn_name,
         "verdict":       body.verdict,
         "seg_label":     body.seg_label,
         "base_price":    body.base_price,
         "formula_str":   body.formula_str,
         "mode_label":    body.mode_label,
+        "macro_text":    body.macro_text,
         "scenarios":     body.scenarios,
         "ai_rationale":  body.ai_rationale,
     }
@@ -849,6 +853,7 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
 {{
   "product_name": "제품명 (없으면 '미상')",
+  "inn_name": "INN 성분명·함량 (예: Gadobutrol 604.72mg, 없으면 빈 문자열)",
   "ref_price_sgd": 숫자 또는 null,
   "ref_price_currency": "SGD 또는 USD",
   "ref_price_text": "원문 가격 텍스트 (없으면 빈 문자열)",
@@ -1066,11 +1071,13 @@ rationale은 3-4문장으로 시장 근거·판정 근거·리스크를 포함�
 
         p2_data = {
             "product_name": extracted.get("product_name", "미상"),
+            "inn_name":     extracted.get("inn_name", ""),
             "verdict":      verdict_src,
             "seg_label":    "공공·민간 시장 통합",
             "base_price":   pub_data.get("final_price_sgd", 0),
             "formula_str":  "",
             "mode_label":   "AI 분석 (Claude Haiku)",
+            "macro_text":   analysis.get("rationale", ""),
             "scenarios":    _norm_sc(pub_data.get("scenarios", [])),
             "ai_rationale": [analysis.get("rationale", "")],
             "sections":     sections,
@@ -1460,14 +1467,17 @@ async def buyer_rerank(body: dict = None) -> JSONResponse:
 
 @app.get("/api/report/combined")
 async def download_combined_report() -> Any:
-    """P1 + P2 + P3 최신 PDF를 순서대로 병합해 반환."""
+    """표지 + P2 + P3 + P1 순서로 병합한 최종 보고서를 생성·저장 후 반환."""
     import io
+    import tempfile
+    from datetime import datetime, timezone as _tz_c
     try:
         from pypdf import PdfWriter, PdfReader
     except ImportError:
         from PyPDF2 import PdfWriter, PdfReader  # type: ignore
 
     reports_dir = ROOT / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
 
     def _latest(pattern: str):
         pdfs = sorted(reports_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -1481,20 +1491,38 @@ async def download_combined_report() -> Any:
     if not found:
         raise HTTPException(404, "생성된 보고서가 없습니다. 1·2·3 공정을 먼저 완료해 주세요.")
 
+    # 표지 생성 (임시 파일)
+    from report_generator import render_cover_pdf
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as _tf:
+        cover_path = Path(_tf.name)
+    await asyncio.to_thread(render_cover_pdf, cover_path)
+
     writer = PdfWriter()
-    for pdf_path in found:
+    for pdf_path in [cover_path] + found:
         reader = PdfReader(str(pdf_path))
         for page in reader.pages:
             writer.add_page(page)
+    cover_path.unlink(missing_ok=True)
 
-    buf = io.BytesIO()
-    writer.write(buf)
+    # 파일로 저장 (보고서 탭 재다운로드 지원)
+    ts = datetime.now(_tz_c.utc).strftime("%Y%m%d_%H%M%S")
+    pdf_name = f"sg_combined_{ts}.pdf"
+    pdf_path = reports_dir / pdf_name
+    with open(pdf_path, "wb") as fout:
+        writer.write(fout)
+
+    with open(pdf_path, "rb") as fin:
+        buf = io.BytesIO(fin.read())
     buf.seek(0)
 
     return StreamingResponse(
         buf,
         media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=combined_report.pdf"},
+        headers={
+            "Content-Disposition": f"attachment; filename={pdf_name}",
+            "X-PDF-Name": pdf_name,
+            "Access-Control-Expose-Headers": "X-PDF-Name",
+        },
     )
 
 

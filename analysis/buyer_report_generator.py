@@ -116,6 +116,7 @@ def _dash(val: Any) -> str:
 
 
 def _build_cover(product_label: str, company_count: int, styles: dict) -> list:
+    """커버 페이지 — 하위 호환용으로 유지하나 기본 흐름에서는 사용하지 않음."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return [
         Spacer(1, 30*mm),
@@ -135,11 +136,25 @@ def _build_cover(product_label: str, company_count: int, styles: dict) -> list:
     ]
 
 
-def _build_summary_table(companies: list[dict], styles: dict) -> list:
+def _build_summary_table(companies: list[dict], styles: dict, product_label: str = "") -> list:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    count = len(companies)
+
+    title_txt = f"싱가포르 바이어 후보 리스트 — {product_label}" if product_label else "싱가포르 바이어 후보 리스트"
     elems: list = [
-        Paragraph("바이어 후보 요약", styles["cover_title"]),
+        Paragraph(_esc(title_txt), styles["cover_title"]),
+        Paragraph(f"Singapore  |  {now}", styles["cover_sub"]),
+        Spacer(1, 3*mm),
+        Paragraph(
+            "※ 아래 바이어 후보는 CPHI 등록 및 Perplexity 웹 분석을 통해 도출되었으며, "
+            "개별 기업의 싱가포르 진출 현황 및 제품 연관성은 추가 실사가 필요합니다.",
+            styles["small"],
+        ),
         Spacer(1, 4*mm),
+        Paragraph(f"1. 바이어 후보 리스트 (전체 {count}개사)", styles["section"]),
+        Spacer(1, 2*mm),
     ]
+
     header = ["#", "기업명", "국가", "카테고리", "이메일"]
     rows   = [header]
     for i, c in enumerate(companies, 1):
@@ -197,18 +212,48 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
     ]))
     elems += [hdr_tbl, Spacer(1, 3*mm)]
 
-    # ── 기업 개요 ─────────────────────────────────────────────────────────
+    # ── ▸ 기업 개요 ──────────────────────────────────────────────────────
     overview = _dash(e.get("company_overview_kr"))
     if overview != "-":
-        elems.append(Paragraph("기업 개요", styles["section"]))
+        elems.append(Paragraph("▸ 기업 개요", styles["section"]))
         elems.append(Paragraph(_esc(overview), styles["overview"]))
         elems.append(Spacer(1, 2*mm))
 
-    # ── 추천 이유 (강조 박스) ─────────────────────────────────────────────
+    # ── ▸ 추천 이유 (①~⑤ 구조화 테이블 + 근거 텍스트) ────────────────────
+    elems.append(Paragraph("▸ 추천 이유", styles["section"]))
     reason = _dash(e.get("recommendation_reason"))
     if reason != "-":
-        elems.append(Paragraph("추천 이유", styles["section"]))
         elems.append(Paragraph(_esc(reason), styles["reason"]))
+        elems.append(Spacer(1, 2*mm))
+
+    circled = ["①", "②", "③", "④", "⑤"]
+    reason_items = [
+        ("매출 규모",     _dash(e.get("revenue"))),
+        ("파이프라인",    ", ".join(c.get("products_cphi", [])[:5]) or "-"),
+        ("제조소 보유",   "GMP 인증: " + _yn(e.get("has_gmp"))),
+        ("수입 경험",     _yn(e.get("import_history"))),
+        ("약국 체인 운영", _yn(e.get("has_pharmacy_chain"))),
+    ]
+    reason_rows = [
+        [
+            Paragraph(_esc(f"{circled[i]} {lbl}"), styles["small"]),
+            Paragraph(_esc(val), styles["body"]),
+        ]
+        for i, (lbl, val) in enumerate(reason_items)
+        if val != "-"
+    ]
+    if reason_rows:
+        r_tbl = Table(reason_rows, colWidths=[30*mm, 144*mm])
+        r_tbl.setStyle(TableStyle([
+            ("FONTSIZE",      (0, 0), (-1, -1), 8),
+            ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
+            ("GRID",          (0, 0), (-1, -1), 0.2, _MUTED),
+            ("TOPPADDING",    (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ]))
+        elems += [r_tbl, Spacer(1, 3*mm)]
+    else:
         elems.append(Spacer(1, 3*mm))
 
     # ── 기본 정보 (값 있는 항목만) ──────────────────────────────────────────
@@ -338,7 +383,24 @@ def build_buyer_pdf(
     styles = _styles()
     elems: list = []
     if companies:
-        elems += _build_summary_table(companies, styles)
-        for i, c in enumerate(companies, 1):
+        # Section 1: 전체 요약 테이블 (커버 없음)
+        elems += _build_summary_table(companies, styles, product_label)
+
+        # Section 2: 상위 3개사 상세 정보
+        top3 = companies[:3]
+        sec2_note = (
+            "※ 하기 3개사는 Gadvoa Inj.의 조영제 성분과 연관성, APAC 지역 네트워크, "
+            "싱가포르 진출 가능성을 종합 평가하여 선정하였습니다."
+        ) if not product_label else (
+            f"※ 하기 {len(top3)}개사는 {product_label}의 성분 연관성, APAC 지역 네트워크, "
+            "싱가포르 진출 가능성을 종합 평가하여 선정하였습니다."
+        )
+        elems += [
+            Paragraph(f"2. 우선 접촉 바이어 상세 정보 (상위 {len(top3)}개사)", styles["section"]),
+            Spacer(1, 2*mm),
+            Paragraph(_esc(sec2_note), styles["small"]),
+            Spacer(1, 4*mm),
+        ]
+        for i, c in enumerate(top3, 1):
             elems += _build_company_page(c, i, styles)
     doc.build(elems)

@@ -503,6 +503,23 @@ def render_pdf(report: dict, out_path: Path) -> None:
         leading=10,
         wordWrap="CJK",
     )
+    s_sub_hdr = ps(
+        "SubHdr",
+        fontName=bold_font,
+        fontSize=9,
+        textColor=C_NAVY,
+        leading=13,
+        wordWrap="CJK",
+    )
+    s_body_txt = ps(
+        "BodyTxt",
+        fontName=base_font,
+        fontSize=9,
+        textColor=C_BODY,
+        leading=14,
+        wordWrap="CJK",
+        spaceAfter=2,
+    )
 
     def _rx(text: str) -> str:
         return (
@@ -552,6 +569,17 @@ def render_pdf(report: dict, out_path: Path) -> None:
         cleaned = _clean_prose(text)
         escaped = _rx(cleaned)
         return Paragraph(escaped, style)
+
+    def _sub_bar(label: str) -> Table:
+        t = Table([[Paragraph(_rx(label), s_sub_hdr)]], colWidths=[CONTENT_W])
+        t.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), C_ALT),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+            ("TOPPADDING",    (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        return t
 
     def _pbs_one_line(p: dict[str, Any]) -> str:
         aud = p.get("pbs_dpmq_aud")
@@ -626,85 +654,73 @@ def render_pdf(report: dict, out_path: Path) -> None:
 
     for idx, product in enumerate(report["products"]):
         generated_date = _fmt_date(report.get("meta", {}).get("generated_at", ""))
-        trade = str(product.get("trade_name", "") or "—")
-        inn = str(product.get("inn_label", "") or "—")
-        verdict = str(product.get("verdict", "") or "미분석")
-
-        # 1페이지 — 제목 + 제품 바
-        story.append(Paragraph(_rx("싱가포르 시장 분석 보고서"), s_title))
-        story.append(Paragraph(_rx(generated_date), s_date))
-        story.append(Spacer(1, 6))
-
-        pid = str(product.get("product_id", ""))
+        trade   = str(product.get("trade_name", "") or "—")
+        inn     = str(product.get("inn_label",  "") or "—")
+        pid     = str(product.get("product_id", ""))
         hs_code = _HS_CODES.get(pid, "3004.90")
-        bar_txt = f"{trade} — {inn}  |  HS CODE: {hs_code}"
+
+        # ── 제목 + 정보 바 ────────────────────────────────────────────────────
+        story.append(Paragraph(_rx(f"싱가포르 시장보고서 — {trade}"), s_title))
+        story.append(Spacer(1, 4))
+        bar_txt = f"{inn}  |  HS CODE: {hs_code}  |  Singapore  |  {generated_date}"
         bar_tbl = Table([[Paragraph(_rx(bar_txt), s_bar)]], colWidths=[CONTENT_W])
-        bar_tbl.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#4B5563")),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-                    ("TOPPADDING", (0, 0), (-1, -1), 6),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ]
-            )
-        )
+        bar_tbl.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#4B5563")),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+            ("TOPPADDING",    (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ]))
         story.append(bar_tbl)
         story.append(Spacer(1, 10))
 
-        story.append(Paragraph(_rx("1. 진출 적합 판정"), s_section))
-        story.append(
-            _simple_table([["판정", verdict]], shade_alt=False),
+        # ── 1. 의료 거시환경 파악 ─────────────────────────────────────────────
+        story.append(Paragraph(_rx("1. 의료 거시환경 파악"), s_section))
+        story.append(_para(str(product.get("basis_market_medical", "") or "—"), s_body_txt))
+        story.append(Spacer(1, 6))
+
+        # ── 2. 무역/규제 환경 ────────────────────────────────────────────────
+        story.append(Paragraph(_rx("2. 무역/규제 환경"), s_section))
+        for sub_lbl, fld in [
+            ("HSA 등록 현황", "basis_regulatory"),
+            ("진입 채널 권고", "entry_pathway"),
+            ("관세 및 무역",  "basis_trade"),
+        ]:
+            val = str(product.get(fld, "") or "").strip()
+            if val:
+                story.append(_sub_bar(f"▸ {sub_lbl}"))
+                story.append(_para(val, s_body_txt))
+                story.append(Spacer(1, 4))
+        story.append(Spacer(1, 2))
+
+        # ── 3. 참고 가격 ──────────────────────────────────────────────────────
+        story.append(Paragraph(_rx("3. 참고 가격"), s_section))
+        pbs_line  = _pbs_one_line(product)
+        price_tbl = Table(
+            [[Paragraph(_rx("참고 가격 (PBS 기준)"), s_cell_h), _para(pbs_line, s_cell)]],
+            colWidths=[COL1, COL2],
         )
+        price_tbl.setStyle(TableStyle(_base_style()))
+        story.append(price_tbl)
+        price_body = str(product.get("price_positioning_pbs", "") or "").strip()
+        if price_body:
+            story.append(Spacer(1, 4))
+            story.append(_para(price_body, s_body_txt))
         story.append(Spacer(1, 6))
 
-        story.append(Paragraph(_rx("2. 판정 근거"), s_section))
-        pbs_line = _pbs_one_line(product)
-
-        def _prose_row(label: str, field: str, fallback: str = "—") -> list:
-            raw = str(product.get(field, "") or "").strip() or fallback
-            return [Paragraph(_rx(label), s_cell_h), _para(_trunc(raw), s_cell)]
-
-        basis_tbl_data = [
-            _prose_row("시장 / 의료", "basis_market_medical"),
-            _prose_row("규제",       "basis_regulatory"),
-            _prose_row("무역",       "basis_trade"),
-            [Paragraph(_rx("참고 가격"), s_cell_h), _para(pbs_line, s_cell)],
-        ]
-        extras_b: list[tuple] = []
-        for i in range(len(basis_tbl_data)):
-            if i % 2 == 1:
-                extras_b.append(("BACKGROUND", (0, i), (-1, i), C_ALT))
-        bt = Table(basis_tbl_data, colWidths=[COL1, COL2])
-        bt.setStyle(TableStyle(_base_style(extras_b)))
-        story.append(bt)
-        story.append(Spacer(1, 6))
-
-        story.append(Paragraph(_rx("3. 시장 진출 전략"), s_section))
-        price_txt = str(product.get("price_positioning_pbs", "") or "").strip() or pbs_line
-        strategy_tbl_data = [
-            _prose_row("진입 채널 권고", "entry_pathway"),
-            [Paragraph(_rx("가격 포지셔닝"), s_cell_h), _para(price_txt, s_cell)],
-            _prose_row("리스크 + 조건",  "risks_conditions"),
-        ]
-        extras_s: list[tuple] = []
-        for i in range(len(strategy_tbl_data)):
-            if i % 2 == 1:
-                extras_s.append(("BACKGROUND", (0, i), (-1, i), C_ALT))
-        st = Table(strategy_tbl_data, colWidths=[COL1, COL2])
-        st.setStyle(TableStyle(_base_style(extras_s)))
-        story.append(st)
+        # ── 4. 리스크 / 조건 ──────────────────────────────────────────────────
+        story.append(Paragraph(_rx("4. 리스크 / 조건"), s_section))
+        story.append(_para(str(product.get("risks_conditions", "") or "—"), s_body_txt))
 
         story.append(PageBreak())
 
-        # 2페이지
-        story.append(Paragraph(_rx("4. 근거 및 출처"), s_section))
+        # ── 5. 근거 및 출처 ────────────────────────────────────────────────────
+        story.append(Paragraph(_rx("5. 근거 및 출처"), s_section))
 
-        # ── 4-1. Perplexity 추천 논문 (표 형식) ────────────────────────────────
-        story.append(Paragraph(_rx("4-1. Perplexity 추천 논문"), s_section))
-        papers = product.get("related_sites", {}).get("papers", []) or []
+        # ▸ 5-1. Perplexity 추천 논문
+        story.append(_sub_bar("▸ 5-1. Perplexity 추천 논문"))
+        papers       = product.get("related_sites", {}).get("papers", []) or []
         valid_papers = [p for p in papers if isinstance(p, dict) and (p.get("title") or p.get("url"))]
 
         if valid_papers:
@@ -717,9 +733,7 @@ def render_pdf(report: dict, out_path: Path) -> None:
                 Paragraph("논문 제목 / 출처", s_hdr),
                 Paragraph("한국어 요약", s_hdr),
             ]]
-            extras_p: list[tuple] = [
-                ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
-            ]
+            extras_p: list[tuple] = [("BACKGROUND", (0, 0), (-1, 0), C_NAVY)]
             for i, p in enumerate(valid_papers, 1):
                 title   = _trunc(str(p.get("title",     "") or ""), 200)
                 url     = str(p.get("url",         "") or "")
@@ -745,51 +759,86 @@ def render_pdf(report: dict, out_path: Path) -> None:
             pt.setStyle(TableStyle(_base_style(extras_p)))
             story.append(pt)
         else:
-            story.append(_simple_table([["Perplexity 논문", "사용된 논문 링크 없음"]], shade_alt=False))
+            story.append(Paragraph(_rx("• 사용된 논문 링크 없음"), s_body_txt))
 
         story.append(Spacer(1, 8))
 
-        # ── 4-2. 사용된 DB/기관 (3컬럼 표) ────────────────────────────────────
-        story.append(Paragraph(_rx("4-2. 사용된 DB/기관"), s_section))
+        # ▸ 5-2. 사용된 DB/기관 (불릿 목록)
+        story.append(_sub_bar("▸ 5-2. 사용된 DB/기관"))
         db_sources = [
             src for src in (product.get("used_data_sources", []) or [])
             if isinstance(src, dict) and src.get("name")
         ]
         if db_sources:
-            w_name = CONTENT_W * 0.25
-            w_desc = CONTENT_W * 0.45
-            w_link = CONTENT_W * 0.30
-
-            db_tbl: list[list] = [[
-                Paragraph("DB/기관명", s_hdr),
-                Paragraph("설명", s_hdr),
-                Paragraph("링크", s_hdr),
-            ]]
-            extras_d: list[tuple] = [
-                ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
-            ]
-            for i, src in enumerate(db_sources, 1):
+            for src in db_sources:
                 name = str(src.get("name",        "") or "")
                 desc = str(src.get("description", "") or "")
-                url  = str(src.get("url",         "") or "")
-                short_url = (url[:55] + "…" if len(url) > 55 else url) if url else "—"
-                db_tbl.append([
-                    Paragraph(_rx(name),      s_cell),
-                    Paragraph(_rx(desc),      s_cell),
-                    Paragraph(_rx(short_url), s_cell_sm),
-                ])
-                if i % 2 == 0:
-                    extras_d.append(("BACKGROUND", (0, i), (-1, i), C_ALT))
-
-            dt = Table(db_tbl, colWidths=[w_name, w_desc, w_link])
-            dt.setStyle(TableStyle(_base_style(extras_d)))
-            story.append(dt)
+                line = f"•  {name}"
+                if desc:
+                    line += f" — {desc}"
+                story.append(Paragraph(_rx(line), s_body_txt))
         else:
-            story.append(_simple_table([["사용된 DB/기관", "이번 분석에서 확인된 DB 출처 정보 없음"]], shade_alt=False))
+            story.append(Paragraph(_rx("•  이번 분석에서 확인된 DB 출처 정보 없음"), s_body_txt))
 
         if idx < len(report["products"]) - 1:
             story.append(PageBreak())
 
+    doc.build(story)
+
+
+# ── 표지 PDF 렌더링 ───────────────────────────────────────────────────────────
+
+def render_cover_pdf(out_path: Path, product_name: str = "") -> None:
+    """싱가포르 진출 전략 보고서 표지 PDF 생성."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+    W, H = A4
+    MARGIN = 25 * mm
+
+    base_font = _register_korean_font()
+    bold_font = f"{base_font}-Bold"
+    if base_font == "HYSMyeongJo-Medium":
+        bold_font = base_font
+
+    def ps(name: str, **kw) -> ParagraphStyle:
+        return ParagraphStyle(name, **kw)
+
+    def _rx(text: str) -> str:
+        return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    generated_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    s_main  = ps("CovMain",  fontName=bold_font, fontSize=28, leading=38,
+                 alignment=TA_CENTER, textColor=colors.HexColor("#1A1A1A"), spaceAfter=8)
+    s_co    = ps("CovCo",    fontName=base_font, fontSize=18, leading=26,
+                 alignment=TA_CENTER, textColor=colors.HexColor("#444444"), spaceAfter=6)
+    s_date  = ps("CovDate",  fontName=base_font, fontSize=12, leading=18,
+                 alignment=TA_CENTER, textColor=colors.HexColor("#888888"), spaceAfter=14)
+    s_tag   = ps("CovTag",   fontName=base_font, fontSize=10, leading=15,
+                 alignment=TA_CENTER, textColor=colors.HexColor("#AAAAAA"))
+
+    doc = SimpleDocTemplate(
+        str(out_path), pagesize=A4,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=MARGIN,  bottomMargin=MARGIN,
+        title="싱가포르 진출 전략 보고서",
+    )
+
+    # 세로 중앙 정렬을 위해 상단 여백 추가
+    top_pad = (H - MARGIN * 2) * 0.3
+
+    story = [
+        Spacer(1, top_pad),
+        Paragraph(_rx("싱가포르 진출 전략 보고서"), s_main),
+        Paragraph(_rx("한국유나이티드제약"), s_co),
+        Paragraph(_rx(generated_date), s_date),
+        Paragraph(_rx("수출가격 전략  ·  바이어 후보 리스트  ·  시장분석"), s_tag),
+    ]
     doc.build(story)
 
 
@@ -800,13 +849,14 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
 
     p2_data 필드:
       product_name  : str
+      inn_name      : str  (INN 성분명, 부제목 표시용)
       verdict       : str  (적합/조건부/부적합/—)
       seg_label     : str  (공공시장/민간시장)
       base_price    : float | None  (SGD)
-      formula_str   : str  (공식 텍스트)
       mode_label    : str  (직접 입력 / AI 분석)
+      macro_text    : str  (싱가포르 거시 시장 본문)
       scenarios     : list[{label, price, reason}]
-      ai_rationale  : list[str]  (AI 모드에서만 채워짐)
+      sections      : list[{seg_label, base_price, scenarios}]  공공+민간 통합 시
     """
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
@@ -865,6 +915,10 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
                     leading=14, wordWrap="CJK")
     s_reason   = ps("P2Reason",  fontName=base_font, fontSize=8,
                     textColor=colors.HexColor("#374151"), leading=12, wordWrap="CJK")
+    s_body     = ps("P2Body",    fontName=base_font, fontSize=9, textColor=C_BODY,
+                    leading=15, wordWrap="CJK", spaceAfter=4)
+    s_note     = ps("P2Note",    fontName=base_font, fontSize=8,
+                    textColor=colors.HexColor("#6B7280"), leading=12, wordWrap="CJK")
 
     def _base_style(extra: list | None = None) -> list:
         cmds = [
@@ -887,43 +941,38 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
         title="싱가포르 수출 가격 전략 보고서",
     )
 
-    product_name = str(p2_data.get("product_name", "") or "제품명 없음")
-    verdict      = str(p2_data.get("verdict",      "") or "—")
-    seg_label    = str(p2_data.get("seg_label",    "") or "—")
-    base_price   = p2_data.get("base_price")
-    formula_str  = str(p2_data.get("formula_str",  "") or "—")
-    mode_label   = str(p2_data.get("mode_label",   "") or "—")
-    scenarios    = p2_data.get("scenarios",    []) or []
-    ai_rationale = p2_data.get("ai_rationale", []) or []
+    product_name  = str(p2_data.get("product_name", "") or "제품명 없음")
+    inn_name      = str(p2_data.get("inn_name",     "") or "")
+    verdict       = str(p2_data.get("verdict",      "") or "—")
+    seg_label     = str(p2_data.get("seg_label",    "") or "—")
+    base_price    = p2_data.get("base_price")
+    mode_label    = str(p2_data.get("mode_label",   "") or "—")
+    macro_text    = str(p2_data.get("macro_text",   "") or "")
+    scenarios     = p2_data.get("scenarios",    []) or []
 
     from datetime import datetime, timezone as _tz_p2
     generated_date = datetime.now(_tz_p2.utc).strftime("%Y-%m-%d")
-    base_str = f"SGD {base_price:,.4f}" if isinstance(base_price, (int, float)) else "—"
+    base_str = f"SGD {base_price:,.2f}" if isinstance(base_price, (int, float)) else "—"
 
     story: list = []
 
-    # ── 제목 + 제품 바 ────────────────────────────────────────────────────────
-    story.append(Paragraph(_rx("싱가포르 수출 가격 전략 보고서"), s_title))
-    story.append(Paragraph(_rx(generated_date), s_subtitle))
-    story.append(Spacer(1, 6))
+    # ── 제목 + 부제목 바 ──────────────────────────────────────────────────────
+    story.append(Paragraph(_rx(f"싱가포르 수출 가격 전략 보고서 — {product_name}"), s_title))
+    subtitle_txt = f"{inn_name}  |  {generated_date}" if inn_name else generated_date
+    story.append(Paragraph(_rx(subtitle_txt), s_subtitle))
+    story.append(Spacer(1, 10))
 
     sections_data = p2_data.get("sections") or []
     bar_seg = "공공·민간 시장 통합" if sections_data else seg_label
-    bar_txt = f"{product_name}  |  판정: {verdict}  |  시장: {bar_seg}"
-    bar_tbl = Table([[Paragraph(_rx(bar_txt), s_bar)]], colWidths=[CONTENT_W])
-    bar_tbl.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#4B5563")),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
-        ("TOPPADDING",    (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-    ]))
-    story.append(bar_tbl)
-    story.append(Spacer(1, 10))
 
-    # ── 1. 원 가격 ────────────────────────────────────────────────────────────
-    story.append(Paragraph(_rx("1. 원 가격 (기준 가격)"), s_section))
+    # ── 1. 싱가포르 거시 시장 ────────────────────────────────────────────────
+    if macro_text:
+        story.append(Paragraph(_rx("1. 싱가포르 거시 시장"), s_section))
+        story.append(Paragraph(_rx(macro_text), s_body))
+        story.append(Spacer(1, 6))
+
+    # ── 2. 단가 (시장 기준가) ─────────────────────────────────────────────────
+    story.append(Paragraph(_rx(f"2. {product_name} 단가 (시장 기준가)"), s_section))
     base_tbl = Table([
         [Paragraph(_rx("기준 가격"), s_cell_h), Paragraph(_rx(base_str),    s_cell)],
         [Paragraph(_rx("산정 방식"), s_cell_h), Paragraph(_rx(mode_label),  s_cell)],
@@ -934,37 +983,6 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
     ])))
     story.append(base_tbl)
     story.append(Spacer(1, 6))
-
-    # ── 2. 적용한 계산 공식 ────────────────────────────────────────────────────
-    story.append(Paragraph(_rx("2. 적용한 계산 공식"), s_section))
-    formula_tbl = Table([
-        [Paragraph(_rx("공식"), s_cell_h), Paragraph(_rx(formula_str), s_mono)],
-    ], colWidths=[COL1, COL2])
-    formula_tbl.setStyle(TableStyle(_base_style()))
-    story.append(formula_tbl)
-    story.append(Spacer(1, 6))
-
-    # ── AI 분석 근거 (AI 모드 전용) ────────────────────────────────────────────
-    if ai_rationale:
-        story.append(Paragraph(_rx("AI 분석 근거"), s_section))
-        rat_rows = [
-            [Paragraph(_rx(f"• {line}"), s_cell)]
-            for line in ai_rationale
-            if str(line).strip()
-        ]
-        if rat_rows:
-            rat_tbl = Table(rat_rows, colWidths=[CONTENT_W])
-            rat_tbl.setStyle(TableStyle([
-                ("GRID",          (0, 0), (-1, -1), 0.5, C_BORDER),
-                ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-                ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
-                ("BACKGROUND",    (0, 0), (-1, -1), C_ALT),
-            ]))
-            story.append(rat_tbl)
-        story.append(Spacer(1, 6))
 
     # ── 3. 가격 시나리오 ──────────────────────────────────────────────────────
     story.append(Paragraph(_rx("3. 가격 시나리오"), s_section))
@@ -1036,15 +1054,17 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
     # sections 필드가 있으면 공공/민간 이중 섹션으로 렌더링, 없으면 단일 시나리오 목록
     if sections_data:
         for sec_idx, sec in enumerate(sections_data):
-            sec_label    = str(sec.get("seg_label", "") or "")
-            sec_price    = sec.get("base_price")
-            sec_str      = f"SGD {sec_price:,.2f}" if isinstance(sec_price, (int, float)) else "—"
+            sec_label     = str(sec.get("seg_label", "") or "")
+            sec_price     = sec.get("base_price")
+            sec_str       = f"SGD {sec_price:,.2f}" if isinstance(sec_price, (int, float)) else "—"
             sec_scenarios = sec.get("scenarios", []) or []
+            sub_num       = sec_idx + 1
+            sub_header    = f"▸ 3-{sub_num}. {sec_label}"
 
             s_sec_hdr = ps(f"SecHdr_{sec_idx}", fontName=bold_font, fontSize=10,
                            textColor=colors.white, leading=14, wordWrap="CJK")
             sec_hdr_tbl = Table(
-                [[Paragraph(_rx(f"▶ {sec_label}"), s_sec_hdr)]],
+                [[Paragraph(_rx(sub_header), s_sec_hdr)]],
                 colWidths=[CONTENT_W],
             )
             sec_hdr_tbl.setStyle(TableStyle([
@@ -1072,6 +1092,12 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
     else:
         for sc in scenarios:
             _render_scenario(sc)
+
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(
+        _rx("※ 본 산출 결과는 AI 분석에 기반한 추정치이므로, 최종 의사결정 전 반드시 담당자의 검토 및 확인이 필요합니다."),
+        s_note,
+    ))
 
     doc.build(story)
 
