@@ -151,7 +151,7 @@ def _build_summary_table(companies: list[dict], styles: dict) -> list:
             _esc(c.get("email") or "-")[:30],
         ])
 
-    col_w = [10*mm, 58*mm, 28*mm, 40*mm, 50*mm]
+    col_w = [8*mm, 55*mm, 25*mm, 38*mm, 48*mm]  # 총 174mm = A4 content_w
     tbl = Table(rows, colWidths=col_w, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, 0), _NAVY),
@@ -189,7 +189,7 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
                            fontName=_FONT, leading=12, wordWrap="CJK"),
         ),
     ]]
-    hdr_tbl = Table(hdr_data, colWidths=[120*mm, 65*mm])
+    hdr_tbl = Table(hdr_data, colWidths=[114*mm, 60*mm])  # 총 174mm
     hdr_tbl.setStyle(TableStyle([
         ("VALIGN",        (0, 0), (-1, -1), "BOTTOM"),
         ("LINEBELOW",     (0, 0), (-1, 0), 1.5, _NAVY),
@@ -237,7 +237,7 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
     info_rows = [r for r in info_candidates if r is not None]
     if info_rows:
         elems.append(Paragraph("기본 정보", styles["section"]))
-        info_tbl = Table(info_rows, colWidths=[22*mm, 68*mm, 22*mm, 68*mm])
+        info_tbl = Table(info_rows, colWidths=[20*mm, 67*mm, 20*mm, 67*mm])  # 총 174mm
         info_tbl.setStyle(TableStyle([
             ("FONTSIZE",      (0, 0), (-1, -1), 8),
             ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
@@ -259,7 +259,7 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
     size_rows = [r for r in size_candidates if r is not None]
     if size_rows:
         elems.append(Paragraph("기업 규모", styles["section"]))
-        size_tbl = Table(size_rows, colWidths=[22*mm, 68*mm, 22*mm, 68*mm])
+        size_tbl = Table(size_rows, colWidths=[20*mm, 67*mm, 20*mm, 67*mm])  # 총 174mm
         size_tbl.setStyle(TableStyle([
             ("FONTSIZE",      (0, 0), (-1, -1), 8),
             ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),
@@ -295,7 +295,7 @@ def _build_company_page(c: dict, idx: int, styles: dict) -> list:
                          Paragraph("", styles["small"]), Paragraph("", styles["body"])])
     if cap_rows:
         elems.append(Paragraph("역량 · 실적 · 채널", styles["section"]))
-        cap_tbl = Table(cap_rows, colWidths=[28*mm, 62*mm, 28*mm, 62*mm])
+        cap_tbl = Table(cap_rows, colWidths=[25*mm, 62*mm, 25*mm, 62*mm])  # 총 174mm
         cap_tbl.setStyle(TableStyle([
             ("FONTSIZE",      (0, 0), (-1, -1), 8),
             ("ROWBACKGROUNDS",(0, 0), (-1, -1), [_LIGHT, _WHITE]),

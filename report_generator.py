@@ -619,7 +619,7 @@ def render_pdf(report: dict, out_path: Path) -> None:
         pagesize=A4,
         leftMargin=MARGIN, rightMargin=MARGIN,
         topMargin=MARGIN,  bottomMargin=MARGIN,
-        title="싱가포르 1공정 시장조사 보고서",
+        title="싱가포르 시장 분석 보고서",
     )
 
     story: list = []
@@ -884,7 +884,7 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
         pagesize=A4,
         leftMargin=MARGIN, rightMargin=MARGIN,
         topMargin=MARGIN,  bottomMargin=MARGIN,
-        title="싱가포르 2공정 수출 가격 전략 보고서",
+        title="싱가포르 수출 가격 전략 보고서",
     )
 
     product_name = str(p2_data.get("product_name", "") or "제품명 없음")
@@ -903,11 +903,13 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
     story: list = []
 
     # ── 제목 + 제품 바 ────────────────────────────────────────────────────────
-    story.append(Paragraph(_rx("싱가포르 수출 가격 전략 보고서 (2공정)"), s_title))
+    story.append(Paragraph(_rx("싱가포르 수출 가격 전략 보고서"), s_title))
     story.append(Paragraph(_rx(generated_date), s_subtitle))
     story.append(Spacer(1, 6))
 
-    bar_txt = f"{product_name}  |  판정: {verdict}  |  시장: {seg_label}"
+    sections_data = p2_data.get("sections") or []
+    bar_seg = "공공·민간 시장 통합" if sections_data else seg_label
+    bar_txt = f"{product_name}  |  판정: {verdict}  |  시장: {bar_seg}"
     bar_tbl = Table([[Paragraph(_rx(bar_txt), s_bar)]], colWidths=[CONTENT_W])
     bar_tbl.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#4B5563")),
@@ -925,7 +927,7 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
     base_tbl = Table([
         [Paragraph(_rx("기준 가격"), s_cell_h), Paragraph(_rx(base_str),    s_cell)],
         [Paragraph(_rx("산정 방식"), s_cell_h), Paragraph(_rx(mode_label),  s_cell)],
-        [Paragraph(_rx("시장 구분"), s_cell_h), Paragraph(_rx(seg_label),   s_cell)],
+        [Paragraph(_rx("시장 구분"), s_cell_h), Paragraph(_rx(bar_seg),     s_cell)],
     ], colWidths=[COL1, COL2])
     base_tbl.setStyle(TableStyle(_base_style([
         ("BACKGROUND", (0, 1), (-1, 1), C_ALT),
@@ -967,25 +969,25 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
     # ── 3. 가격 시나리오 ──────────────────────────────────────────────────────
     story.append(Paragraph(_rx("3. 가격 시나리오"), s_section))
 
-    # 시나리오 레이블 정규화 (구버전 "공격적인 시나리오" → "공격" 등 모두 처리)
+    # 시나리오 레이블 정규화 — 구버전(공격/평균/보수) 및 신버전(저가 진입/기준가/프리미엄) 모두 처리
     def _sc_key(lbl: str) -> str:
         lbl = str(lbl or "")
-        if "공격" in lbl: return "공격"
-        if "보수" in lbl: return "보수"
-        return "평균"
+        if "공격" in lbl or "저가" in lbl: return "저가 진입"
+        if "보수" in lbl or "프리미엄" in lbl: return "프리미엄"
+        return "기준가"
 
     _SC_BG: dict[str, Any] = {
-        "공격": colors.HexColor("#FEF2F2"),
-        "평균": colors.HexColor("#EFF6FF"),
-        "보수": colors.HexColor("#F0FDF4"),
+        "저가 진입": colors.HexColor("#FEF2F2"),
+        "기준가":    colors.HexColor("#EFF6FF"),
+        "프리미엄":  colors.HexColor("#F0FDF4"),
     }
     _SC_LC: dict[str, Any] = {
-        "공격": colors.HexColor("#DC2626"),
-        "평균": colors.HexColor("#2563EB"),
-        "보수": colors.HexColor("#16A34A"),
+        "저가 진입": colors.HexColor("#DC2626"),
+        "기준가":    colors.HexColor("#2563EB"),
+        "프리미엄":  colors.HexColor("#16A34A"),
     }
 
-    for sc in scenarios:
+    def _render_scenario(sc: dict) -> None:
         raw_label = str(sc.get("label", sc.get("name", "")) or "")
         key       = _sc_key(raw_label)
         label     = raw_label or key
@@ -1030,6 +1032,46 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
         ]))
         story.append(sc_tbl)
         story.append(Spacer(1, 4))
+
+    # sections 필드가 있으면 공공/민간 이중 섹션으로 렌더링, 없으면 단일 시나리오 목록
+    if sections_data:
+        for sec_idx, sec in enumerate(sections_data):
+            sec_label    = str(sec.get("seg_label", "") or "")
+            sec_price    = sec.get("base_price")
+            sec_str      = f"SGD {sec_price:,.2f}" if isinstance(sec_price, (int, float)) else "—"
+            sec_scenarios = sec.get("scenarios", []) or []
+
+            s_sec_hdr = ps(f"SecHdr_{sec_idx}", fontName=bold_font, fontSize=10,
+                           textColor=colors.white, leading=14, wordWrap="CJK")
+            sec_hdr_tbl = Table(
+                [[Paragraph(_rx(f"▶ {sec_label}"), s_sec_hdr)]],
+                colWidths=[CONTENT_W],
+            )
+            sec_hdr_tbl.setStyle(TableStyle([
+                ("BACKGROUND",    (0, 0), (-1, -1), C_NAVY),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+                ("TOPPADDING",    (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]))
+            story.append(sec_hdr_tbl)
+
+            sec_base_tbl = Table(
+                [[Paragraph(_rx("기준가"), s_cell_h), Paragraph(_rx(sec_str), s_cell)]],
+                colWidths=[COL1, COL2],
+            )
+            sec_base_tbl.setStyle(TableStyle(_base_style()))
+            story.append(sec_base_tbl)
+            story.append(Spacer(1, 4))
+
+            for sc in sec_scenarios:
+                _render_scenario(sc)
+
+            if sec_idx < len(sections_data) - 1:
+                story.append(Spacer(1, 8))
+    else:
+        for sc in scenarios:
+            _render_scenario(sc)
 
     doc.build(story)
 

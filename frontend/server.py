@@ -647,6 +647,7 @@ class P2ReportBody(BaseModel):
     mode_label:    str   = ""
     scenarios:     list  = []
     ai_rationale:  list  = []
+    sections:      list  = []  # [{seg_label, base_price, scenarios}] 공공+민간 통합 시
 
 
 @app.post("/api/p2/report")
@@ -814,9 +815,9 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
         ref_price    = extracted.get("ref_price_sgd") or 0
         ref_display  = f"SGD {float(ref_price):.2f}" if ref_price else (extracted.get("ref_price_text") or "미확인")
         sgd_krw      = exchange_rates["sgd_krw"]
-        market_label = "공공 시장 (ALPS/조달청 채널)" if market == "public" else "민간 시장 (병원·약국·체인 채널)"
         verdict_src  = extracted.get("verdict", "미상")
         competitor_json = json.dumps(extracted.get("competitor_prices", []), ensure_ascii=False)
+        ref_hint = f"참조가 SGD {float(ref_price):.2f}" if ref_price else "참조가 미확인"
 
         analysis_prompt = f"""싱가포르 수출 가격 전략을 수립해주세요.
 
@@ -826,27 +827,38 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
 - 참조가: {ref_display}
 - 참조가 원문: {extracted.get('ref_price_text', '없음')}
 - HS 코드: {extracted.get('hs_code', '미상')}
-- 시장: {market_label}
 - 현재 환율: 1 SGD = {sgd_krw:.2f} KRW (실시간 Yahoo Finance)
 - 경쟁사 가격: {competitor_json}
 - 시장 맥락: {extracted.get('market_context', '정보 없음')}
 
 ## 요청
-1. 싱가포르 제약 시장의 특성, 판정 결과, 시장 구분을 종합해 최종 수출 권고가를 산정하세요.
-2. 시나리오는 공격·평균·보수 3개로 구분하세요. 각 시나리오마다:
-   - 가격 근거·포지셔닝 전략·적합 상황을 포함한 한 문단(3-4문장)으로 reason을 작성하세요.
-   - 구체적인 계산식을 formula 필드에 작성하세요 (예: SGD 9.87 × 0.85 = SGD 8.39).
-3. rationale은 3-4문장으로 시장 근거·판정 근거·리스크를 포함해 서술하세요.
+공공 시장(ALPS·조달청 채널)과 민간 시장(병원·약국·체인 채널) 각각에 대해 수출 가격 전략을 수립하세요.
+각 시장마다 시나리오 3개(저가 진입·기준가·프리미엄)를 제시하세요.
+각 시나리오마다:
+  - 가격 근거·포지셔닝 전략·적합 상황을 포함한 한 문단(3-4문장)으로 reason을 작성하세요.
+  - 구체적인 계산식을 formula 필드에 작성하세요 (예: {ref_hint} × 0.90 = SGD {float(ref_price)*0.90:.2f} 형식).
+rationale은 3-4문장으로 시장 근거·판정 근거·리스크를 포함해 서술하세요.
+공공 시장은 일반적으로 민간 시장보다 10~20% 낮게 책정됩니다.
 
 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
 {{
-  "final_price_sgd": 숫자,
-  "rationale": "산정 이유 3-4문장",
-  "scenarios": [
-    {{"name": "공격", "price_sgd": 숫자, "reason": "저마진 포지셔닝 정의·근거·적합 상황을 포함한 한 문단", "formula": "계산식 (예: SGD 9.87 × 0.85 = SGD 8.39)"}},
-    {{"name": "평균", "price_sgd": 숫자, "reason": "중간 포지셔닝 정의·근거·적합 상황을 포함한 한 문단", "formula": "계산식"}},
-    {{"name": "보수", "price_sgd": 숫자, "reason": "고마진 포지셔닝 정의·근거·적합 상황을 포함한 한 문단", "formula": "계산식"}}
-  ]
+  "rationale": "시장 근거·판정 근거·리스크를 포함한 3-4문장",
+  "public_market": {{
+    "final_price_sgd": 숫자,
+    "scenarios": [
+      {{"name": "저가 진입", "price_sgd": 숫자, "reason": "한 문단", "formula": "계산식"}},
+      {{"name": "기준가",   "price_sgd": 숫자, "reason": "한 문단", "formula": "계산식"}},
+      {{"name": "프리미엄", "price_sgd": 숫자, "reason": "한 문단", "formula": "계산식"}}
+    ]
+  }},
+  "private_market": {{
+    "final_price_sgd": 숫자,
+    "scenarios": [
+      {{"name": "저가 진입", "price_sgd": 숫자, "reason": "한 문단", "formula": "계산식"}},
+      {{"name": "기준가",   "price_sgd": 숫자, "reason": "한 문단", "formula": "계산식"}},
+      {{"name": "프리미엄", "price_sgd": 숫자, "reason": "한 문단", "formula": "계산식"}}
+    ]
+  }}
 }}
 
 참조가가 미확인이라면 시장 데이터·경쟁사·제품 특성을 기반으로 합리적인 가격을 추정하세요."""
@@ -866,21 +878,24 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
             if m_json2:
                 analysis = json.loads(m_json2.group(0))
         except Exception:
-            final_est = (ref_price * 0.30) if ref_price else 0
+            est_pub  = round((ref_price * 0.25) if ref_price else 10.0, 2)
+            est_priv = round((ref_price * 0.30) if ref_price else 12.0, 2)
+            def _fb_sc(base: float, market_ko: str) -> list:
+                return [
+                    {"name": "저가 진입", "price_sgd": round(base * 0.88, 2),
+                     "reason": f"저마진 포지셔닝 — {market_ko} 진입 초기 가격경쟁력으로 시장점유율을 확보합니다.",
+                     "formula": f"기준가 SGD {base:.2f} × 0.88 = SGD {round(base*0.88,2):.2f}"},
+                    {"name": "기준가", "price_sgd": base,
+                     "reason": f"균형 포지셔닝 — {market_ko} 리스크와 마진의 균형을 유지하는 기본 산정가입니다.",
+                     "formula": f"기준가 SGD {base:.2f} (기준)"},
+                    {"name": "프리미엄", "price_sgd": round(base * 1.12, 2),
+                     "reason": f"고마진 포지셔닝 — {market_ko} 제품 가치를 높게 책정해 이익 확대를 추구합니다.",
+                     "formula": f"기준가 SGD {base:.2f} × 1.12 = SGD {round(base*1.12,2):.2f}"},
+                ]
             analysis = {
-                "final_price_sgd": round(final_est, 2),
-                "rationale": "AI 응답 파싱 중 오류가 발생했습니다. 기본값 30% 비율로 산정합니다.",
-                "scenarios": [
-                    {"name": "공격", "price_sgd": round(final_est * 0.88, 2),
-                     "reason": "저마진 포지셔닝 — 시장 진입 초기, 자사가 손해를 감수하며 가격경쟁력을 앞세워 점유율을 선점합니다.",
-                     "formula": f"SGD {final_est:.2f} × 0.88 = SGD {round(final_est * 0.88, 2):.2f}"},
-                    {"name": "평균", "price_sgd": round(final_est, 2),
-                     "reason": "중간 포지셔닝 — 리스크와 마진의 균형을 유지하는 기본 산정가입니다.",
-                     "formula": f"SGD {final_est:.2f} (기준가 그대로)"},
-                    {"name": "보수", "price_sgd": round(final_est * 1.12, 2),
-                     "reason": "고마진 포지셔닝 — 자사 제품이 시장 내 자리를 잡은 이후 마진율을 높여 이익 확대를 노립니다.",
-                     "formula": f"SGD {final_est:.2f} × 1.12 = SGD {round(final_est * 1.12, 2):.2f}"},
-                ],
+                "rationale": "AI 응답 파싱 중 오류가 발생했습니다. 기본값으로 산정합니다.",
+                "public_market":  {"final_price_sgd": est_pub,  "scenarios": _fb_sc(est_pub,  "공공 시장")},
+                "private_market": {"final_price_sgd": est_priv, "scenarios": _fb_sc(est_priv, "민간 시장")},
             }
 
         _p2_ai_task["analysis"] = analysis
@@ -906,25 +921,43 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
         _pdf_path_p2 = _reports_dir_p2 / _pdf_name_p2
 
         # AI 시나리오 필드명 정규화 (PDF generator는 label/price 사용)
-        raw_scenarios = analysis.get("scenarios", []) or []
-        norm_scenarios = []
-        for sc in raw_scenarios:
-            norm_scenarios.append({
-                "label":   sc.get("name", sc.get("label", "")),
-                "price":   sc.get("price_sgd", sc.get("price", 0)),
-                "reason":  sc.get("reason", ""),
-                "formula": sc.get("formula", ""),
-            })
+        def _norm_sc(raw: list) -> list:
+            result = []
+            for sc in (raw or []):
+                result.append({
+                    "label":   sc.get("name", sc.get("label", "")),
+                    "price":   sc.get("price_sgd", sc.get("price", 0)),
+                    "reason":  sc.get("reason", ""),
+                    "formula": sc.get("formula", ""),
+                })
+            return result
+
+        pub_data  = analysis.get("public_market",  {}) or {}
+        priv_data = analysis.get("private_market", {}) or {}
+
+        sections = [
+            {
+                "seg_label":  "공공 시장 (ALPS·조달청 채널)",
+                "base_price": pub_data.get("final_price_sgd", 0),
+                "scenarios":  _norm_sc(pub_data.get("scenarios", [])),
+            },
+            {
+                "seg_label":  "민간 시장 (병원·약국·체인 채널)",
+                "base_price": priv_data.get("final_price_sgd", 0),
+                "scenarios":  _norm_sc(priv_data.get("scenarios", [])),
+            },
+        ]
 
         p2_data = {
             "product_name": extracted.get("product_name", "미상"),
             "verdict":      verdict_src,
-            "seg_label":    market_label,
-            "base_price":   analysis.get("final_price_sgd", 0),
+            "seg_label":    "공공·민간 시장 통합",
+            "base_price":   pub_data.get("final_price_sgd", 0),
             "formula_str":  "",
             "mode_label":   "AI 분석 (Claude Haiku)",
-            "scenarios":    norm_scenarios,
+            "scenarios":    _norm_sc(pub_data.get("scenarios", [])),
             "ai_rationale": [analysis.get("rationale", "")],
+            "sections":     sections,
         }
 
         from report_generator import render_p2_pdf
@@ -1324,7 +1357,7 @@ async def download_combined_report() -> Any:
     p2 = _latest("sg_p2_*.pdf")
     p3 = _latest("sg_buyers_*.pdf")
 
-    found = [p for p in [p1, p2, p3] if p is not None]
+    found = [p for p in [p2, p3, p1] if p is not None]
     if not found:
         raise HTTPException(404, "생성된 보고서가 없습니다. 1·2·3 공정을 먼저 완료해 주세요.")
 
