@@ -918,15 +918,22 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   letter-spacing: -.04em;
   line-height: 1;
 }
-.p2-seg-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-.p2-seg-btn {
-  height: 34px; padding: 0 12px; border-radius: 10px;
-  background: rgba(23,63,120,.08); color: var(--navy);
-  font-size: 12px; font-weight: 800; cursor: pointer;
-  transition: background .15s; font-family: inherit;
-  border: none;
+.p2-seg-row {
+  display: flex; align-items: center; margin-bottom: 12px;
+  background: rgba(23,63,120,.08); border-radius: 999px;
+  padding: 3px; gap: 0;
 }
-.p2-seg-btn.on { background: var(--navy); color: #fff; }
+.p2-seg-btn {
+  flex: 1; height: 30px; padding: 0 14px; border-radius: 999px;
+  background: transparent; color: var(--muted);
+  font-size: 12px; font-weight: 800; cursor: pointer;
+  transition: background .2s, color .2s, box-shadow .2s;
+  font-family: inherit; border: none; white-space: nowrap;
+}
+.p2-seg-btn.on {
+  background: var(--navy); color: #fff;
+  box-shadow: 0 2px 8px rgba(23,63,120,.22);
+}
 
 /* ── 보고서 브리프 ─────────────────────────────────────────────────────── */
 .p2-brief-wrap { margin-top: 10px; }
@@ -1385,8 +1392,20 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   transition: background .15s, color .15s;
 }
 .topbar-tab.on {
+  background: transparent;
+  color: var(--navy);
+  position: relative;
+}
+.topbar-tab.on::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 2px;
   background: var(--navy);
-  color: #fff;
+  border-radius: 2px;
 }
 .topbar-tab:not(.on):hover {
   background: rgba(23,63,120,.07);
@@ -1417,6 +1436,7 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   flex-direction: column;
   justify-content: space-between;
   min-height: 88px;
+  text-align: center;
 }
 
 .psc-label {

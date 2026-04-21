@@ -1961,15 +1961,15 @@ async function loadPreviewStats() {
   try {
     const res = await fetch('/api/preview/stats');
     const d   = await res.json();
-    _setPStat('psc-gdp',    d.gdp?.value          || 'US$ 466.8B',  'psc-gdp-src',    d.gdp?.source          || 'IMF (2024)');
-    _setPStat('psc-pop',    d.population?.value   || '5,917,600명', 'psc-pop-src',    d.population?.source   || '2024 · Singstat');
-    _setPStat('psc-pharma', d.pharma_market?.value || '$4.8B',      'psc-pharma-src', d.pharma_market?.source || '2024 · IQVIA');
-    _setPStat('psc-import', d.import_dep?.value   || '~85%',        'psc-import-src', d.import_dep?.source   || '2024 · HSA');
+    _setPStat('psc-gdp',    d.gdp?.value          || 'US$ 466.8B',  'psc-gdp-src',    d.gdp?.source          || 'IMF');
+    _setPStat('psc-pop',    d.population?.value   || '5,917,600명', 'psc-pop-src',    d.population?.source   || 'Singstat');
+    _setPStat('psc-pharma', d.pharma_market?.value || '$4.8B',      'psc-pharma-src', d.pharma_market?.source || 'IQVIA');
+    _setPStat('psc-import', d.import_dep?.value   || '~85%',        'psc-import-src', d.import_dep?.source   || 'HSA');
   } catch (_) {
-    _setPStat('psc-gdp',    'US$ 466.8B',  'psc-gdp-src',    'IMF (2024)');
-    _setPStat('psc-pop',    '5,917,600명', 'psc-pop-src',    '2024 · Singstat');
-    _setPStat('psc-pharma', '$4.8B',       'psc-pharma-src', '2024 · IQVIA');
-    _setPStat('psc-import', '~85%',        'psc-import-src', '2024 · HSA');
+    _setPStat('psc-gdp',    'US$ 466.8B',  'psc-gdp-src',    'IMF');
+    _setPStat('psc-pop',    '5,917,600명', 'psc-pop-src',    'Singstat');
+    _setPStat('psc-pharma', '$4.8B',       'psc-pharma-src', 'IQVIA');
+    _setPStat('psc-import', '~85%',        'psc-import-src', 'HSA');
   }
 }
 
@@ -2470,4 +2470,9 @@ const _PRODUCT_COUNTRY_MAP = {
 loadNews();             // 시장 뉴스 즉시 로드
 loadPreviewStats();     // 프리뷰 통계 로드
 loadPreviewNews();      // 프리뷰 뉴스 로드
-setTimeout(initPreviewMap, 80); // Leaflet 지도 초기화 (DOM 렌더 후)
+// Leaflet 지도 초기화 — load 이미 완료됐으면 즉시, 아니면 이벤트 대기
+(function() {
+  function _doInit() { requestAnimationFrame(function() { requestAnimationFrame(initPreviewMap); }); }
+  if (document.readyState === 'complete') { _doInit(); }
+  else { window.addEventListener('load', _doInit); }
+})();

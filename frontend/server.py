@@ -290,10 +290,10 @@ async def api_macro() -> JSONResponse:
 # ── 프리뷰 국가 통계 (GDP · 인구 · 의약품 시장 · 수입 의존도) ─────────────────
 
 _PREVIEW_STATS_STATIC = {
-    "gdp":           {"value": "US$ 466.8B",  "source": "IMF (2024)"},
-    "population":    {"value": "5,917,600명", "source": "2024 · Singstat"},
-    "pharma_market": {"value": "$4.8B",        "source": "2024 · IQVIA"},
-    "import_dep":    {"value": "~85%",         "source": "2024 · HSA"},
+    "gdp":           {"value": "US$ 466.8B",  "source": "IMF"},
+    "population":    {"value": "5,917,600명", "source": "Singstat"},
+    "pharma_market": {"value": "$4.8B",        "source": "IQVIA"},
+    "import_dep":    {"value": "~85%",         "source": "HSA"},
 }
 
 
