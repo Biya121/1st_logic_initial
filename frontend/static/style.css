@@ -1365,7 +1365,162 @@ select:focus { box-shadow: 0 0 0 3px rgba(23,63,120,.15); }
   .col-left, .col-right { height: auto; max-height: none; }
 }
 
-/* ── 25. 스크롤바 ────────────────────────────────────────────────────────── */
+/* ── 25. 상단 탭 네비 (메인 프리뷰 ↔ 시장조사 분석) ─────────────────────── */
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.topbar-tab {
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.topbar-tab.on {
+  background: var(--navy);
+  color: #fff;
+}
+.topbar-tab:not(.on):hover {
+  background: rgba(23,63,120,.07);
+  color: var(--navy);
+}
+
+/* ── 26. 메인 프리뷰 페이지 ──────────────────────────────────────────────── */
+.preview-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--topbar-h) - 44px);
+  gap: 14px;
+}
+
+.preview-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.preview-stat-card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--sh);
+  padding: 16px 20px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 88px;
+}
+
+.psc-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .02em;
+  margin-bottom: 6px;
+}
+
+.psc-value {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--navy);
+  letter-spacing: -.03em;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.psc-source {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.preview-bottom-row {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.preview-map-block,
+.preview-news-block {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--sh);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pvblock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 12px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--navy);
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(23,63,120,.06);
+}
+
+#preview-map {
+  flex: 1;
+  min-height: 0;
+  z-index: 0;
+}
+
+.preview-news-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.pvnews-item {
+  display: block;
+  padding: 12px 18px 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .13s;
+}
+
+.pvnews-item + .pvnews-item {
+  box-shadow: inset 0 1px 0 rgba(23,63,120,.06);
+}
+
+a.pvnews-item:hover { background: rgba(23,63,120,.03); }
+
+.pvnews-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.45;
+  margin-bottom: 4px;
+}
+
+.pvnews-source {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pvnews-loading,
+.pvnews-empty {
+  padding: 28px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── 27. 스크롤바 ────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(23,63,120,.15); border-radius: 2px; }

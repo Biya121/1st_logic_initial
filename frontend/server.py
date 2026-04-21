@@ -287,6 +287,36 @@ async def api_macro() -> JSONResponse:
     return JSONResponse(get_sg_macro())
 
 
+# ── 프리뷰 국가 통계 (GDP · 인구 · 의약품 시장 · 수입 의존도) ─────────────────
+
+_PREVIEW_STATS_STATIC = {
+    "gdp":           {"value": "US$ 466.8B",  "source": "IMF (2024)"},
+    "population":    {"value": "5,917,600명", "source": "2024 · Singstat"},
+    "pharma_market": {"value": "$4.8B",        "source": "2024 · IQVIA"},
+    "import_dep":    {"value": "~85%",         "source": "2024 · HSA"},
+}
+
+
+@app.get("/api/preview/stats")
+async def preview_stats() -> JSONResponse:
+    """싱가포르 국가 통계 4종 — Supabase sg_country_stats 우선, 없으면 정적 폴백."""
+    try:
+        from utils.db import get_client
+        sb   = get_client()
+        rows = sb.table("sg_country_stats").select("*").execute().data or []
+        result: dict[str, Any] = {k: dict(v) for k, v in _PREVIEW_STATS_STATIC.items()}
+        for row in rows:
+            key = row.get("stat_key", "")
+            if key in result and row.get("value"):
+                result[key] = {
+                    "value":  row["value"],
+                    "source": row.get("source", result[key]["source"]),
+                }
+        return JSONResponse(result)
+    except Exception:
+        return JSONResponse(_PREVIEW_STATS_STATIC)
+
+
 # ── 환율 (yfinance SGD/KRW) ───────────────────────────────────────────────────
 
 _exchange_cache: dict[str, Any] = {"data": None, "ts": 0.0}
@@ -1283,12 +1313,15 @@ async def _run_buyer_pipeline(
 @app.post("/api/buyers/run")
 async def trigger_buyers(body: BuyerRunBody | None = None) -> JSONResponse:
     global _buyer_task
+    import uuid
     req = body if body is not None else BuyerRunBody()
     if _buyer_task.get("status") == "running":
         raise HTTPException(409, "바이어 발굴이 이미 실행 중입니다.")
+    task_id = str(uuid.uuid4())
     _buyer_task = {
         "status": "running", "step": "crawl", "step_label": "시작 중…",
         "crawl_count": 0, "all_candidates": [], "buyers": [], "pdf": None,
+        "task_id": task_id,
     }
     asyncio.create_task(_run_buyer_pipeline(
         req.product_key,
@@ -1296,7 +1329,7 @@ async def trigger_buyers(body: BuyerRunBody | None = None) -> JSONResponse:
         req.target_country,
         req.target_region,
     ))
-    return JSONResponse({"ok": True})
+    return JSONResponse({"ok": True, "task_id": task_id})
 
 
 @app.get("/api/buyers/status")
@@ -1311,6 +1344,7 @@ async def buyer_status() -> JSONResponse:
         "buyer_count":     len(_buyer_task.get("buyers", [])),
         "candidate_count": len(_buyer_task.get("all_candidates", [])),
         "has_pdf":         bool(_buyer_task.get("pdf")),
+        "task_id":         _buyer_task.get("task_id", ""),
     })
 
 

@@ -4,7 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>싱가포르 수출 적합성 분석 — UPharma Export AI</title>
-  <link rel="stylesheet" href="/static/style.css?v=13"/>
+  <link rel="stylesheet" href="/static/style.css?v=14"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 </head>
 <body>
 <div class="app">
@@ -17,6 +18,10 @@
     </div>
   </div>
   <div class="topbar-r">
+    <nav class="topbar-nav">
+      <button class="topbar-tab on" id="tab-preview" onclick="goPreviewTab('preview', this)">메인 프리뷰</button>
+      <button class="topbar-tab" id="tab-main" onclick="goPreviewTab('main', this)">시장조사 분석</button>
+    </nav>
     <div class="pill">
       <span class="flag-emoji">🇸🇬</span>
       <span>Singapore</span>
@@ -26,8 +31,49 @@
 
 <main class="main">
 
+  <!-- ════ 프리뷰 ════ -->
+  <div id="preview" class="page on">
+    <div class="preview-page">
+      <div class="preview-stats-row">
+        <div class="preview-stat-card">
+          <div class="psc-label">국가 GDP</div>
+          <div class="psc-value" id="psc-gdp">US$ 466.8B</div>
+          <div class="psc-source" id="psc-gdp-src">출처: IMF (2024)</div>
+        </div>
+        <div class="preview-stat-card">
+          <div class="psc-label">인구</div>
+          <div class="psc-value" id="psc-pop">5,917,600명</div>
+          <div class="psc-source" id="psc-pop-src">2024 · Singstat</div>
+        </div>
+        <div class="preview-stat-card">
+          <div class="psc-label">의약품 시장 규모</div>
+          <div class="psc-value" id="psc-pharma">$4.8B</div>
+          <div class="psc-source" id="psc-pharma-src">2024 · IQVIA</div>
+        </div>
+        <div class="preview-stat-card">
+          <div class="psc-label">의약품 국가 수입 의존도</div>
+          <div class="psc-value" id="psc-import">~85%</div>
+          <div class="psc-source" id="psc-import-src">2024 · HSA</div>
+        </div>
+      </div>
+      <div class="preview-bottom-row">
+        <div class="preview-map-block">
+          <div class="pvblock-header">싱가포르 위치</div>
+          <div id="preview-map"></div>
+        </div>
+        <div class="preview-news-block">
+          <div class="pvblock-header">
+            <span>싱가포르 의약품 시장 주요 동향</span>
+            <button class="btn-refresh" id="btn-preview-news-refresh" onclick="loadPreviewNews()" style="margin-top:0;">↺ 새로고침</button>
+          </div>
+          <div id="preview-news-list" class="preview-news-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ════ 메인 ════ -->
-  <div id="main" class="page on">
+  <div id="main" class="page">
     <div class="dashboard-grid">
 
       <!-- ── 왼쪽 컬럼 ── -->
@@ -398,7 +444,8 @@
   </button>
 </div>
 
-<script src="/static/app.js?v=11"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="/static/app.js?v=12"></script>
 <script>
 function toggleManual() {
   var body  = document.getElementById('manual-body');

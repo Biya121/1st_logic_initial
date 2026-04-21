@@ -1942,6 +1942,89 @@ function _escHtml(s) {
 
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   §10-b. 메인 프리뷰 탭 · 통계 · 지도 · 뉴스
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+function goPreviewTab(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.topbar-tab').forEach(t => t.classList.remove('on'));
+  const page = document.getElementById(id);
+  if (page) page.classList.add('on');
+  if (el)   el.classList.add('on');
+  if (id === 'preview' && !window._previewMapInited) {
+    setTimeout(initPreviewMap, 50);
+    window._previewMapInited = true;
+  }
+}
+
+async function loadPreviewStats() {
+  try {
+    const res = await fetch('/api/preview/stats');
+    const d   = await res.json();
+    _setPStat('psc-gdp',    d.gdp?.value          || 'US$ 466.8B',  'psc-gdp-src',    d.gdp?.source          || 'IMF (2024)');
+    _setPStat('psc-pop',    d.population?.value   || '5,917,600명', 'psc-pop-src',    d.population?.source   || '2024 · Singstat');
+    _setPStat('psc-pharma', d.pharma_market?.value || '$4.8B',      'psc-pharma-src', d.pharma_market?.source || '2024 · IQVIA');
+    _setPStat('psc-import', d.import_dep?.value   || '~85%',        'psc-import-src', d.import_dep?.source   || '2024 · HSA');
+  } catch (_) {
+    _setPStat('psc-gdp',    'US$ 466.8B',  'psc-gdp-src',    'IMF (2024)');
+    _setPStat('psc-pop',    '5,917,600명', 'psc-pop-src',    '2024 · Singstat');
+    _setPStat('psc-pharma', '$4.8B',       'psc-pharma-src', '2024 · IQVIA');
+    _setPStat('psc-import', '~85%',        'psc-import-src', '2024 · HSA');
+  }
+}
+
+function _setPStat(valId, val, srcId, src) {
+  const ve = document.getElementById(valId);
+  const se = document.getElementById(srcId);
+  if (ve) ve.textContent = val;
+  if (se) se.textContent = src;
+}
+
+function initPreviewMap() {
+  if (typeof L === 'undefined') return;
+  if (window._previewMapInstance) return;
+  const el = document.getElementById('preview-map');
+  if (!el) return;
+  const map = L.map('preview-map', { zoomControl: true }).setView([1.3521, 103.8198], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 18,
+  }).addTo(map);
+  L.marker([1.3521, 103.8198]).addTo(map).bindPopup('<b>Singapore</b>').openPopup();
+  window._previewMapInstance = map;
+  window._previewMapInited   = true;
+}
+
+async function loadPreviewNews() {
+  const listEl = document.getElementById('preview-news-list');
+  const btn    = document.getElementById('btn-preview-news-refresh');
+  if (!listEl) return;
+  if (btn) btn.disabled = true;
+  listEl.innerHTML = '<div class="pvnews-loading">뉴스 로드 중…</div>';
+  try {
+    const res  = await fetch('/api/news');
+    const data = await res.json();
+    if (!data.ok || !data.items?.length) {
+      listEl.innerHTML = `<div class="pvnews-empty">${data.error || '뉴스를 불러올 수 없습니다.'}</div>`;
+      return;
+    }
+    listEl.innerHTML = data.items.map(item => {
+      const href   = item.link ? `href="${_escHtml(item.link)}" target="_blank" rel="noopener"` : '';
+      const tag    = item.link ? 'a' : 'div';
+      const source = [item.source, item.date].filter(Boolean).join(' · ');
+      return `<${tag} class="pvnews-item" ${href}>
+        <div class="pvnews-title">${_escHtml(item.title)}</div>
+        ${source ? `<div class="pvnews-source">${_escHtml(source)}</div>` : ''}
+      </${tag}>`;
+    }).join('');
+  } catch (_) {
+    listEl.innerHTML = '<div class="pvnews-empty">뉴스 조회 실패 — 잠시 후 다시 시도해 주세요</div>';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    §11. 시장 신호 · 뉴스 (Perplexity)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
@@ -2107,6 +2190,7 @@ async function runP3Pipeline() {
     const data = await res.json();
     // 409 = 이미 실행 중 → 폴링만 시작
     if (res.status !== 409 && !res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    if (data.task_id) sessionStorage.setItem('p3_task_id', data.task_id);
     if (_p3PollTimer) clearInterval(_p3PollTimer);
     _p3PollTimer = setInterval(_pollP3, 2500);
   } catch (e) {
@@ -2118,12 +2202,14 @@ async function runP3Pipeline() {
   }
 }
 
-/* 페이지 로드 시 실행 중인 파이프라인 자동 감지 */
+/* 페이지 로드 시 실행 중인 파이프라인 자동 감지 — 내가 시작한 작업만 재개 */
 (async function _p3AutoResume() {
   try {
     const res  = await fetch('/api/buyers/status');
     const data = await res.json();
-    if (data.status === 'running') {
+    const myTaskId = sessionStorage.getItem('p3_task_id');
+    const isMyTask = myTaskId && myTaskId === data.task_id;
+    if (data.status === 'running' && isMyTask) {
       const btn  = document.getElementById('btn-p3-run');
       const icon = document.getElementById('p3-run-icon');
       if (btn)  btn.disabled = true;
@@ -2132,7 +2218,7 @@ async function runP3Pipeline() {
       if (_p3LoadElResume) _p3LoadElResume.style.display = '';
       if (_p3PollTimer) clearInterval(_p3PollTimer);
       _p3PollTimer = setInterval(_pollP3, 2500);
-    } else if (data.status === 'done') {
+    } else if (data.status === 'done' && isMyTask) {
       const rr     = await fetch('/api/buyers/result');
       const result = await rr.json();
       _p3Buyers  = [];                    // 재방문 시 카드 초기화
@@ -2382,3 +2468,6 @@ const _PRODUCT_COUNTRY_MAP = {
   _syncP3ProductLabel(); // 초기 레이블 설정
 })();
 loadNews();             // 시장 뉴스 즉시 로드
+loadPreviewStats();     // 프리뷰 통계 로드
+loadPreviewNews();      // 프리뷰 뉴스 로드
+setTimeout(initPreviewMap, 80); // Leaflet 지도 초기화 (DOM 렌더 후)
