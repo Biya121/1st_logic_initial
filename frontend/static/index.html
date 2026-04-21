@@ -58,7 +58,7 @@
                     <option value="SG_gastiin_cr_mosapride">[개량신약] Gastiin CR · mosapride citrate 15mg</option>
                   </select>
                   <button class="btn-analyze" id="btn-analyze" onclick="runPipeline()">
-                    <span id="btn-icon">▶</span> 분석 실행
+                    <span id="btn-icon">▶</span> 시장 조사
                   </button>
                 </div>
                 <div id="p1-loading-state" class="p1-simple-loading" style="display:none;">
@@ -99,7 +99,7 @@
                     <button class="p2-seg-btn"    id="p2-ai-seg-private" type="button" onclick="setP2AiSeg('private')">민간 시장</button>
                   </div>
                   <button class="btn-analyze" id="btn-p2-ai-run" type="button" onclick="runP2AiPipeline()">
-                    <span id="p2-ai-run-icon">▶</span> AI 가격 분석 실행
+                    <span id="p2-ai-run-icon">▶</span> AI 가격 산출
                   </button>
                 </div>
                 <div id="p2-ai-seg-desc" class="p2-note" style="margin-top:5px;"></div>
@@ -249,7 +249,7 @@
                   <option value="">시장조사 보고서를 선택하세요</option>
                 </select>
                 <button class="btn-analyze" id="btn-p3-run" onclick="runP3Pipeline()">
-                  <span id="p3-run-icon">▶</span> 바이어 발굴 실행
+                  <span id="p3-run-icon">▶</span> 바이어 발굴
                 </button>
               </div>
 
@@ -455,7 +455,7 @@ function downloadCombinedReport() {
       }
     })
     .catch(function() {
-      alert('아직 생성된 보고서가 없습니다. 1·2·3 공정을 먼저 완료해 주세요.');
+      alert('아직 생성된 보고서가 없습니다. 이전 단계를 먼저 완료해 주세요.');
     })
     .finally(function() {
       btn.innerHTML = '↓ 최종 보고서 다운로드';
