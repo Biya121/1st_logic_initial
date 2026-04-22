@@ -2397,26 +2397,42 @@ function showBuyerDetail(idx) {
 
 function p3ReRank() {
   const cbs = [...document.querySelectorAll('.p3-cb:checked')];
+  let ordered;
   if (!cbs.length) {
-    _renderP3Cards([..._p3Buyers]);
-    return;
-  }
-  const scored = _p3Buyers.map(b => {
-    const scores = b.scores || {};
-    const e = b.enriched || {};
-    let total = 0;
-    cbs.forEach(cb => {
-      const key = cb.dataset.key;
-      const w   = parseFloat(cb.dataset.weight) || 0;
-      const v   = key === 'pharmacy_chain'
-        ? (e.has_pharmacy_chain ? 100 : 0)
-        : (scores[key] || 0);
-      total += (v * w) / 100;
+    ordered = [..._p3Buyers];
+  } else {
+    const scored = _p3Buyers.map(b => {
+      const scores = b.scores || {};
+      const e = b.enriched || {};
+      let total = 0;
+      cbs.forEach(cb => {
+        const key = cb.dataset.key;
+        const w   = parseFloat(cb.dataset.weight) || 0;
+        const v   = key === 'pharmacy_chain'
+          ? (e.has_pharmacy_chain ? 100 : 0)
+          : (scores[key] || 0);
+        total += (v * w) / 100;
+      });
+      return { ...b, _rerank: total };
     });
-    return { ...b, _rerank: total };
-  });
-  scored.sort((a, b) => b._rerank - a._rerank);
-  _renderP3Cards(scored);
+    scored.sort((a, b) => b._rerank - a._rerank);
+    ordered = scored;
+  }
+  _renderP3Cards(ordered);
+
+  // 프론트엔드 재배열 순서를 백엔드에 전달해 PDF 재생성
+  fetch('/api/buyers/rerank', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ordered_buyers: ordered }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.pdf) {
+        _p3PdfName = data.pdf;
+      }
+    })
+    .catch(() => {});
 }
 
 function p3ClearAll() {

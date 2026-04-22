@@ -386,21 +386,21 @@ def build_buyer_pdf(
         # Section 1: 전체 요약 테이블 (커버 없음)
         elems += _build_summary_table(companies, styles, product_label)
 
-        # Section 2: 상위 3개사 상세 정보
-        top3 = companies[:3]
+        # Section 2: 전체 바이어 상세 정보 (전달된 리스트 전체)
+        top_detail = companies
         sec2_note = (
-            "※ 하기 3개사는 Gadvoa Inj.의 조영제 성분과 연관성, APAC 지역 네트워크, "
+            f"※ 하기 {len(top_detail)}개사는 {product_label}의 성분 연관성, APAC 지역 네트워크, "
             "싱가포르 진출 가능성을 종합 평가하여 선정하였습니다."
-        ) if not product_label else (
-            f"※ 하기 {len(top3)}개사는 {product_label}의 성분 연관성, APAC 지역 네트워크, "
+        ) if product_label else (
+            f"※ 하기 {len(top_detail)}개사는 성분 연관성, APAC 지역 네트워크, "
             "싱가포르 진출 가능성을 종합 평가하여 선정하였습니다."
         )
         elems += [
-            Paragraph(f"2. 우선 접촉 바이어 상세 정보 (상위 {len(top3)}개사)", styles["section"]),
+            Paragraph(f"2. 우선 접촉 바이어 상세 정보 (상위 {len(top_detail)}개사)", styles["section"]),
             Spacer(1, 2*mm),
             Paragraph(_esc(sec2_note), styles["small"]),
             Spacer(1, 4*mm),
         ]
-        for i, c in enumerate(top3, 1):
+        for i, c in enumerate(top_detail, 1):
             elems += _build_company_page(c, i, styles)
     doc.build(elems)

@@ -1325,6 +1325,8 @@ async def _run_buyer_pipeline(
 
     try:
         product_label = _PROD_LABELS.get(product_key, product_key)
+        _buyer_task["product_key"]   = product_key
+        _buyer_task["product_label"] = product_label
 
         # ── Step 1: 1차 수집 (CPHI 크롤링 — 후보 최대 20개) ─────────────
         _buyer_task.update({"step": "crawl", "step_label": "CPHI 크롤링 중…"})
@@ -1454,15 +1456,43 @@ async def buyer_result() -> JSONResponse:
 
 @app.post("/api/buyers/rerank")
 async def buyer_rerank(body: dict = None) -> JSONResponse:
-    """기준 변경 시 전체 후보 풀(20개)에서 재선택."""
-    all_candidates = _buyer_task.get("all_candidates", [])
-    if not all_candidates:
-        raise HTTPException(404, "후보 풀 없음. 파이프라인을 먼저 실행하세요.")
-    criteria = (body or {}).get("criteria")
-    from analysis.buyer_scorer import rank_companies
-    ranked = rank_companies(all_candidates, active_criteria=criteria, top_n=10)
+    """기준 변경 시 재선택 후 PDF 재생성.
+
+    body.ordered_buyers 가 있으면 그 순서를 그대로 사용(프론트엔드 재배열 결과 반영).
+    없으면 전체 후보 풀(20개)에서 백엔드 scoring으로 재선택.
+    """
+    _body = body or {}
+    ordered_buyers: list | None = _body.get("ordered_buyers")
+
+    if ordered_buyers is not None:
+        ranked = ordered_buyers
+    else:
+        all_candidates = _buyer_task.get("all_candidates", [])
+        if not all_candidates:
+            raise HTTPException(404, "후보 풀 없음. 파이프라인을 먼저 실행하세요.")
+        criteria = _body.get("criteria")
+        from analysis.buyer_scorer import rank_companies
+        ranked = rank_companies(all_candidates, active_criteria=criteria, top_n=10)
+
     _buyer_task["buyers"] = ranked
-    return JSONResponse({"buyers": ranked})
+
+    # PDF 재생성 — 프론트엔드 표시 순서와 일치
+    import re as _re_r
+    from datetime import datetime, timezone as _tz_r
+    from analysis.buyer_report_generator import build_buyer_pdf
+
+    product_key   = _buyer_task.get("product_key", "unknown")
+    product_label = _buyer_task.get("product_label", product_key)
+    _ts = datetime.now(_tz_r.utc).strftime("%Y%m%d_%H%M%S")
+    reports_dir = ROOT / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    safe = _re_r.sub(r"[^\w가-힣]", "_", product_key)[:30]
+    pdf_name = f"sg_buyers_{safe}_{_ts}.pdf"
+    pdf_path = reports_dir / pdf_name
+    await asyncio.to_thread(build_buyer_pdf, ranked, product_label, pdf_path)
+    _buyer_task["pdf"] = pdf_name
+
+    return JSONResponse({"buyers": ranked, "pdf": pdf_name})
 
 
 @app.get("/api/report/combined")
