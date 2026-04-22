@@ -483,7 +483,10 @@ function downloadCombinedReport() {
   var btn = document.getElementById('btn-final-report');
   btn.disabled = true;
   btn.textContent = '생성 중…';
-  fetch('/api/report/combined')
+  // 현재 제품 키를 넘겨서 해당 제품의 최신 보고서만 취합
+  var keyParam = (typeof _currentKey !== 'undefined' && _currentKey)
+    ? '?key=' + encodeURIComponent(_currentKey) : '';
+  fetch('/api/report/combined' + keyParam)
     .then(function(res) {
       if (!res.ok) throw new Error('not found');
       var pdfName = res.headers.get('X-PDF-Name') || 'sg_combined.pdf';

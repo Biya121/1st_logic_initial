@@ -1466,8 +1466,10 @@ async def buyer_rerank(body: dict = None) -> JSONResponse:
 
 
 @app.get("/api/report/combined")
-async def download_combined_report() -> Any:
-    """표지 + P2 + P3 + P1 순서로 병합한 최종 보고서를 생성·저장 후 반환."""
+async def download_combined_report(key: str | None = None) -> Any:
+    """표지 + P2 + P3 + P1 순서로 병합한 최종 보고서를 생성·저장 후 반환.
+    key: 제품 키 (예: SG_sereterol_activair). 지정 시 해당 키를 포함한 PDF만 사용.
+    """
     import io
     import tempfile
     from datetime import datetime, timezone as _tz_c
@@ -1481,6 +1483,9 @@ async def download_combined_report() -> Any:
 
     def _latest(pattern: str):
         pdfs = sorted(reports_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+        if key:
+            # key가 지정된 경우 해당 key를 포함한 PDF만 사용
+            pdfs = [p for p in pdfs if key.lower() in p.name.lower()]
         return pdfs[0] if pdfs else None
 
     p1 = _latest("sg_report_*.pdf")
@@ -1489,7 +1494,10 @@ async def download_combined_report() -> Any:
 
     found = [p for p in [p2, p3, p1] if p is not None]
     if not found:
-        raise HTTPException(404, "생성된 보고서가 없습니다. 1·2·3 공정을 먼저 완료해 주세요.")
+        msg = "생성된 보고서가 없습니다. 1·2·3 공정을 먼저 완료해 주세요."
+        if key:
+            msg = f"'{key}' 제품의 보고서가 없습니다. 해당 제품의 1·2·3 공정을 먼저 완료해 주세요."
+        raise HTTPException(404, msg)
 
     # 표지 생성 (임시 파일)
     from report_generator import render_cover_pdf
