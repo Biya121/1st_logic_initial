@@ -1514,8 +1514,8 @@ async def download_combined_report(key: str | None = None) -> Any:
     def _latest(pattern: str):
         pdfs = sorted(reports_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
         if key:
-            # key가 지정된 경우 해당 key를 포함한 PDF만 사용
-            pdfs = [p for p in pdfs if key.lower() in p.name.lower()]
+            filtered = [p for p in pdfs if key.lower() in p.name.lower()]
+            pdfs = filtered if filtered else pdfs  # key 매칭 없으면 최신파일로 fallback
         return pdfs[0] if pdfs else None
 
     p1 = _latest("sg_report_*.pdf")
