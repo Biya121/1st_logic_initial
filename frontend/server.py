@@ -177,7 +177,7 @@ async def _scrape_naver_news(count: int = 7) -> list[dict[str, str]]:
     async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
         resp = await client.get(
             "https://m.search.naver.com/search.naver",
-            params={"where": "m_news", "query": "싱가포르 의약품", "sort": "1"},
+            params={"where": "m_news", "query": "싱가포르 의약품", "sort": "0"},
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
@@ -218,6 +218,11 @@ async def _scrape_naver_news(count: int = 7) -> list[dict[str, str]]:
                     if parent.name in ("body", "html"):
                         break
             if not title or len(title) < 8:
+                continue
+
+            # 의약품 관련 기사만 수집 (사이드바·트렌딩 일반 기사 제외)
+            _PHARMA_KW = {"의약품", "약", "pharma", "drug", "hsa", "moh", "의료", "처방", "규제"}
+            if not any(kw in title.lower() for kw in _PHARMA_KW):
                 continue
 
             # 언론사 · 날짜: 5단계 상위 컨테이너에서 탐색
@@ -326,6 +331,8 @@ async def api_news() -> JSONResponse:
                     "role": "system",
                     "content": (
                         "You are a Singapore pharmaceutical market analyst. "
+                        "Focus exclusively on pharmaceutical/drug/HSA/MOH topics — "
+                        "keyword: '싱가포르 의약품'. "
                         "Return ONLY a JSON array with up to 7 recent news items. "
                         "All 'title' values MUST be written in Korean (한국어)."
                     ),
@@ -333,7 +340,9 @@ async def api_news() -> JSONResponse:
                 {
                     "role": "user",
                     "content": (
-                        "Find the latest Singapore pharmaceutical market and regulatory news. "
+                        "Find the latest Singapore pharmaceutical market and drug regulatory news "
+                        "(키워드: 싱가포르 의약품). Include only articles about drugs, HSA approvals, "
+                        "MOH policy, or pharmaceutical market trends — exclude general Singapore news. "
                         "Return a strict JSON array. Each item: title (Korean), source, date, link."
                     ),
                 },
