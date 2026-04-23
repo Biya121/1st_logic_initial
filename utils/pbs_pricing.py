@@ -188,8 +188,16 @@ def _restriction_from_row(row: dict[str, Any]) -> str | None:
     return None
 
 
-def _row_matches_ingredient(row: dict[str, Any], needles: list[str]) -> bool:
-    """drug_name / li_drug_name / generic_name / product_name 에 부분일치."""
+def _row_matches_ingredient(
+    row: dict[str, Any],
+    needles: list[str],
+    require_all_parts: bool = False,
+) -> bool:
+    """drug_name / li_drug_name / generic_name / product_name 에 부분일치.
+
+    require_all_parts=True: 복합제 검색 시 모든 성분 needle이 동시에
+    존재해야 매칭 (OR → AND). 단일성분 제품이 잘못 선택되는 것을 방지.
+    """
     needles = [n.strip().lower() for n in needles if n and str(n).strip()]
     if not needles:
         return False
@@ -199,6 +207,8 @@ def _row_matches_ingredient(row: dict[str, Any], needles: list[str]) -> bool:
         if isinstance(v, str):
             parts.append(v.lower())
     blob = " ".join(parts)
+    if require_all_parts:
+        return all(n in blob for n in needles)
     return any(n in blob for n in needles)
 
 
@@ -318,7 +328,7 @@ def _api_get(url: str, params: dict[str, Any]) -> httpx.Response | None:
 
 
 def _query_items_primary(
-    schedule: str, drug_name: str, needles: list[str]
+    schedule: str, drug_name: str, needles: list[str], require_all_parts: bool = False
 ) -> tuple[list[dict[str, Any]], bool]:
     """drug_name 파라미터로 API 조회. 반환: (매칭 행 리스트, PBS미등재여부).
 
@@ -338,12 +348,15 @@ def _query_items_primary(
         rows = r.json().get("data")
     except Exception:
         return [], False
-    matched = [row for row in (rows or []) if isinstance(row, dict) and _row_matches_ingredient(row, needles)]
+    matched = [
+        row for row in (rows or [])
+        if isinstance(row, dict) and _row_matches_ingredient(row, needles, require_all_parts)
+    ]
     return matched, False
 
 
 def _query_items_fallback(
-    schedule: str, needles: list[str]
+    schedule: str, needles: list[str], require_all_parts: bool = False
 ) -> list[dict[str, Any]]:
     """페이지 순회 fallback (limit=100, 최대 _MAX_FALLBACK_PAGES 페이지)."""
     matched: list[dict[str, Any]] = []
@@ -362,7 +375,7 @@ def _query_items_fallback(
         if not isinstance(rows, list) or not rows:
             break
         for row in rows:
-            if isinstance(row, dict) and _row_matches_ingredient(row, needles):
+            if isinstance(row, dict) and _row_matches_ingredient(row, needles, require_all_parts):
                 matched.append(row)
         meta_block = payload.get("_meta") if isinstance(payload.get("_meta"), dict) else {}
         total = meta_block.get("total_records")
@@ -423,6 +436,10 @@ def fetch_pbs_pricing_sync(meta: dict[str, str]) -> PbsPricingResult:
     if not needles and terms:
         needles = list(terms)
 
+    # 복합제 여부: INN에 +/가 구분자로 성분이 2개 이상이면 AND 매칭 적용
+    inn_parts = [p.strip() for p in re.split(r"[+/]", inn) if p.strip()] if inn else []
+    _is_combination = len(inn_parts) >= 2
+
     if not terms:
         return PbsPricingResult(product_id=pid, fetch_error="검색어 없음(INN/trade_name 미입력)")
 
@@ -432,11 +449,14 @@ def fetch_pbs_pricing_sync(meta: dict[str, str]) -> PbsPricingResult:
         return PbsPricingResult(product_id=pid, search_terms_tried=tuple(terms), fetch_error="schedule_code 조회 실패")
 
     # 2. drug_name 파라미터 직접 조회 (각 검색어 순차 시도)
+    # 복합제: 모든 성분 needle이 동시에 포함된 행만 허용 (단일성분 오매칭 방지)
     matched_rows: list[dict[str, Any]] = []
     not_listed = False
     for term in terms:
         term_needles = _build_needles(term) if term else needles
-        rows, term_not_listed = _query_items_primary(schedule, term, term_needles or [term])
+        rows, term_not_listed = _query_items_primary(
+            schedule, term, term_needles or [term], require_all_parts=_is_combination
+        )
         if rows:
             matched_rows = rows
             break
@@ -445,7 +465,7 @@ def fetch_pbs_pricing_sync(meta: dict[str, str]) -> PbsPricingResult:
 
     # 3. fallback: 페이지 순회 (모든 검색어가 204 미등재면 스킵)
     if not matched_rows and needles and not not_listed:
-        matched_rows = _query_items_fallback(schedule, needles)
+        matched_rows = _query_items_fallback(schedule, needles, require_all_parts=_is_combination)
 
     if not matched_rows:
         reason = "PBS 미등재(204)" if not_listed else "PBS 매칭 품목 없음"

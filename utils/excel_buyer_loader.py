@@ -50,7 +50,7 @@ def _excel_path() -> Path | None:
         return p if p.is_file() else None
     candidates = [
         Path.home() / "Downloads" / "싱가포르_의약품_바이어_Omethyl_Sereterol_각20개.xlsx",
-        Path(__file__).resolve().parents[1] / "data" / "sg_buyers.xlsx",
+        Path(__file__).resolve().parents[1] / "datas" / "sg_buyers.xlsx",
     ]
     for c in candidates:
         if c.is_file():

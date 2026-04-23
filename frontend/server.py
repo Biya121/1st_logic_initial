@@ -876,6 +876,9 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
 - '참고 SGD X.XX', 'SGD X.XX 수준', 'DPMQ ... 참고 SGD X.XX' 등 SGD 금액이 포함된 모든 표현에서 숫자를 추출하세요.
 - 'PBS 방법론적 추산', '싱가포르 약가 아님' 같은 면책 문구가 있어도 SGD 숫자는 ref_price_sgd에 넣으세요.
 - 보고서의 '참고 가격', '가격 포지셔닝', 'DPMQ' 섹션을 특히 확인하세요.
+- PBS DPMQ는 호주 기준 pack(최대 수량) 전체 가격입니다. SGD 환산값을 ref_price_sgd로 사용하되,
+  제형·규격(예: inhaler 120doses, cap 30정 등)을 market_context에 반드시 포함하세요.
+  이 값은 1처방 단위 기준가로 사용하며, 단위 혼동 없이 후속 가격 시나리오를 산출해야 합니다.
 - USD($) 금액만 있다면 ref_price_sgd는 null로, ref_price_currency는 'USD'로, ref_price_text에 원문 그대로 기록하세요."""
 
         extract_resp = await asyncio.to_thread(
