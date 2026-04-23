@@ -981,8 +981,11 @@ async function _regenP2Pdf() {
     const rawScenarios = Array.isArray(marketData.scenarios) ? marketData.scenarios : [];
     if (!rawScenarios.length) return null;
 
+    const sgdUsd = _p2ScenarioRawByMarket[storeKey]?.sgd_usd ?? 0;
+
     const scenarios = COLS.map((col, i) => {
       const adjusted     = _computeAdjustedPriceSgd(col, storeKey);
+      const priceUsd     = sgdUsd > 0 ? parseFloat((adjusted / sgdUsd).toFixed(2)) : 0;
       const aiPrice      = Number(rawScenarios[i]?.price_sgd || 0);
       const reason       = rawScenarios[i]?.reason  || '';
       const origFormula  = rawScenarios[i]?.formula || '';
@@ -991,10 +994,16 @@ async function _regenP2Pdf() {
       const formula = (aiPrice > 0 && Math.abs(adjusted - aiPrice) > 0.005)
         ? `${origFormula ? origFormula + ' | ' : ''}조정 후: SGD ${adjusted.toFixed(2)}`
         : origFormula;
-      return { label, price: adjusted, reason, formula };
+      return { label, price: adjusted, price_usd: priceUsd, reason, formula };
     });
 
-    return { seg_label: segLabel, base_price: scenarios[1]?.price ?? 0, scenarios };
+    const avgScen = scenarios[1];
+    return {
+      seg_label:      segLabel,
+      base_price:     avgScen?.price     ?? 0,
+      base_price_usd: avgScen?.price_usd ?? 0,
+      scenarios,
+    };
   };
 
   const sections = [
@@ -1014,6 +1023,7 @@ async function _regenP2Pdf() {
         verdict:      extracted.verdict      || '—',
         mode_label:   'AI 분석 (Claude Haiku)',
         macro_text:   analysis.rationale     || '',
+        sgd_usd:      _p2LastAiData?.exchange_rates?.sgd_usd ?? 0,
         sections,
       }),
     });

@@ -941,18 +941,31 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
         title="싱가포르 수출 가격 전략 보고서",
     )
 
-    product_name  = str(p2_data.get("product_name", "") or "제품명 없음")
-    inn_name      = str(p2_data.get("inn_name",     "") or "")
-    verdict       = str(p2_data.get("verdict",      "") or "—")
-    seg_label     = str(p2_data.get("seg_label",    "") or "—")
-    base_price    = p2_data.get("base_price")
-    mode_label    = str(p2_data.get("mode_label",   "") or "—")
-    macro_text    = str(p2_data.get("macro_text",   "") or "")
-    scenarios     = p2_data.get("scenarios",    []) or []
+    product_name    = str(p2_data.get("product_name", "") or "제품명 없음")
+    inn_name        = str(p2_data.get("inn_name",     "") or "")
+    verdict         = str(p2_data.get("verdict",      "") or "—")
+    seg_label       = str(p2_data.get("seg_label",    "") or "—")
+    base_price      = p2_data.get("base_price")
+    base_price_usd  = p2_data.get("base_price_usd")
+    sgd_usd_rate    = p2_data.get("sgd_usd", 0) or 0
+    mode_label      = str(p2_data.get("mode_label",   "") or "—")
+    macro_text      = str(p2_data.get("macro_text",   "") or "")
+    scenarios       = p2_data.get("scenarios",    []) or []
 
     from datetime import datetime, timezone as _tz_p2
     generated_date = datetime.now(_tz_p2.utc).strftime("%Y-%m-%d")
-    base_str = f"SGD {base_price:,.2f}" if isinstance(base_price, (int, float)) else "—"
+
+    def _price_str(sgd_val: Any, usd_val: Any = None) -> str:
+        """USD를 주표시, SGD를 부표시로 반환."""
+        if isinstance(usd_val, (int, float)) and usd_val > 0:
+            sgd_note = f"  (≈ SGD {float(sgd_val):,.2f})" if isinstance(sgd_val, (int, float)) else ""
+            return f"USD {float(usd_val):,.2f}{sgd_note}"
+        if isinstance(sgd_val, (int, float)) and sgd_usd_rate > 0:
+            usd_calc = sgd_val / sgd_usd_rate
+            return f"USD {usd_calc:,.2f}  (≈ SGD {float(sgd_val):,.2f})"
+        return f"SGD {float(sgd_val):,.2f}" if isinstance(sgd_val, (int, float)) else "—"
+
+    base_str = _price_str(base_price, base_price_usd)
 
     story: list = []
 
@@ -1010,11 +1023,10 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
         key       = _sc_key(raw_label)
         label     = raw_label or key
         price_val = sc.get("price") if sc.get("price") is not None else sc.get("price_sgd")
+        price_usd = sc.get("price_usd")
         reason    = str(sc.get("reason", "") or "—")
         formula   = str(sc.get("formula", "") or "").strip()
-        price_str = (
-            f"SGD {float(price_val):,.2f}" if isinstance(price_val, (int, float)) else "—"
-        )
+        price_str = _price_str(price_val, price_usd)
         bg = _SC_BG.get(key, C_ALT)
         lc = _SC_LC.get(key, C_NAVY)
 
@@ -1056,7 +1068,8 @@ def render_p2_pdf(p2_data: dict, out_path: Path) -> None:
         for sec_idx, sec in enumerate(sections_data):
             sec_label     = str(sec.get("seg_label", "") or "")
             sec_price     = sec.get("base_price")
-            sec_str       = f"SGD {sec_price:,.2f}" if isinstance(sec_price, (int, float)) else "—"
+            sec_price_usd = sec.get("base_price_usd")
+            sec_str       = _price_str(sec_price, sec_price_usd)
             sec_scenarios = sec.get("scenarios", []) or []
             sub_num       = sec_idx + 1
             sub_header    = f"▸ 3-{sub_num}. {sec_label}"
