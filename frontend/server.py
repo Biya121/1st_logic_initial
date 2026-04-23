@@ -952,7 +952,7 @@ async def _run_p2_ai_pipeline(report_path: str, market: str, pbs_sgd_hint: float
                 return {
                     "sgd_krw": round(float(yf.Ticker("SGDKRW=X").fast_info.last_price), 2),
                     "usd_krw": round(float(yf.Ticker("USDKRW=X").fast_info.last_price), 2),
-                    "sgd_usd": round(float(yf.Ticker("SGDUSD=X").fast_info.last_price), 4),
+                    "sgd_usd": round(float(yf.Ticker("USDSGD=X").fast_info.last_price), 4),
                     "source": "Yahoo Finance (실시간)",
                 }
 

@@ -738,6 +738,20 @@ async function runP2AiPipeline() {
         pubResult.pdf, 'p2'
       );
     }
+
+    // 카드 조정값 → PDF 재생성용 데이터 저장 후 즉시 트리거
+    // public_market 은 pubResult 에서, private_market 은 privResult 에서 각각 가져옴
+    _p2LastAiData = {
+      extracted:      pubResult?.extracted      || {},
+      exchange_rates: pubResult?.exchange_rates || {},
+      analysis: {
+        rationale:      pubResult?.analysis?.rationale || privResult?.analysis?.rationale || '',
+        public_market:  pubResult?.analysis?.public_market  || pubResult?.analysis  || {},
+        private_market: privResult?.analysis?.private_market || privResult?.analysis || {},
+      },
+      pdf: pubResult?.pdf || null,
+    };
+    _scheduleP2PdfRegen();
   } catch (err) {
     _setP2Progress('extract', 'error');
     _showP2AiError(`실행 실패: ${err.message}`);
