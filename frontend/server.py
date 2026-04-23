@@ -385,7 +385,7 @@ async def api_macro() -> JSONResponse:
 # ── 프리뷰 국가 통계 (GDP · 인구 · 의약품 시장 · 수입 의존도) ─────────────────
 
 _PREVIEW_STATS_STATIC = {
-    "gdp":           {"value": "US$ 466.8B",  "source": "IMF"},
+    "gdp":           {"value": "US$ 88,447",   "source": ""},
     "population":    {"value": "5,917,600명", "source": "Singstat"},
     "pharma_market": {"value": "$4.8B",        "source": "IQVIA"},
     "import_dep":    {"value": "~85%",         "source": "HSA"},
@@ -405,7 +405,7 @@ async def preview_stats() -> JSONResponse:
             if key in result and row.get("value"):
                 result[key] = {
                     "value":  row["value"],
-                    "source": row.get("source", result[key]["source"]),
+                    "source": "" if key == "gdp" else row.get("source", result[key]["source"]),
                 }
         return JSONResponse(result)
     except Exception:
