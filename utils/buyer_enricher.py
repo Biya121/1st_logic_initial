@@ -325,10 +325,13 @@ async def _enrich_partial(
 ) -> dict[str, Any]:
     """엑셀 pre-filled 기업의 null 필드(mah_capable·korea_experience·company_overview_kr)만 보완."""
     api_key = os.environ.get("CLAUDE_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return company
 
     existing: dict[str, Any] = dict(company.get("enriched", {}))
+
+    if not api_key:
+        existing.pop("_pipeline_text", None)
+        existing.pop("_company_type", None)
+        return {**company, "enriched": existing}
     name         = company.get("company_name", "-")
     company_type = existing.get("_company_type", company.get("company_type", "-"))
     revenue      = existing.get("revenue", "-")

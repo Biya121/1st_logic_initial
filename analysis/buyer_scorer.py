@@ -31,13 +31,28 @@ def _revenue_score(revenue: str) -> int:
     if not revenue or revenue == "-":
         return 0
     r = revenue.upper()
-    for marker, score in [
-        ("$10B", 100), ("$5B", 100), ("$2B", 95), ("$1B", 90),
-        ("$500M", 80), ("$300M", 75), ("$200M", 70),
-        ("$100M", 60), ("$50M", 50), ("$20M", 40), ("$10M", 30),
-    ]:
-        if marker in r:
-            return score
+
+    # 숫자+단위 추출 (US$13B, SGD ~200M+, CHF 11.1B, USD 54B 등 Excel 포맷 대응)
+    b_vals = [float(x.replace(",", "")) for x in re.findall(r"[\d,]+(?:\.\d+)?(?=\s*B)", r)]
+    m_vals = [float(x.replace(",", "")) for x in re.findall(r"[\d,]+(?:\.\d+)?(?=\s*M)", r)]
+
+    # 최대값(B 단위)으로 통합
+    max_b = max(b_vals) if b_vals else 0.0
+    if m_vals:
+        max_b = max(max_b, max(m_vals) / 1000.0)
+
+    if max_b > 0:
+        if max_b >= 5:    return 100
+        if max_b >= 2:    return 95
+        if max_b >= 1:    return 90
+        if max_b >= 0.5:  return 80
+        if max_b >= 0.3:  return 75
+        if max_b >= 0.2:  return 70
+        if max_b >= 0.1:  return 60
+        if max_b >= 0.05: return 50
+        if max_b >= 0.02: return 40
+        if max_b >= 0.01: return 30
+
     return 20 if len(r) > 1 else 0
 
 
