@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20">
+  <!-- Red top half -->
+  <rect width="30" height="10" fill="#EF3340"/>
+  <!-- White bottom half -->
+  <rect y="10" width="30" height="10" fill="#FFFFFF"/>
+  <!-- Crescent moon (white) -->
+  <circle cx="8" cy="5" r="3.5" fill="#FFFFFF"/>
+  <circle cx="9.8" cy="5" r="2.7" fill="#EF3340"/>
+  <!-- 5 stars arranged in a pentagon, each star is a polygon -->
+  <!-- Star 1: top center -->
+  <polygon points="14.5,2.0 15.0,3.5 16.5,3.5 15.3,4.4 15.8,5.9 14.5,5.0 13.2,5.9 13.7,4.4 12.5,3.5 14.0,3.5" fill="#FFFFFF"/>
+  <!-- Star 2: right -->
+  <polygon points="16.8,4.2 17.3,5.7 18.8,5.7 17.6,6.6 18.1,8.1 16.8,7.2 15.5,8.1 16.0,6.6 14.8,5.7 16.3,5.7" fill="#FFFFFF"/>
+  <!-- Star 3: lower right -->
+  <polygon points="15.8,7.6 16.3,9.1 17.8,9.1 16.6,10.0 17.1,11.5 15.8,10.6 14.5,11.5 15.0,10.0 13.8,9.1 15.3,9.1" fill="#FFFFFF"/>
+  <!-- Star 4: lower left -->
+  <polygon points="13.2,7.6 13.7,9.1 15.2,9.1 14.0,10.0 14.5,11.5 13.2,10.6 11.9,11.5 12.4,10.0 11.2,9.1 12.7,9.1" fill="#FFFFFF"/>
+  <!-- Star 5: left -->
+  <polygon points="12.2,4.2 12.7,5.7 14.2,5.7 13.0,6.6 13.5,8.1 12.2,7.2 10.9,8.1 11.4,6.6 10.2,5.7 11.7,5.7" fill="#FFFFFF"/>
+</svg>
