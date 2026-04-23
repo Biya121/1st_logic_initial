@@ -531,6 +531,20 @@ async def _run_pipeline_for_product(product_key: str) -> None:
         task.update({"status": "done", "step": "done", "step_label": "완료"})
         await _emit({"phase": "pipeline", "message": "파이프라인 완료", "level": "success"})
 
+        # 4. 2공정 AI 파이프라인 자동 시작 (백그라운드)
+        global _p2_ai_task
+        _pbs_hint: float | None = None
+        try:
+            _pbs_hint = float(result.get("pbs_dpmq_sgd_hint") or 0) or None
+        except (TypeError, ValueError):
+            pass
+        _p2_ai_task = {
+            "status": "running", "step": "extract", "step_label": "시작 중…",
+            "extracted": None, "exchange_rates": None, "analysis": None, "pdf": None,
+        }
+        asyncio.create_task(_run_p2_ai_pipeline(str(_pdf_path), "public", _pbs_hint))
+        await _emit({"phase": "pipeline", "message": "2공정 AI 파이프라인 자동 시작", "level": "info"})
+
     except Exception as exc:
         task.update({"status": "error", "step": "error", "step_label": str(exc)})
         await _emit({"phase": "pipeline", "message": f"오류: {exc}", "level": "error"})
@@ -1564,6 +1578,12 @@ async def download_combined_report(key: str | None = None) -> Any:
     p1 = _latest("sg_report_*.pdf")
     p2 = _latest("sg_p2_*.pdf")
     p3 = _latest("sg_buyers_*.pdf")
+
+    if p2 is None:
+        msg = "2공정 가격 보고서(sg_p2_*.pdf)가 없습니다. 1공정 파이프라인을 완료하거나 2공정을 먼저 실행해 주세요."
+        if key:
+            msg = f"'{key}' 제품의 2공정 보고서가 없습니다. 해당 제품의 2공정을 먼저 완료해 주세요."
+        raise HTTPException(404, msg)
 
     found = [p for p in [p2, p3, p1] if p is not None]
     if not found:
