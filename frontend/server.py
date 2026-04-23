@@ -1328,35 +1328,52 @@ async def _run_buyer_pipeline(
         _buyer_task["product_key"]   = product_key
         _buyer_task["product_label"] = product_label
 
-        # ── Step 1: 1차 수집 (CPHI 크롤링 — 후보 최대 20개) ─────────────
-        _buyer_task.update({"step": "crawl", "step_label": "CPHI 크롤링 중…"})
-        await _log(f"바이어 발굴 시작 — 품목: {product_label} / 타깃: {target_country} ({target_region})")
+        # ── Step 1: 1차 수집 ──────────────────────────────────────────────
+        _EXCEL_PRODUCTS = {"SG_sereterol_activair", "SG_omethyl_omega3_2g"}
+        _excel_sourced = False
 
-        from utils.cphi_crawler import crawl as cphi_crawl, PRODUCT_SEARCH_MAP
-        companies = await cphi_crawl(
-            product_key=product_key,
-            candidate_pool=20,
-            emit=_log,
-        )
-        _buyer_task["crawl_count"] = len(companies)
-        await _log(f"1차 수집 완료 — {len(companies)}개 후보", "success")
+        if product_key in _EXCEL_PRODUCTS:
+            _buyer_task.update({"step": "crawl", "step_label": "바이어 데이터 로딩 중…"})
+            await _log(f"바이어 발굴 시작 — 품목: {product_label} / 타깃: {target_country} ({target_region})")
+            try:
+                from utils.excel_buyer_loader import load_buyers
+                companies = load_buyers(product_key)
+            except Exception:
+                companies = []
+            if companies:
+                _excel_sourced = True
+                _buyer_task["crawl_count"] = len(companies)
+                await _log(f"1차 수집 완료 — {len(companies)}개 후보", "success")
 
-        # CPHI 결과가 없을 경우 Perplexity로 직접 탐색
-        if not companies:
-            await _log("CPHI 후보 없음 — Perplexity 직접 탐색으로 fallback")
-            mapping = PRODUCT_SEARCH_MAP.get(product_key, {})
-            ingredient  = ", ".join(mapping.get("ingredients", [])[:2]) or product_label
-            therapeutic = ", ".join(mapping.get("therapeutic", [])[:2]) or "pharmaceutical"
-            from utils.buyer_enricher import discover_companies_via_perplexity
-            companies = await discover_companies_via_perplexity(
-                ingredient, therapeutic, target_country, target_region, emit=_log,
+        if not _excel_sourced:
+            _buyer_task.update({"step": "crawl", "step_label": "CPHI 크롤링 중…"})
+            if product_key not in _EXCEL_PRODUCTS:
+                await _log(f"바이어 발굴 시작 — 품목: {product_label} / 타깃: {target_country} ({target_region})")
+            from utils.cphi_crawler import crawl as cphi_crawl, PRODUCT_SEARCH_MAP
+            companies = await cphi_crawl(
+                product_key=product_key,
+                candidate_pool=20,
+                emit=_log,
             )
             _buyer_task["crawl_count"] = len(companies)
-            await _log(f"Perplexity fallback — {len(companies)}개 후보", "success")
+            await _log(f"1차 수집 완료 — {len(companies)}개 후보", "success")
 
-        # ── Step 2: 심층조사 (CPHI 전체 텍스트 → Claude Haiku) ───────────
+            if not companies:
+                await _log("CPHI 후보 없음 — Perplexity 직접 탐색으로 fallback")
+                mapping = PRODUCT_SEARCH_MAP.get(product_key, {})
+                ingredient  = ", ".join(mapping.get("ingredients", [])[:2]) or product_label
+                therapeutic = ", ".join(mapping.get("therapeutic", [])[:2]) or "pharmaceutical"
+                from utils.buyer_enricher import discover_companies_via_perplexity
+                companies = await discover_companies_via_perplexity(
+                    ingredient, therapeutic, target_country, target_region, emit=_log,
+                )
+                _buyer_task["crawl_count"] = len(companies)
+                await _log(f"Perplexity fallback — {len(companies)}개 후보", "success")
+
+        # ── Step 2: 심층조사 ──────────────────────────────────────────────
         _buyer_task.update({"step": "enrich", "step_label": "심층조사 중…"})
-        await _log("심층조사 시작 (CPHI 페이지 텍스트 → Claude Haiku 파싱)")
+        if not _excel_sourced:
+            await _log("심층조사 시작 (CPHI 페이지 텍스트 → Claude Haiku 파싱)")
 
         from utils.buyer_enricher import enrich_all
         enriched = await enrich_all(
@@ -1365,6 +1382,7 @@ async def _run_buyer_pipeline(
             target_country=target_country,
             target_region=target_region,
             emit=_log,
+            excel_prefilled=_excel_sourced,
         )
         # 전체 후보 풀 저장 — 기준 변경 시 재선택에 사용
         _buyer_task["all_candidates"] = enriched

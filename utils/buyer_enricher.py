@@ -318,30 +318,106 @@ async def discover_companies_via_perplexity(
         return []
 
 
+async def _enrich_partial(
+    company: dict[str, Any],
+    product_label: str,
+    target_country: str,
+) -> dict[str, Any]:
+    """엑셀 pre-filled 기업의 null 필드(mah_capable·korea_experience·company_overview_kr)만 보완."""
+    api_key = os.environ.get("CLAUDE_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return company
+
+    existing: dict[str, Any] = dict(company.get("enriched", {}))
+    name         = company.get("company_name", "-")
+    company_type = existing.get("_company_type", company.get("company_type", "-"))
+    revenue      = existing.get("revenue", "-")
+    pipeline     = existing.get("_pipeline_text", "")
+    note         = existing.get("recommendation_reason", "-")
+
+    context = (
+        f"회사명: {name}\n"
+        f"국가: {target_country}\n"
+        f"회사유형: {company_type}\n"
+        f"매출규모: {revenue}\n"
+        f"파이프라인/취급이력: {pipeline}\n"
+        f"비고: {note}\n"
+        f"탐색 대상 제품: {product_label}"
+    )
+
+    prompt = f"""아래 정보를 바탕으로 JSON만 반환하세요 (```json 없이).
+
+{context}
+
+추출 항목:
+- mah_capable: MAH(위생등록) 대행 가능 여부 (true/false/null — 불명확 시 null)
+- korea_experience: 한국 기업 거래 경험 (예: "없음", "있음(미확인)") — 불명확 시 "-"
+- company_overview_kr: 기업 소개 한국어 2~3문장 (** 등 마크다운 기호 사용 금지)
+- recommendation_reason: 파트너 후보 추천 이유 한국어 3~5문장 (비고 내용을 정제·보강, 마크다운 기호 금지, 개방형·긍정형 어조)
+"""
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=600,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = msg.content[0].text.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        m = re.search(r"\{.*\}", raw, re.S)
+        if m:
+            patch = json.loads(m.group(0))
+            for field in ("mah_capable", "korea_experience", "company_overview_kr", "recommendation_reason"):
+                if field in patch and patch[field] not in ("", None) if field != "mah_capable" else field in patch:
+                    existing[field] = patch[field]
+            for k in ("company_overview_kr", "recommendation_reason"):
+                if isinstance(existing.get(k), str):
+                    existing[k] = re.sub(r"\*+", "", existing[k])
+    except Exception:
+        pass
+
+    # 내부 전용 키 제거
+    existing.pop("_pipeline_text", None)
+    existing.pop("_company_type", None)
+
+    return {**company, "enriched": existing}
+
+
 async def enrich_all(
     companies: list[dict[str, Any]],
     product_label: str = "",
     target_country: str = "Singapore",
     target_region: str = "Asia",
     emit: Callable[[str], Awaitable[None]] | None = None,
+    excel_prefilled: bool = False,
 ) -> list[dict[str, Any]]:
-    """전체 기업 심층조사 (순차 — API 부하 조절)."""
+    """전체 기업 심층조사 (순차 — API 부하 조절).
+
+    excel_prefilled=True: 엑셀에서 pre-fill된 기업 — null 필드만 Claude로 보완.
+    """
     results: list[dict[str, Any]] = []
     total = len(companies)
 
-    px_available = bool(os.environ.get("PERPLEXITY_API_KEY", "").strip())
-    model_info = "Claude Haiku + Perplexity" if px_available else "Claude Haiku"
-    if emit:
-        await emit(f"심층조사 시작 / 모델: {model_info} / 타깃: {target_country} ({target_region})")
+    if not excel_prefilled:
+        px_available = bool(os.environ.get("PERPLEXITY_API_KEY", "").strip())
+        model_info = "Claude Haiku + Perplexity" if px_available else "Claude Haiku"
+        if emit:
+            await emit(f"심층조사 시작 / 모델: {model_info} / 타깃: {target_country} ({target_region})")
 
     for i, company in enumerate(companies, 1):
         name = company.get("company_name", company.get("exid", f"#{i}"))
         if emit:
             await emit(f"  [{i}/{total}] {name} 분석 중…")
         try:
-            enriched = await enrich_company(
-                company, product_label, target_country, target_region, emit
-            )
+            if excel_prefilled:
+                enriched = await _enrich_partial(company, product_label, target_country)
+            else:
+                enriched = await enrich_company(
+                    company, product_label, target_country, target_region, emit
+                )
         except Exception as e:
             if emit:
                 await emit(f"  [{i}/{total}] {name} 오류: {e} → 폴백")
