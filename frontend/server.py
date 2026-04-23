@@ -815,7 +815,7 @@ async def generate_p2_report(body: P2ReportBody) -> JSONResponse:
 _p2_ai_task: dict[str, Any] = {}
 
 
-async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
+async def _run_p2_ai_pipeline(report_path: str, market: str, pbs_sgd_hint: float | None = None) -> None:
     global _p2_ai_task
     try:
         import json
@@ -903,6 +903,18 @@ async def _run_p2_ai_pipeline(report_path: str, market: str) -> None:
                 "market_context": "",
                 "verdict": "미상",
             }
+
+        # pbs_sgd_hint 우선 적용: 1공정에서 저장된 값이 있고 PDF 추출 실패(null/0)인 경우
+        # ReportLab Table은 pypdf 텍스트 추출에서 누락되기 쉬워 이 경로가 핵심 보완책임
+        extracted_sgd = extracted.get("ref_price_sgd")
+        if pbs_sgd_hint and (pbs_sgd_hint > 0) and (
+            extracted_sgd is None or not isinstance(extracted_sgd, (int, float)) or extracted_sgd <= 0
+        ):
+            extracted["ref_price_sgd"] = pbs_sgd_hint
+            extracted["ref_price_currency"] = "SGD"
+            extracted["ref_price_text"] = (
+                extracted.get("ref_price_text") or f"SGD {pbs_sgd_hint:.2f} (1공정 PBS 참조가)"
+            )
 
         _p2_ai_task["extracted"] = extracted
         await _emit({
@@ -1137,8 +1149,9 @@ async def upload_p2_pdf(body: UploadBody) -> JSONResponse:
 
 
 class P2PipelineBody(BaseModel):
-    report_filename: str = ""  # reports/ 내 파일명 (비어 있으면 최신 1공정 PDF 사용)
-    market: str = "public"     # "public" | "private"
+    report_filename: str = ""        # reports/ 내 파일명 (비어 있으면 최신 1공정 PDF 사용)
+    market: str = "public"           # "public" | "private"
+    pbs_sgd_hint: float | None = None  # 1공정에서 저장된 SGD 참조가 (PDF 추출 실패 시 우선 사용)
 
 
 @app.post("/api/p2/pipeline")
@@ -1165,7 +1178,7 @@ async def trigger_p2_pipeline(body: P2PipelineBody) -> JSONResponse:
         "analysis": None,
         "pdf":      None,
     }
-    asyncio.create_task(_run_p2_ai_pipeline(str(report_path), body.market))
+    asyncio.create_task(_run_p2_ai_pipeline(str(report_path), body.market, body.pbs_sgd_hint))
     return JSONResponse({"ok": True})
 
 

@@ -703,12 +703,15 @@ async function runP2AiPipeline() {
   try {
     const loadingLabel = document.getElementById('p2-loading-label');
 
+    // 1공정에서 저장된 PBS SGD 참조가 — pypdf 테이블 추출 실패 시 보완
+    const pbsSgdHint = selectedReport ? (selectedReport.pbs_sgd_hint ?? null) : null;
+
     if (loadingLabel) loadingLabel.textContent = '공공 시장 분석 중…';
-    const pubResult = await _runP2MarketPipeline(reportFilename, 'public');
+    const pubResult = await _runP2MarketPipeline(reportFilename, 'public', pbsSgdHint);
     _p2PublicResult = pubResult;
 
     if (loadingLabel) loadingLabel.textContent = '민간 시장 분석 중…';
-    const privResult = await _runP2MarketPipeline(reportFilename, 'private');
+    const privResult = await _runP2MarketPipeline(reportFilename, 'private', pbsSgdHint);
     _p2PrivateResult = privResult;
 
     _hideP2Loading();
@@ -741,11 +744,16 @@ async function runP2AiPipeline() {
   }
 }
 
-async function _runP2MarketPipeline(reportFilename, market) {
+async function _runP2MarketPipeline(reportFilename, market, pbsSgdHint) {
   const res = await fetch('/api/p2/pipeline', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ report_filename: reportFilename, market }),
+    body: JSON.stringify({
+      report_filename: reportFilename,
+      market,
+      pbs_sgd_hint: (pbsSgdHint != null && !Number.isNaN(Number(pbsSgdHint)) && Number(pbsSgdHint) > 0)
+        ? Number(pbsSgdHint) : null,
+    }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
