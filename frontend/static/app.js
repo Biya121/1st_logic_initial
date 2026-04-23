@@ -77,6 +77,10 @@ let _p2ColData = _p2ColDataByMarket['public'];
 let _p2PublicResult  = null;
 let _p2PrivateResult = null;
 
+// AI 파이프라인 전체 결과 (PDF 재생성용)
+let _p2LastAiData   = null;
+let _p2PdfRegenTimer = null;
+
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    §2. 탭 전환 (N1)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
@@ -915,6 +919,103 @@ function confirmP2ModalOption() {
   recalcP2Col(col);
 }
 
+/* 옵션 적용 후 SGD 가격 계산 — DOM 불필요, 스토어 직접 참조 */
+function _computeAdjustedPriceSgd(col, market) {
+  const rawData  = _p2ScenarioRawByMarket[market];
+  const colStore = _p2ColDataByMarket[market];
+  const base    = rawData?.[col] ?? 0;
+  const sgdUsd  = rawData?.sgd_usd ?? 0;
+  const opts    = colStore?.[col]?.opts ?? [];
+
+  let priceSgd = base;
+  for (const opt of opts) {
+    const v = opt.value ?? 0;
+    if      (opt.type === 'pct_add')    priceSgd *= (1 + v / 100);
+    else if (opt.type === 'pct_deduct') priceSgd *= (1 - v / 100);
+    else if (opt.type === 'multiply')   priceSgd *= v;
+    else if (opt.type === 'divide')     { if (v !== 0) priceSgd /= v; }
+    else if (opt.type === 'abs_add')    priceSgd += v;
+    else if (opt.type === 'abs_deduct') priceSgd -= v;
+    else if (opt.type === 'usd_add')    priceSgd += sgdUsd > 0 ? v / sgdUsd : 0;
+    else if (opt.type === 'usd_deduct') priceSgd -= sgdUsd > 0 ? v / sgdUsd : 0;
+  }
+  return Math.max(0, priceSgd);
+}
+
+/* 최신 p2 보고서의 pdf_name을 새 이름으로 교체 */
+function _updateLatestP2PdfName(newPdfName) {
+  const reports = _loadReports();
+  const idx = reports.findIndex(r => r.report_type === 'p2');
+  if (idx !== -1) {
+    reports[idx].pdf_name = newPdfName;
+    reports[idx].hasPdf   = true;
+    localStorage.setItem(REPORTS_LS_KEY, JSON.stringify(reports.slice(0, 30)));
+    renderReportTab();
+  }
+}
+
+/* 카드 조정값 기반 PDF 재생성 */
+async function _regenP2Pdf() {
+  if (!_p2LastAiData) return;
+  const analysis  = _p2LastAiData.analysis  || {};
+  const extracted = _p2LastAiData.extracted || {};
+
+  const COLS = ['agg', 'avg', 'cons'];
+
+  const buildSection = (analysisKey, storeKey, segLabel) => {
+    const marketData   = analysis[analysisKey] || {};
+    const rawScenarios = Array.isArray(marketData.scenarios) ? marketData.scenarios : [];
+    if (!rawScenarios.length) return null;
+
+    const scenarios = COLS.map((col, i) => {
+      const adjusted     = _computeAdjustedPriceSgd(col, storeKey);
+      const aiPrice      = Number(rawScenarios[i]?.price_sgd || 0);
+      const reason       = rawScenarios[i]?.reason  || '';
+      const origFormula  = rawScenarios[i]?.formula || '';
+      const label        = rawScenarios[i]?.name || rawScenarios[i]?.label
+                           || (col === 'agg' ? '저가 진입' : col === 'avg' ? '기준가' : '프리미엄');
+      const formula = (aiPrice > 0 && Math.abs(adjusted - aiPrice) > 0.005)
+        ? `${origFormula ? origFormula + ' | ' : ''}조정 후: SGD ${adjusted.toFixed(2)}`
+        : origFormula;
+      return { label, price: adjusted, reason, formula };
+    });
+
+    return { seg_label: segLabel, base_price: scenarios[1]?.price ?? 0, scenarios };
+  };
+
+  const sections = [
+    buildSection('public_market',  'public',  '공공 시장 (ALPS·조달청 채널)'),
+    buildSection('private_market', 'private', '민간 시장 (병원·약국·체인 채널)'),
+  ].filter(Boolean);
+
+  if (!sections.length) return;
+
+  try {
+    const resp = await fetch('/api/p2/regenerate-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_name: extracted.product_name || '미상',
+        inn_name:     extracted.inn_name     || '',
+        verdict:      extracted.verdict      || '—',
+        mode_label:   'AI 분석 (Claude Haiku)',
+        macro_text:   analysis.rationale     || '',
+        sections,
+      }),
+    });
+    const data = await resp.json();
+    if (data.ok && data.pdf) _updateLatestP2PdfName(data.pdf);
+  } catch (err) {
+    console.warn('PDF 재생성 실패:', err);
+  }
+}
+
+function _scheduleP2PdfRegen() {
+  if (!_p2LastAiData) return;
+  clearTimeout(_p2PdfRegenTimer);
+  _p2PdfRegenTimer = setTimeout(_regenP2Pdf, 600);
+}
+
 /* P2 3열 카드: 기준가 + opts 배열 기반 재계산 (USD 환산 수정: × sgd_usd) */
 function recalcP2Col(col) {
   const base   = parseFloat(document.getElementById('p2ci-base-' + col)?.value || 0);
@@ -942,8 +1043,12 @@ function recalcP2Col(col) {
 
   const priceEl = document.getElementById('p2c-price-' + col);
   const subEl   = document.getElementById('p2c-sub-' + col);
+  const krwEl   = document.getElementById('p2c-krw-' + col);
   if (priceEl) priceEl.textContent = usdVal > 0 ? usdVal.toFixed(2) : '—';
   if (subEl)   subEl.textContent   = `${priceSgd.toFixed(2)} SGD`;
+  if (krwEl)   krwEl.textContent   = krw !== '—' ? `${krw} KRW` : '— KRW';
+
+  _scheduleP2PdfRegen();
 }
 
 /* renderP2ColOptions — 모달 전용 _renderP2ModalOpts로 통합됨 (호환용 stub) */
@@ -972,6 +1077,7 @@ function updateP2ColOption(col, optId, newVal) {
 }
 
 function _renderP2AiResult(data) {
+  _p2LastAiData = data;   // PDF 재생성에 사용
   const extracted = data?.extracted || {};
   const analysis = data?.analysis || {};
   const rates = data?.exchange_rates || {};

@@ -1806,9 +1806,15 @@ a.pvnews-item:hover { background: rgba(23,63,120,.03); }
 .p2-col-sub {
   font-size: 11.5px;
   color: var(--muted);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   white-space: pre-line;
   line-height: 1.45;
+}
+.p2-col-krw {
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  opacity: 0.75;
 }
 .p2-col-expand-row { margin-bottom: 4px; }
 .p2-col-expand-btn {

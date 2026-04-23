@@ -430,7 +430,7 @@ async def api_exchange() -> JSONResponse:
         import yfinance as yf  # type: ignore[import]
         sgd_krw = float(yf.Ticker("SGDKRW=X").fast_info.last_price)
         usd_krw = float(yf.Ticker("USDKRW=X").fast_info.last_price)
-        sgd_usd = float(yf.Ticker("SGDUSD=X").fast_info.last_price)
+        sgd_usd = float(yf.Ticker("USDSGD=X").fast_info.last_price)  # USDSGD 방향: 1 USD = X SGD
         sgd_jpy = float(yf.Ticker("SGDJPY=X").fast_info.last_price)
         sgd_cny = float(yf.Ticker("SGDCNY=X").fast_info.last_price)
         return {
@@ -1145,6 +1145,76 @@ rationale은 3-4문장으로 시장 근거·판정 근거·리스크를 포함�
     except Exception as exc:
         _p2_ai_task.update({"status": "error", "step": "error", "step_label": str(exc)[:300]})
         await _emit({"phase": "p2_pipeline", "message": f"P2 오류: {exc}", "level": "error"})
+
+
+class P2ScenarioItem(BaseModel):
+    label: str
+    price: float
+    reason: str = ""
+    formula: str = ""
+
+
+class P2SectionItem(BaseModel):
+    seg_label: str
+    base_price: float
+    scenarios: list[P2ScenarioItem]
+
+
+class P2RegenBody(BaseModel):
+    product_name: str = "미상"
+    inn_name: str = ""
+    verdict: str = "—"
+    mode_label: str = "AI 분석 (Claude Haiku)"
+    macro_text: str = ""
+    sections: list[P2SectionItem]
+
+
+@app.post("/api/p2/regenerate-pdf")
+async def p2_regenerate_pdf(body: P2RegenBody) -> JSONResponse:
+    """카드 조정값 기반 2공정 PDF 재생성."""
+    from datetime import datetime, timezone as _tz_regen
+    import re as _re_regen
+
+    _ts_r = datetime.now(_tz_regen.utc).strftime("%Y%m%d_%H%M%S")
+    _reports_dir_r = ROOT / "reports"
+    _reports_dir_r.mkdir(parents=True, exist_ok=True)
+
+    _safe_r = _re_regen.sub(r"[^\w가-힣]", "_", body.product_name)[:30] or "product"
+    _pdf_name_r = f"sg_p2_{_safe_r}_{_ts_r}.pdf"
+    _pdf_path_r = _reports_dir_r / _pdf_name_r
+
+    sections = [
+        {
+            "seg_label": sec.seg_label,
+            "base_price": sec.base_price,
+            "scenarios": [
+                {"label": sc.label, "price": sc.price, "reason": sc.reason, "formula": sc.formula}
+                for sc in sec.scenarios
+            ],
+        }
+        for sec in body.sections
+    ]
+
+    pub_base = body.sections[0].base_price if body.sections else 0
+
+    p2_data = {
+        "product_name": body.product_name,
+        "inn_name":     body.inn_name,
+        "verdict":      body.verdict,
+        "seg_label":    "공공·민간 시장 통합",
+        "base_price":   pub_base,
+        "formula_str":  "",
+        "mode_label":   body.mode_label,
+        "macro_text":   body.macro_text,
+        "scenarios":    sections[0]["scenarios"] if sections else [],
+        "ai_rationale": [body.macro_text] if body.macro_text else [],
+        "sections":     sections,
+    }
+
+    from report_generator import render_p2_pdf
+    await asyncio.to_thread(render_p2_pdf, p2_data, _pdf_path_r)
+
+    return JSONResponse({"ok": True, "pdf": _pdf_name_r})
 
 
 class UploadBody(BaseModel):
