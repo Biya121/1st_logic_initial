@@ -105,18 +105,29 @@ def load_buyers(product_key: str) -> list[dict[str, Any]]:
     except Exception:
         return []
 
-    if sheet_name not in wb.sheetnames:
-        return []
+    _SHEET_IDX = {"SG_omethyl_omega3_2g": 0, "SG_sereterol_activair": 1}
+    if sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+    else:
+        idx = _SHEET_IDX.get(product_key)
+        if idx is None or idx >= len(wb.worksheets):
+            return []
+        ws = wb.worksheets[idx]
 
-    ws = wb[sheet_name]
     rows = list(ws.iter_rows(values_only=True))
 
     if len(rows) < 5:
         return []
 
+    # 첫 번째 컬럼이 숫자인 행을 데이터 시작점으로 동적 탐지
+    data_start = next(
+        (i for i, r in enumerate(rows) if r and isinstance(r[0], (int, float))),
+        4,
+    )
+
     buyers: list[dict[str, Any]] = []
 
-    for row in rows[4:]:  # Row 4+ = data
+    for row in rows[data_start:]:
         if not row or row[0] is None:
             continue
 
